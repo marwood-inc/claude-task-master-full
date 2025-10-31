@@ -4,6 +4,10 @@
  * with conflict detection and atomic file operations
  */
 
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import type { SyncMapping, SyncConflict } from '../types/github-types.js';
 import type {
 	GitHubSyncStateFile,
@@ -42,6 +46,12 @@ export class GitHubSyncStateService {
 	private readonly options: Required<StateFileOptions>;
 
 	/**
+	 * File locks for atomic operations
+	 * Maps file paths to promises to ensure sequential access
+	 */
+	private fileLocks: Map<string, Promise<void>> = new Map();
+
+	/**
 	 * Current version of the state file schema
 	 */
 	private static readonly SCHEMA_VERSION = '1.0.0';
@@ -72,7 +82,16 @@ export class GitHubSyncStateService {
 	 * Initialize the sync state file if it doesn't exist
 	 */
 	async initialize(): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const filePath = this.getStateFilePath();
+		const exists = await this.fileExists(filePath);
+
+		if (exists) {
+			return { success: true };
+		}
+
+		// Create empty state and save it
+		const emptyState = this.createEmptyState();
+		return await this.saveState(emptyState);
 	}
 
 	/**
@@ -81,7 +100,8 @@ export class GitHubSyncStateService {
 	 * @returns The sync mapping if found, null otherwise
 	 */
 	async getMapping(taskId: string): Promise<SyncMapping | null> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		return state.mappings[taskId] || null;
 	}
 
 	/**
@@ -89,7 +109,8 @@ export class GitHubSyncStateService {
 	 * @returns All sync mappings
 	 */
 	async getAllMappings(): Promise<SyncMapping[]> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		return Object.values(state.mappings);
 	}
 
 	/**
@@ -98,7 +119,11 @@ export class GitHubSyncStateService {
 	 * @returns The sync mapping if found, null otherwise
 	 */
 	async getMappingByIssue(issueNumber: number): Promise<SyncMapping | null> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		const mappings = Object.values(state.mappings);
+		return (
+			mappings.find((mapping) => mapping.issueNumber === issueNumber) || null
+		);
 	}
 
 	/**
@@ -106,7 +131,9 @@ export class GitHubSyncStateService {
 	 * @param mapping - Sync mapping to set
 	 */
 	async setMapping(mapping: SyncMapping): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		return await this.modifyState((state) => {
+			state.mappings[mapping.taskId] = mapping;
+		});
 	}
 
 	/**
@@ -114,7 +141,23 @@ export class GitHubSyncStateService {
 	 * @param taskId - Task ID to delete
 	 */
 	async deleteMapping(taskId: string): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+
+		if (!state.mappings[taskId]) {
+			return {
+				success: false,
+				error: `Mapping for task ${taskId} not found`
+			};
+		}
+
+		delete state.mappings[taskId];
+
+		// Also delete associated change metadata
+		if (state.changeMetadata[taskId]) {
+			delete state.changeMetadata[taskId];
+		}
+
+		return await this.saveState(state);
 	}
 
 	/**
@@ -122,7 +165,8 @@ export class GitHubSyncStateService {
 	 * @returns All unresolved conflicts
 	 */
 	async getConflicts(): Promise<SyncConflict[]> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		return state.conflicts.filter((c) => !c.resolved);
 	}
 
 	/**
@@ -130,7 +174,25 @@ export class GitHubSyncStateService {
 	 * @param conflict - Conflict to add
 	 */
 	async addConflict(conflict: SyncConflict): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+
+		// Check if conflict already exists
+		const existingIndex = state.conflicts.findIndex(
+			(c) =>
+				c.taskId === conflict.taskId &&
+				c.issueNumber === conflict.issueNumber &&
+				c.type === conflict.type
+		);
+
+		if (existingIndex >= 0) {
+			// Update existing conflict
+			state.conflicts[existingIndex] = conflict;
+		} else {
+			// Add new conflict
+			state.conflicts.push(conflict);
+		}
+
+		return await this.saveState(state);
 	}
 
 	/**
@@ -142,7 +204,23 @@ export class GitHubSyncStateService {
 		taskId: string,
 		issueNumber: number
 	): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+
+		const conflictIndex = state.conflicts.findIndex(
+			(c) => c.taskId === taskId && c.issueNumber === issueNumber
+		);
+
+		if (conflictIndex === -1) {
+			return {
+				success: false,
+				error: `Conflict not found for task ${taskId} and issue ${issueNumber}`
+			};
+		}
+
+		// Mark conflict as resolved
+		state.conflicts[conflictIndex].resolved = true;
+
+		return await this.saveState(state);
 	}
 
 	/**
@@ -152,7 +230,24 @@ export class GitHubSyncStateService {
 	async recordOperation(
 		operation: Omit<SyncOperationRecord, 'operationId' | 'timestamp'>
 	): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		return await this.modifyState((state) => {
+			// Create full operation record
+			const fullOperation: SyncOperationRecord = {
+				...operation,
+				operationId: randomUUID(),
+				timestamp: new Date().toISOString()
+			};
+
+			// Add to history
+			state.operationHistory.push(fullOperation);
+
+			// Trim history if it exceeds max size
+			if (state.operationHistory.length > state.maxHistorySize) {
+				state.operationHistory = state.operationHistory.slice(
+					-state.maxHistorySize
+				);
+			}
+		});
 	}
 
 	/**
@@ -161,7 +256,13 @@ export class GitHubSyncStateService {
 	 * @returns Recent sync operations
 	 */
 	async getOperationHistory(limit?: number): Promise<SyncOperationRecord[]> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+
+		if (limit) {
+			return state.operationHistory.slice(-limit);
+		}
+
+		return state.operationHistory;
 	}
 
 	/**
@@ -202,7 +303,9 @@ export class GitHubSyncStateService {
 	 * Mark sync as in progress
 	 */
 	async markSyncInProgress(): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		state.syncInProgress = true;
+		return await this.saveState(state);
 	}
 
 	/**
@@ -212,7 +315,11 @@ export class GitHubSyncStateService {
 	async markSyncComplete(
 		error?: string
 	): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		state.syncInProgress = false;
+		state.lastSyncAt = new Date().toISOString();
+		state.lastSyncError = error || null;
+		return await this.saveState(state);
 	}
 
 	/**
@@ -220,7 +327,44 @@ export class GitHubSyncStateService {
 	 * @returns Statistics about the sync state
 	 */
 	async getStats(): Promise<SyncStateStats> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		const filePath = this.getStateFilePath();
+
+		// Count mappings by status
+		const mappings = Object.values(state.mappings);
+		const syncedMappings = mappings.filter((m) => m.status === 'synced').length;
+		const pendingMappings = mappings.filter((m) => m.status === 'pending')
+			.length;
+		const conflictMappings = mappings.filter((m) => m.status === 'conflict')
+			.length;
+		const errorMappings = mappings.filter((m) => m.status === 'error').length;
+
+		// Get file size
+		let fileSizeBytes = 0;
+		try {
+			const stats = await fs.stat(filePath);
+			fileSizeBytes = stats.size;
+		} catch {
+			// File might not exist yet
+		}
+
+		// Determine if cleanup is needed
+		const needsCleanup =
+			state.operationHistory.length >= state.maxHistorySize * 0.9 ||
+			state.conflicts.filter((c) => c.resolved).length > 100;
+
+		return {
+			totalMappings: mappings.length,
+			syncedMappings,
+			pendingMappings,
+			conflictMappings,
+			errorMappings,
+			unresolvedConflicts: state.conflicts.filter((c) => !c.resolved).length,
+			operationHistoryCount: state.operationHistory.length,
+			lastSyncAt: state.lastSyncAt,
+			fileSizeBytes,
+			needsCleanup
+		};
 	}
 
 	/**
@@ -228,7 +372,29 @@ export class GitHubSyncStateService {
 	 * @param maxAgeDays - Maximum age of operations to keep
 	 */
 	async cleanupHistory(maxAgeDays?: number): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const state = await this.loadState();
+		const ageDays = maxAgeDays || this.options.maxHistoryAgeDays;
+		const cutoffDate = new Date();
+		cutoffDate.setDate(cutoffDate.getDate() - ageDays);
+
+		// Filter out old operations
+		const originalCount = state.operationHistory.length;
+		state.operationHistory = state.operationHistory.filter((op) => {
+			const opDate = new Date(op.timestamp);
+			return opDate >= cutoffDate;
+		});
+
+		// Remove resolved conflicts
+		state.conflicts = state.conflicts.filter((c) => !c.resolved);
+
+		const removedCount = originalCount - state.operationHistory.length;
+
+		const result = await this.saveState(state);
+
+		return {
+			...result,
+			warnings: removedCount > 0 ? [`Removed ${removedCount} old operations`] : []
+		};
 	}
 
 	/**
@@ -253,37 +419,256 @@ export class GitHubSyncStateService {
 	 * @returns Whether the state file is valid
 	 */
 	async validateStateFile(state: unknown): Promise<boolean> {
-		throw new Error('Not implemented - will be implemented in subtask 3.4');
+		// Basic validation for now - full schema validation in subtask 3.4
+		if (!state || typeof state !== 'object') {
+			return false;
+		}
+
+		const s = state as any;
+
+		// Check required fields
+		if (
+			!s.version ||
+			!s.owner ||
+			!s.repo ||
+			!s.mappings ||
+			!Array.isArray(s.conflicts) ||
+			!s.changeMetadata ||
+			!Array.isArray(s.operationHistory)
+		) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
 	 * Get the path to the state file
 	 */
 	private getStateFilePath(): string {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		return path.join(
+			this.getTaskmasterDir(),
+			GitHubSyncStateService.STATE_FILE_NAME
+		);
 	}
 
 	/**
 	 * Get the path to the taskmaster directory
 	 */
 	private getTaskmasterDir(): string {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		return path.join(this.projectPath, '.taskmaster');
 	}
 
 	/**
 	 * Load the state file
 	 */
 	private async loadState(): Promise<GitHubSyncStateFile> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const filePath = this.getStateFilePath();
+
+		try {
+			const content = await fs.readFile(filePath, 'utf-8');
+			const state = JSON.parse(content) as GitHubSyncStateFile;
+
+			// Validate schema if enabled
+			if (this.options.validateSchema) {
+				const isValid = await this.validateStateFile(state);
+				if (!isValid) {
+					throw new Error('Invalid state file schema');
+				}
+			}
+
+			return state;
+		} catch (error: any) {
+			if (error.code === 'ENOENT') {
+				// File doesn't exist, return empty state
+				return this.createEmptyState();
+			}
+
+			// If it's a JSON parse error and auto-recovery is enabled
+			if (
+				error instanceof SyntaxError &&
+				this.options.autoRecoverFromBackup
+			) {
+				// Will be implemented in subtask 3.4
+				throw new Error(
+					`State file corrupted: ${error.message}. Auto-recovery will be implemented in subtask 3.4`
+				);
+			}
+
+			throw new Error(`Failed to load state file: ${error.message}`);
+		}
 	}
 
 	/**
-	 * Save the state file
+	 * Save the state file with atomic write operation
 	 */
 	private async saveState(
 		state: GitHubSyncStateFile
 	): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.2');
+		const filePath = this.getStateFilePath();
+		const lockKey = filePath;
+
+		// Create a promise that will be resolved when the write is complete
+		let releaseLock: () => void;
+		const lockPromise = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+
+		// Wait for any existing lock
+		const existingLock = this.fileLocks.get(lockKey);
+		if (existingLock) {
+			await existingLock;
+		}
+
+		// Set our lock
+		this.fileLocks.set(lockKey, lockPromise);
+
+		try {
+			await this.performAtomicWrite(filePath, state);
+			return { success: true };
+		} catch (error: any) {
+			return {
+				success: false,
+				error: error.message
+			};
+		} finally {
+			// Release the lock
+			this.fileLocks.delete(lockKey);
+			releaseLock!();
+		}
+	}
+
+	/**
+	 * Perform atomic write operation using temporary file
+	 */
+	private async performAtomicWrite(
+		filePath: string,
+		state: GitHubSyncStateFile
+	): Promise<void> {
+		const tempPath = `${filePath}.tmp`;
+		const dir = path.dirname(filePath);
+
+		try {
+			// Ensure directory exists
+			await fs.mkdir(dir, { recursive: true });
+
+			// Create backup if enabled
+			if (this.options.createBackup) {
+				const exists = await this.fileExists(filePath);
+				if (exists) {
+					// Backup will be fully implemented in subtask 3.4
+					// For now, we'll just note that a backup should be created
+				}
+			}
+
+			// Update timestamps
+			state.updatedAt = new Date().toISOString();
+
+			// Write to temp file first
+			const content = JSON.stringify(state, null, 2);
+			await fs.writeFile(tempPath, content, 'utf-8');
+
+			// Atomic rename
+			await fs.rename(tempPath, filePath);
+		} catch (error: any) {
+			// Clean up temp file if it exists
+			try {
+				await fs.unlink(tempPath);
+			} catch {
+				// Ignore cleanup errors
+			}
+
+			throw new Error(`Failed to write state file: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Check if file exists
+	 */
+	private async fileExists(filePath: string): Promise<boolean> {
+		try {
+			await fs.access(filePath, constants.F_OK);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Modify state atomically with proper locking
+	 * Ensures read-modify-write cycle is atomic
+	 */
+	private async modifyState(
+		modifier: (state: GitHubSyncStateFile) => void
+	): Promise<StateFileOperationResult> {
+		const filePath = this.getStateFilePath();
+		const lockKey = filePath;
+
+		// Create a promise that will be resolved when the modification is complete
+		let releaseLock: () => void;
+		const lockPromise = new Promise<void>((resolve) => {
+			releaseLock = resolve;
+		});
+
+		// Wait for any existing lock
+		const existingLock = this.fileLocks.get(lockKey);
+		if (existingLock) {
+			await existingLock;
+		}
+
+		// Set our lock
+		this.fileLocks.set(lockKey, lockPromise);
+
+		try {
+			// Read current state within the lock
+			const state = await this.loadStateWithoutLock();
+
+			// Apply modification
+			modifier(state);
+
+			// Write state within the lock
+			await this.performAtomicWrite(filePath, state);
+
+			return { success: true };
+		} catch (error: any) {
+			return {
+				success: false,
+				error: error.message
+			};
+		} finally {
+			// Release the lock
+			this.fileLocks.delete(lockKey);
+			releaseLock!();
+		}
+	}
+
+	/**
+	 * Load state without acquiring lock (for use within locked operations)
+	 */
+	private async loadStateWithoutLock(): Promise<GitHubSyncStateFile> {
+		const filePath = this.getStateFilePath();
+
+		try {
+			const content = await fs.readFile(filePath, 'utf-8');
+			const state = JSON.parse(content) as GitHubSyncStateFile;
+
+			// Validate schema if enabled
+			if (this.options.validateSchema) {
+				const isValid = await this.validateStateFile(state);
+				if (!isValid) {
+					throw new Error('Invalid state file schema');
+				}
+			}
+
+			return state;
+		} catch (error: any) {
+			if (error.code === 'ENOENT') {
+				// File doesn't exist, return empty state
+				return this.createEmptyState();
+			}
+
+			throw new Error(`Failed to load state file: ${error.message}`);
+		}
 	}
 
 	/**

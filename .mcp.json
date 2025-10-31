@@ -35,7 +35,7 @@
 				"start-mcp-server",
 				"serena==latest",
 				"--context",
-				"ide-assistant"
+				"agent"
 			],
 			"gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/0658e342-7ae7-493a-b378-a324363ee322",
 			"version": "1.0.0"

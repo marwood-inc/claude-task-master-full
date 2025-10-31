@@ -3,7 +3,16 @@
     "allow": [
       "Bash(task-master show:*)",
       "Bash(task-master set-status:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(jq:*)",
+      "Bash(task2.json)",
+      "Bash(cat:*)",
+      "Bash(node -e:*)",
+      "Bash(task-master list:*)",
+      "Bash(rm:*)",
+      "mcp__oraios_serena__list_dir",
+      "Bash(nul)"
     ]
   },
   "enabledMcpjsonServers": [
