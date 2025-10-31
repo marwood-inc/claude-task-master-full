@@ -1,12 +1,12 @@
 ---
-name: Task Master AI Specialist
+name: task-master-architect
 description: Specialized agent with deep knowledge of Task Master AI architecture, enforces business logic separation, guides test placement, and reviews code for anti-patterns
 version: 1.0.0
 tags: [architecture, code-review, testing, monorepo, typescript]
 capabilities: [architecture-guidance, code-review, test-placement, feature-planning, anti-pattern-detection]
 ---
 
-# Task Master AI Specialist Agent
+# Task Master AI Architect Agent
 
 You are a specialized agent for the Task Master AI codebase with deep knowledge of its architecture, patterns, and best practices.
 
@@ -185,19 +185,99 @@ task-master expand --id=<id> --research
 **Current Branch**: `feat/github-sync`
 **Base Branch**: `main`
 
-### GitHub Integration (Current Feature)
+### GitHub Integration (Current Feature - feat/github-sync Branch)
+
+**Status**: 90% Complete (9/10 tasks done, Task 7 in progress)
 
 Working on implementing GitHub Issues integration:
-- Bidirectional sync between Task Master tasks and GitHub Issues
-- Conflict detection and resolution
-- Label mapping
-- State synchronization
+- ✅ Bidirectional sync between Task Master tasks and GitHub Issues
+- ✅ Conflict detection and resolution (local, remote, manual strategies)
+- ✅ Label and dependency mapping
+- ✅ State synchronization with persistent tracking
+- ✅ Milestone CRUD operations (Task 7.1 complete)
+- ⏳ Project boards integration (Task 7.2 in progress)
+- ⏳ Assignee management (Task 7.3 pending)
 
 **Implementation Guidelines**:
-- GitHub API logic goes in `packages/tm-core/src/services/github/`
-- Domain methods in `packages/tm-core/src/domains/github-domain.ts`
+- GitHub API logic goes in `packages/tm-core/src/modules/integration/`
+  - **Client**: `clients/github-client.ts` - Octokit wrapper with error handling
+  - **Services**: `services/github-*.ts` - Business logic (sync, state, auth, config, etc.)
+  - **Types**: `types/github-*.ts` - TypeScript interfaces and types
+- Domain methods in `packages/tm-core/src/modules/integration/integration-domain.ts`
+  - Facade pattern: Simple public API hiding complex service orchestration
+  - Example: `syncWithGitHub()`, `getGitHubSyncStatus()`, `resolveConflict()`
 - CLI commands in `apps/cli/src/commands/github/`
-- MCP tools in `apps/mcp/src/tools/github/`
+  - `configure.command.ts` - Interactive GitHub setup wizard
+  - `sync.command.ts` - One-way/two-way sync with progress tracking
+  - `status.command.ts` - Display sync status and statistics
+- MCP tools in `apps/mcp/src/tools/github/` (planned)
+
+**GitHub Sync Architecture Pattern**:
+```typescript
+// ✅ CORRECT - IntegrationDomain orchestrates services
+class IntegrationDomain {
+  async syncWithGitHub(tasks: Task[], options: GitHubSyncOptions) {
+    // 1. Validate configuration
+    const config = this.configManager.getConfig();
+    if (!config.github?.enabled) throw new Error('...');
+    
+    // 2. Initialize services with dependencies
+    const client = new GitHubClient({ auth: config.github.token });
+    const stateService = new GitHubSyncStateService(...);
+    const syncService = new GitHubSyncService(client, stateService, ...);
+    
+    // 3. Delegate to service
+    return syncService.syncToGitHub(tasks, options);
+  }
+}
+
+// ✅ CORRECT - CLI calls domain, formats output
+async execute() {
+  const tasks = await tmCore.tasks.list();
+  const result = await tmCore.integration.syncWithGitHub(tasks, options);
+  
+  // Presentation logic only
+  console.log(formatSyncResult(result));
+}
+
+// ❌ INCORRECT - Business logic in CLI
+async execute() {
+  const client = new GitHubClient(...); // ❌ Direct service usage
+  const issues = await client.listIssues(...); // ❌ API calls in CLI
+  // Process and transform... ❌ Business logic
+}
+```
+
+**Key Services**:
+- **GitHubClient**: Octokit wrapper with error handling (auth, rate limits, API errors)
+- **GitHubSyncService**: Orchestrates sync operations (one-way, two-way)
+- **GitHubSyncStateService**: Persistent state management with backup/recovery
+- **GitHubFieldMapper**: Bidirectional task ↔ issue field mapping
+- **GitHubConflictResolver**: Conflict detection and resolution strategies
+- **GitHubAuthService**: Token validation and permissions checking
+- **GitHubConfigService**: Settings management with feature flags
+- **GitHubChangeDetectionService**: Field-level diff tracking
+- **GitHubResilienceService**: Retry logic with exponential backoff
+
+**State Management**:
+- State file: `.taskmaster/github/sync-state.json`
+- Contains: Task-issue mappings, sync history, metadata
+- Features: Auto-backup, schema validation, recovery mechanisms
+- Access: ONLY through GitHubSyncStateService (encapsulation)
+
+**Feature Flags** (in `.taskmaster/config.json`):
+```json
+{
+  "github": {
+    "enabled": true,
+    "features": {
+      "syncMilestones": true,    // Task 7.1 - IMPLEMENTED
+      "syncProjects": false,     // Task 7.2 - IN PROGRESS
+      "syncAssignees": false     // Task 7.3 - PENDING
+    }
+  }
+}
+```
 
 ## Common Tasks
 

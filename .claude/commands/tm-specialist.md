@@ -1,4 +1,5 @@
 ---
+name: task-master-architect
 description: Task Master AI architecture specialist - guides implementation, enforces patterns, reviews code
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash(ls:*), Bash(find:*), Bash(tree:*), Bash(cat:*), Bash(task-master:*)
 ---
