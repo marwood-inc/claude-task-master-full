@@ -9,6 +9,7 @@ import fs from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { ResourceMutex } from '../../../common/utils/mutex.js';
 import type { SyncMapping, SyncConflict } from '../types/github-types.js';
 import type {
 	GitHubSyncStateFile,
@@ -144,10 +145,10 @@ export class GitHubSyncStateService {
 	private readonly options: Required<StateFileOptions>;
 
 	/**
-	 * File locks for atomic operations
-	 * Maps file paths to promises to ensure sequential access
+	 * Mutex for atomic file operations
+	 * Ensures safe concurrent access to state files with timeout protection
 	 */
-	private fileLocks: Map<string, Promise<void>> = new Map();
+	private readonly mutex: ResourceMutex;
 
 	/**
 	 * Current version of the state file schema
@@ -174,6 +175,9 @@ export class GitHubSyncStateService {
 		this.owner = owner;
 		this.repo = repo;
 		this.options = { ...DEFAULT_STATE_OPTIONS, ...options };
+
+		// Initialize mutex with 30-second timeout to prevent deadlocks
+		this.mutex = new ResourceMutex({ timeout: 30000 });
 	}
 
 	/**
@@ -793,22 +797,7 @@ export class GitHubSyncStateService {
 		state: GitHubSyncStateFile
 	): Promise<StateFileOperationResult> {
 		const filePath = this.getStateFilePath();
-		const lockKey = filePath;
-
-		// Create a promise that will be resolved when the write is complete
-		let releaseLock: () => void;
-		const lockPromise = new Promise<void>((resolve) => {
-			releaseLock = resolve;
-		});
-
-		// Wait for any existing lock
-		const existingLock = this.fileLocks.get(lockKey);
-		if (existingLock) {
-			await existingLock;
-		}
-
-		// Set our lock
-		this.fileLocks.set(lockKey, lockPromise);
+		const release = await this.mutex.acquire(filePath);
 
 		try {
 			const result = await this.performAtomicWrite(filePath, state);
@@ -819,9 +808,7 @@ export class GitHubSyncStateService {
 				error: error.message
 			};
 		} finally {
-			// Release the lock
-			this.fileLocks.delete(lockKey);
-			releaseLock!();
+			release();
 		}
 	}
 
@@ -900,22 +887,7 @@ export class GitHubSyncStateService {
 		modifier: (state: GitHubSyncStateFile) => void
 	): Promise<StateFileOperationResult> {
 		const filePath = this.getStateFilePath();
-		const lockKey = filePath;
-
-		// Create a promise that will be resolved when the modification is complete
-		let releaseLock: () => void;
-		const lockPromise = new Promise<void>((resolve) => {
-			releaseLock = resolve;
-		});
-
-		// Wait for any existing lock
-		const existingLock = this.fileLocks.get(lockKey);
-		if (existingLock) {
-			await existingLock;
-		}
-
-		// Set our lock
-		this.fileLocks.set(lockKey, lockPromise);
+		const release = await this.mutex.acquire(filePath);
 
 		try {
 			// Read current state within the lock
@@ -934,9 +906,7 @@ export class GitHubSyncStateService {
 				error: error.message
 			};
 		} finally {
-			// Release the lock
-			this.fileLocks.delete(lockKey);
-			releaseLock!();
+			release();
 		}
 	}
 
@@ -1006,22 +976,7 @@ export class GitHubSyncStateService {
 		state: GitHubSyncStateFile
 	): Promise<StateFileOperationResult> {
 		const filePath = this.getStateFilePath();
-		const lockKey = filePath;
-
-		// Create a promise that will be resolved when the write is complete
-		let releaseLock: () => void;
-		const lockPromise = new Promise<void>((resolve) => {
-			releaseLock = resolve;
-		});
-
-		// Wait for any existing lock
-		const existingLock = this.fileLocks.get(lockKey);
-		if (existingLock) {
-			await existingLock;
-		}
-
-		// Set our lock
-		this.fileLocks.set(lockKey, lockPromise);
+		const release = await this.mutex.acquire(filePath);
 
 		try {
 			const result = await this.performAtomicWrite(filePath, state, false);
@@ -1032,9 +987,7 @@ export class GitHubSyncStateService {
 				error: error.message
 			};
 		} finally {
-			// Release the lock
-			this.fileLocks.delete(lockKey);
-			releaseLock!();
+			release();
 		}
 	}
 
