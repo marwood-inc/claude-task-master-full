@@ -248,6 +248,8 @@ export interface GitHubSettings {
 	owner?: string;
 	/** Repository name */
 	repo?: string;
+	/** GitHub API base URL (for GitHub Enterprise, defaults to 'https://api.github.com') */
+	baseUrl?: string;
 	/** How to handle subtasks in GitHub */
 	subtaskMode: 'checklist' | 'separate-issues';
 	/** Conflict resolution strategy */

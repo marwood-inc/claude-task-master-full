@@ -388,4 +388,157 @@ export class IntegrationDomain {
 			}
 		};
 	}
+
+	// ========== Milestone Management Operations ==========
+
+	/**
+	 * Create a GitHub milestone
+	 * @param title Milestone title
+	 * @param options Optional milestone properties
+	 * @returns Created milestone
+	 */
+	async createMilestone(
+		title: string,
+		options?: {
+			description?: string;
+			dueOn?: string;
+			state?: 'open' | 'closed';
+		}
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if milestone feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncMilestones) {
+			throw new Error(
+				'Milestone sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.createMilestone(owner, repo, {
+			title,
+			description: options?.description,
+			due_on: options?.dueOn,
+			state: options?.state
+		});
+	}
+
+	/**
+	 * Get a GitHub milestone by number
+	 * @param milestoneNumber Milestone number
+	 * @returns Milestone details
+	 */
+	async getMilestone(milestoneNumber: number): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		return client.getMilestone(owner, repo, milestoneNumber);
+	}
+
+	/**
+	 * Update a GitHub milestone
+	 * @param milestoneNumber Milestone number
+	 * @param updates Milestone updates
+	 * @returns Updated milestone
+	 */
+	async updateMilestone(
+		milestoneNumber: number,
+		updates: {
+			title?: string;
+			description?: string;
+			dueOn?: string;
+			state?: 'open' | 'closed';
+		}
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if milestone feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncMilestones) {
+			throw new Error(
+				'Milestone sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.updateMilestone(owner, repo, milestoneNumber, {
+			title: updates.title,
+			description: updates.description,
+			due_on: updates.dueOn,
+			state: updates.state
+		});
+	}
+
+	/**
+	 * Delete a GitHub milestone
+	 * @param milestoneNumber Milestone number
+	 */
+	async deleteMilestone(milestoneNumber: number): Promise<void> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if milestone feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncMilestones) {
+			throw new Error(
+				'Milestone sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.deleteMilestone(owner, repo, milestoneNumber);
+	}
+
+	/**
+	 * List milestones in the configured repository
+	 * @param options List options
+	 * @returns Array of milestones
+	 */
+	async listMilestones(options?: {
+		state?: 'open' | 'closed' | 'all';
+		sort?: 'due_on' | 'completeness';
+		direction?: 'asc' | 'desc';
+	}): Promise<any[]> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		return client.listMilestones(owner, repo, options);
+	}
+
+	/**
+	 * Helper method to get GitHub client and repository info
+	 * @private
+	 */
+	private async getGitHubClientAndRepo(): Promise<{
+		owner: string;
+		repo: string;
+		client: GitHubClient;
+	}> {
+		const config = this.configManager.getConfig();
+		const githubSettings = config.github;
+
+		if (!githubSettings?.enabled) {
+			throw new Error(
+				'GitHub integration is not configured. Run `tm github configure` first.'
+			);
+		}
+
+		if (!githubSettings.owner || !githubSettings.repo) {
+			throw new Error(
+				'GitHub owner and repository not configured. Run `tm github configure` first.'
+			);
+		}
+
+		if (!githubSettings.token) {
+			throw new Error(
+				'GitHub token is missing. Run `tm github configure` first.'
+			);
+		}
+
+		const client = new GitHubClient({
+			auth: githubSettings.token,
+			baseUrl: githubSettings.baseUrl
+		});
+
+		return {
+			owner: githubSettings.owner,
+			repo: githubSettings.repo,
+			client
+		};
+	}
 }
