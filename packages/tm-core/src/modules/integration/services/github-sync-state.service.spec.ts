@@ -658,4 +658,328 @@ describe('GitHubSyncStateService', () => {
 			expect(history).toHaveLength(10);
 		});
 	});
+
+	describe('backup and recovery', () => {
+		beforeEach(async () => {
+			await service.initialize();
+		});
+
+		it('should create a backup with timestamp and UUID', async () => {
+			// Add some mappings
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			const backupPath = await service.createBackup();
+
+			// Verify backup file exists
+			expect(backupPath).toBeTruthy();
+			const backupExists = await fs
+				.access(backupPath)
+				.then(() => true)
+				.catch(() => false);
+			expect(backupExists).toBe(true);
+
+			// Verify backup contains correct data
+			const backupContent = await fs.readFile(backupPath, 'utf-8');
+			const backupState = JSON.parse(backupContent);
+			expect(backupState.mappings['1']).toBeDefined();
+			expect(backupState.mappings['1'].issueNumber).toBe(123);
+		});
+
+		it('should recover from backup when state file is corrupted (truncated JSON)', async () => {
+			// Create a valid state with mappings
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// Create a backup
+			await service.createBackup();
+
+			// Corrupt the state file (truncated JSON)
+			const statePath = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'github-sync-state.json'
+			);
+			await fs.writeFile(statePath, '{"version": "1.0.0", "owner": "test', 'utf-8');
+
+			// Create a new service instance with auto-recovery enabled
+			const recoveryService = new GitHubSyncStateService(
+				testProjectPath,
+				'test-owner',
+				'test-repo',
+				{ autoRecoverFromBackup: true }
+			);
+
+			// Attempt to get mapping - should trigger auto-recovery
+			const mapping = await recoveryService.getMapping('1');
+
+			// Verify recovery succeeded
+			expect(mapping).toBeDefined();
+			expect(mapping?.issueNumber).toBe(123);
+		});
+
+		it('should recover from backup when state file has schema validation failure', async () => {
+			// Create a valid state with mappings
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// Create a backup
+			await service.createBackup();
+
+			// Write invalid state (missing required fields)
+			const statePath = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'github-sync-state.json'
+			);
+			await fs.writeFile(
+				statePath,
+				JSON.stringify({
+					version: '1.0.0',
+					owner: 'test-owner'
+					// Missing required fields
+				}),
+				'utf-8'
+			);
+
+			// Create a new service instance with validation and auto-recovery enabled
+			const recoveryService = new GitHubSyncStateService(
+				testProjectPath,
+				'test-owner',
+				'test-repo',
+				{ validateSchema: true, autoRecoverFromBackup: true }
+			);
+
+			// Attempt to get mapping - should trigger auto-recovery
+			const mapping = await recoveryService.getMapping('1');
+
+			// Verify recovery succeeded
+			expect(mapping).toBeDefined();
+			expect(mapping?.issueNumber).toBe(123);
+		});
+
+		it('should recover from explicit backup path', async () => {
+			// Create initial state
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			const backupPath = await service.createBackup();
+
+			// Modify state
+			await service.setMapping({
+				taskId: '2',
+				issueNumber: 456,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-02T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// Recover from specific backup
+			const result = await service.recoverFromBackup(backupPath);
+
+			expect(result.success).toBe(true);
+			expect(result.recoveryPerformed).toBe(true);
+
+			// Verify state was restored
+			const mapping1 = await service.getMapping('1');
+			const mapping2 = await service.getMapping('2');
+
+			expect(mapping1).toBeDefined();
+			expect(mapping2).toBeNull(); // Should not exist in restored backup
+		});
+
+		it('should return error when backup path does not exist', async () => {
+			const result = await service.recoverFromBackup('/nonexistent/backup.json');
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('not found');
+		});
+
+		it('should return error when no valid backups exist', async () => {
+			const result = await service.recoverFromBackup();
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('No valid backup');
+		});
+
+		it('should create empty state when both primary and backups fail validation', async () => {
+			// Corrupt the state file
+			const statePath = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'github-sync-state.json'
+			);
+			await fs.mkdir(path.dirname(statePath), { recursive: true });
+			await fs.writeFile(statePath, 'invalid json', 'utf-8');
+
+			// Create a new service with auto-recovery
+			const recoveryService = new GitHubSyncStateService(
+				testProjectPath,
+				'test-owner',
+				'test-repo',
+				{ autoRecoverFromBackup: true }
+			);
+
+			// Should fall back to empty state
+			const mappings = await recoveryService.getAllMappings();
+			expect(mappings).toHaveLength(0);
+		});
+
+		it('should enforce backup retention limit', async () => {
+			// Create more backups than the retention limit (10)
+			for (let i = 0; i < 15; i++) {
+				await service.setMapping({
+					taskId: `${i}`,
+					issueNumber: i,
+					owner: 'test-owner',
+					repo: 'test-repo',
+					lastSyncedAt: '2024-01-01T00:00:00Z',
+					lastSyncDirection: 'to_github',
+					status: 'synced'
+				});
+				await service.createBackup();
+
+				// Small delay to ensure different timestamps
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+
+			// Check backup directory
+			const backupDir = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'backups',
+				'github-sync'
+			);
+			const files = await fs.readdir(backupDir);
+			const backupFiles = files.filter(
+				(f) => f.startsWith('github-sync-state-') && f.endsWith('.json')
+			);
+
+			// Should not exceed retention limit
+			expect(backupFiles.length).toBeLessThanOrEqual(10);
+		});
+
+		it('should validate backup file before recovery', async () => {
+			// Create backup directory
+			const backupDir = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'backups',
+				'github-sync'
+			);
+			await fs.mkdir(backupDir, { recursive: true });
+
+			// Create invalid backup file
+			const invalidBackupPath = path.join(backupDir, 'github-sync-state-invalid.json');
+			await fs.writeFile(
+				invalidBackupPath,
+				JSON.stringify({ invalid: 'data' }),
+				'utf-8'
+			);
+
+			// Attempt recovery
+			const result = await service.recoverFromBackup(invalidBackupPath);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('validation');
+		});
+
+		it('should update lastBackup metadata after creating backup', async () => {
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			const backupPath = await service.createBackup();
+
+			// Read state file and check lastBackup metadata
+			const statePath = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'github-sync-state.json'
+			);
+			const stateContent = await fs.readFile(statePath, 'utf-8');
+			const state = JSON.parse(stateContent);
+
+			expect(state.lastBackup).toBeDefined();
+			expect(state.lastBackup.backupPath).toBe(backupPath);
+			expect(state.lastBackup.mappingCount).toBe(1);
+			expect(state.lastBackup.version).toBe('1.0.0');
+		});
+
+		it('should create backups before atomic writes', async () => {
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// Second write should create a backup
+			const result = await service.setMapping({
+				taskId: '2',
+				issueNumber: 456,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-02T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.backupCreated).toBe(true);
+
+			// Verify backup exists
+			const backupDir = path.join(
+				testProjectPath,
+				'.taskmaster',
+				'backups',
+				'github-sync'
+			);
+			const files = await fs.readdir(backupDir);
+			const backupFiles = files.filter(
+				(f) => f.startsWith('github-sync-state-') && f.endsWith('.json')
+			);
+
+			expect(backupFiles.length).toBeGreaterThan(0);
+		});
+	});
 });
