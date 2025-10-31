@@ -4,12 +4,9 @@
  * Provides pragmatic error handling for CLI commands
  */
 
-import { getLogger } from '@tm/core';
 import { RetryPromptHandler } from './retry-prompt-handler.js';
 import { ErrorCategorizer } from './error-categorizer.js';
 import { EnhancedErrorDisplay } from './enhanced-error-display.js';
-
-const logger = getLogger('CommandActionWrapper');
 
 /**
  * Options for command action wrapper
@@ -58,11 +55,6 @@ export class CommandActionWrapper {
 				// Execute the command action
 				return await action();
 			} catch (error) {
-				logger.error(`Command failed [${options.commandName}]`, {
-					attempt: attemptNumber,
-					error: error instanceof Error ? error.message : String(error)
-				});
-
 				// Call error callback if provided
 				if (options.onError && error instanceof Error) {
 					options.onError(error);
@@ -98,11 +90,6 @@ export class CommandActionWrapper {
 				// Allow maxRetries automatic + 3 manual retries
 				const maxTotalAttempts = maxRetries + 3;
 				if (attemptNumber > maxTotalAttempts) {
-					logger.error('Max retry attempts exceeded', {
-						maxAttempts: maxTotalAttempts,
-						commandName: options.commandName
-					});
-
 					console.error(
 						`\nFailed after ${maxTotalAttempts} attempts. Giving up.`
 					);

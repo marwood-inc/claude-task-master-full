@@ -84,7 +84,7 @@ export class RetryPromptHandler {
 		}
 
 		// Exhausted auto-retries or permanent error - prompt user
-		return this.promptUserForRetry(error, attemptNumber);
+		return this.promptUserForRetry(error);
 	}
 
 	/**
@@ -92,8 +92,7 @@ export class RetryPromptHandler {
 	 * Provides context-specific guidance based on error type
 	 */
 	private static async promptUserForRetry(
-		error: CategorizedCliError,
-		attemptNumber: number
+		error: CategorizedCliError
 	): Promise<RetryResult> {
 		console.log();
 		console.log(chalk.red.bold('Error:'), error.userMessage);

@@ -7,11 +7,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createTmCore, type TmCore } from '@tm/core';
-import { displayError } from '../../utils/error-handler.js';
 import {
 	GitHubSyncProgress,
-	SyncResultFormatter,
-	ErrorGuidance
+	SyncResultFormatter
 } from '../../utils/github-sync-progress.js';
 import { CommandActionWrapper } from '../../utils/command-action-wrapper.js';
 import { EnhancedErrorDisplay } from '../../utils/enhanced-error-display.js';

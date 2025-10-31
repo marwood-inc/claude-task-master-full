@@ -9,9 +9,7 @@ import inquirer from 'inquirer';
 import ora, { type Ora } from 'ora';
 import { ConfigManager, type GitHubSettings } from '@tm/core';
 import { GitHubAuthService } from '@tm/core';
-import { displayError } from '../../utils/error-handler.js';
 import { CommandActionWrapper } from '../../utils/command-action-wrapper.js';
-import { EnhancedErrorDisplay } from '../../utils/enhanced-error-display.js';
 
 /**
  * Result type from configure command
