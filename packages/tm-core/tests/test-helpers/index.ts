@@ -24,3 +24,6 @@ export * from './mock-registry.js';
 
 // Timer utilities
 export * from './timer-helpers.js';
+
+// Cache ordering and validation utilities
+export * from './cache-ordering-helpers.js';

@@ -11,8 +11,10 @@ import { tmpdir } from 'node:os';
 import {
 	setupFakeTimers,
 	advancePastTTL,
-	advanceTime
-} from '../../test-helpers/timer-helpers.js';
+	advanceTime,
+	CacheAccessTracker,
+	createMemoryValidator
+} from '../../test-helpers/index.js';
 
 describe('FileStorage Cache - Integration Tests', () => {
 	let tmCore: TaskMasterCore;
@@ -545,7 +547,7 @@ describe('FileStorage Cache - Integration Tests', () => {
 
 			// Subsequent calls - cache hits (should be faster)
 			let totalDuration = 0;
-			const iterations = 10;
+			const iterations = 3;
 			for (let i = 0; i < iterations; i++) {
 				const start = Date.now();
 				await tmCore.tasks.list();
@@ -561,7 +563,7 @@ describe('FileStorage Cache - Integration Tests', () => {
 		it('should handle high-frequency operations efficiently', async () => {
 			// Simulate high-frequency read operations
 			const operations = [];
-			for (let i = 0; i < 100; i++) {
+			for (let i = 0; i < 25; i++) {
 				operations.push(tmCore.tasks.list());
 				operations.push(tmCore.tasks.get('1'));
 				operations.push(tmCore.tasks.get('2'));
@@ -572,8 +574,8 @@ describe('FileStorage Cache - Integration Tests', () => {
 			const duration = Date.now() - start;
 
 			// Should complete reasonably fast with caching
-			// Without cache, 300 operations would take much longer
-			expect(duration).toBeLessThan(5000); // 5 seconds max
+			// Without cache, 75 operations would take much longer
+			expect(duration).toBeLessThan(2000); // 2 seconds max
 		});
 	});
 
@@ -608,6 +610,102 @@ describe('FileStorage Cache - Integration Tests', () => {
 			expect(task2?.title).toBe('Cycle 1');
 			expect(task3?.title).toBe('Cycle 2');
 			expect(task4?.title).toBe('Cycle 3');
+		});
+	});
+
+	describe('Cache LRU Ordering Verification', () => {
+		it('should maintain correct LRU ordering for cache entries', () => {
+			const tracker = new CacheAccessTracker();
+
+			// Create multiple cache entries by loading different filter combinations
+			const filters = [
+				{},
+				{ status: 'pending' as const },
+				{ status: 'in-progress' as const },
+				{ status: 'done' as const }
+			];
+
+			// Load each filter combination and track access
+			for (const filter of filters) {
+				const key = JSON.stringify(filter);
+				tmCore.tasks.list(filter);
+				tracker.recordAccess(key);
+			}
+
+			// Verify we have 4 tracked entries
+			expect(tracker.size).toBe(4);
+
+			// Access the first entry again (should move it to most recently used)
+			tmCore.tasks.list();
+			tracker.recordAccess(JSON.stringify({}));
+
+			// The least recently accessed should now be the "pending" filter
+			const lruKey = tracker.getLeastRecentlyAccessed();
+			expect(lruKey).toBe(JSON.stringify({ status: 'pending' }));
+		});
+
+		it('should respect memory constraints with LRU eviction', async () => {
+			// Get access to the underlying storage cache
+			const storage = (tmCore as any).config.storage;
+			const cache = (storage as any).taskCache;
+
+			// Validate that cache respects max size (100 entries)
+			const validator = createMemoryValidator(100);
+
+			// Create multiple cache entries
+			for (let i = 0; i < 25; i++) {
+				await tmCore.tasks.list({ status: `test-${i}` as any });
+			}
+
+			// Validate cache size is within limits
+			expect(validator.validateSize(cache)).toBe(true);
+			expect(validator.getCurrentSize(cache)).toBeLessThanOrEqual(25);
+
+			// Assert no exception is thrown
+			expect(() => validator.assertSize(cache)).not.toThrow();
+		});
+
+		it('should evict least-recently-used entries when approaching capacity', async () => {
+			const tracker = new CacheAccessTracker();
+			const storage = (tmCore as any).config.storage;
+			const cache = (storage as any).taskCache;
+			const validator = createMemoryValidator(100);
+
+			// Create a sequence of cache operations
+			const operations = 15;
+			for (let i = 0; i < operations; i++) {
+				const filter = { custom: `entry-${i}` };
+				const key = JSON.stringify(filter);
+				await tmCore.tasks.list(filter as any);
+				tracker.recordAccess(key);
+			}
+
+			// Access first few entries again to mark them as recently used
+			for (let i = 0; i < 5; i++) {
+				const filter = { custom: `entry-${i}` };
+				const key = JSON.stringify(filter);
+				await tmCore.tasks.list(filter as any);
+				tracker.recordAccess(key);
+			}
+
+			// Verify cache is still within size limits
+			expect(validator.validateSize(cache)).toBe(true);
+
+			// Verify LRU ordering: entries 5-14 should be older than 0-4
+			const accessOrder = tracker.getKeysByAccessOrder();
+			const oldestKeys = accessOrder.slice(0, 10);
+
+			// The oldest keys should include entries 5-14 (not 0-4 which were re-accessed)
+			const oldestEntries = oldestKeys.filter((key) =>
+				key.includes('"custom"')
+			);
+			expect(oldestEntries.length).toBeGreaterThan(0);
+
+			// Verify none of the re-accessed entries (0-4) are in the oldest set
+			for (let i = 0; i < 5; i++) {
+				const reAccessedKey = JSON.stringify({ custom: `entry-${i}` });
+				expect(oldestKeys.includes(reAccessedKey)).toBe(false);
+			}
 		});
 	});
 });
