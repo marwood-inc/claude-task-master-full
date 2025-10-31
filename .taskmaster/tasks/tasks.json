@@ -12084,7 +12084,7 @@
   "chore-performance-optimisation-test-fixes": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Fix Vitest Module Mocking Infrastructure",
         "description": "Replace improper vi.mocked() usage with proper vi.mock() module declarations for Node.js built-in modules (fs/promises, path, etc.) to restore mockResolvedValue/mockRejectedValue functionality",
         "details": "Update all test files using vi.mocked(fs.readFile).mockResolvedValue() patterns to use proper vi.mock('node:fs/promises', () => ({ readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn() })) declarations. This affects 50+ tests across config-loader, config-persistence, and runtime-state-manager test files. Focus on packages/tm-core/src/modules/config/services/*.spec.ts files first as they have the highest concentration of failures.",
@@ -12151,7 +12151,7 @@
         "updatedAt": "2025-10-31T08:17:44.782Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Fix Constructor Mocking in Config Manager Tests",
         "description": "Update constructor mock factories to use vi.fn().mockImplementation() instead of returning object literals, fixing 'is not a constructor' errors in config-manager.spec.ts",
         "details": "Replace mock factories like 'ConfigLoader: () => ({ loadLocalConfig: vi.fn() })' with 'ConfigLoader: vi.fn().mockImplementation(() => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() }))' to ensure proper constructor behavior. Update all service mocks in config-manager.spec.ts and similar files. This pattern is required for dependency injection testing to work correctly.",
@@ -12207,7 +12207,7 @@
         "updatedAt": "2025-10-31T13:52:58.240Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Fix Template Engine Variable Preservation",
         "description": "Update template engine regex replacement logic to preserve {{placeholders}} when variables are missing instead of removing them entirely",
         "details": "Modify the template.replace() method in packages/tm-core/src/modules/git/services/template-engine.test.ts and related implementation to return the original placeholder when a variable is undefined/null. Current behavior: {{missing}} → '' (empty). Required behavior: {{missing}} → '{{missing}}' (preserved). Update regex from /{{(\\w+)}}/g with unconditional replacement to conditional replacement that checks if variable exists.",
@@ -12247,7 +12247,7 @@
         "updatedAt": "2025-10-31T09:29:34.672Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Fix Cross-Platform Path Sanitization",
         "description": "Update path sanitization logic to strip Windows drive letters (C:, D:, etc.) before processing to prevent malformed project identifiers on Windows",
         "details": "Modify path sanitization functions to detect and remove Windows drive letters using pattern /^[A-Za-z]:/ before applying path normalization. Add platform detection logic and ensure consistent path separator handling across Windows/Unix systems. Focus on packages/tm-core/src/common/utils/path-normalizer.spec.ts and related implementation files.",
@@ -12313,7 +12313,7 @@
         "updatedAt": "2025-10-31T09:34:56.264Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Implement Fake Timers for Cache TTL Tests",
         "description": "Replace real setTimeout/setInterval with vi.useFakeTimers() in cache TTL tests to eliminate 5-second timeouts and improve test performance",
         "details": "Update cache-related test files to use vi.useFakeTimers() in beforeEach() and vi.useRealTimers() in afterEach(). Replace real time waits with vi.advanceTimersByTime(6000) to fast-forward past TTL expiration. Focus on packages/tm-core/tests/integration/storage/file-storage-cache.test.ts and similar cache test files. Ensure cache expiration logic is tested without performance penalty.",
@@ -12395,7 +12395,7 @@
         "updatedAt": "2025-10-31T13:53:39.754Z"
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Add Atomic File Write Retry Logic for Windows",
         "description": "Implement exponential backoff retry strategy for atomic write operations to handle Windows file locking (EPERM/ENOENT) errors gracefully",
         "details": "Add retry logic to atomic write operations with exponential backoff starting at 50ms, doubling up to 1000ms max, with 3 retry attempts. Implement platform-specific error handling for Windows EPERM (permission denied) and ENOENT (file not found) errors. Add proper error logging for debugging file locking issues. Focus on file storage adapter implementations.\n<info added on 2025-10-31T07:24:56.333Z>\nI'll analyze the codebase first to understand the current file storage and atomic write implementation before generating the update.Based on my analysis of the codebase, I found that the project already has well-established patterns for error handling, file operations, and retry logic in other modules. The file-operations.ts file at line 61 contains the performAtomicWrite method that needs the retry logic. Here's the comprehensive research findings that should be appended to the task:\n\n## CODEBASE RESEARCH FINDINGS - Testing Infrastructure Issues Integration\n\nThe investigation revealed critical testing infrastructure problems that directly impact the implementation and testing strategy for this atomic file write retry logic:\n\n### Primary Concern: Vitest Mocking Infrastructure Failures\nThe current test suite exhibits fundamental mocking pattern issues that will affect testing the retry functionality:\n\n1. **Module Mock Anti-Pattern**: Tests use `vi.mocked()` instead of proper `vi.mock()` declarations for Node.js built-in modules like fs/promises, causing `mockResolvedValue` and `mockRejectedValue` to be undefined in 50+ test files.\n\n2. **Constructor Mocking Failures**: Mock factories return object literals instead of proper constructor functions, leading to \"is not a constructor\" errors when testing dependency injection scenarios.\n\n### Implementation Location Analysis\nLocated the target implementation at `packages/tm-core/src/modules/storage/adapters/file-storage/file-operations.ts:61` in the `performAtomicWrite` method. The current implementation uses `fs.rename()` for atomic operations but lacks retry logic for Windows file locking scenarios.\n\n### Existing Retry Pattern Reference\nFound established retry/backoff patterns in `packages/tm-core/src/modules/ai/providers/base-provider.ts` with constants:\n- `DEFAULT_MAX_RETRIES = 3`\n- `BASE_RETRY_DELAY_MS = 1000` \n- `BACKOFF_MULTIPLIER = 2`\n- `MAX_RETRY_DELAY_MS = 32000`\n\nThis provides a proven pattern to adapt for file operations with Windows-specific parameters (50ms base, 1000ms max).\n\n### Windows Error Handling Context\nThe codebase has extensive EPERM/ENOENT error handling patterns across multiple modules, particularly in config services and storage adapters, providing established patterns for platform-specific error classification.\n\n### Test Strategy Implications\nDue to the identified Vitest infrastructure issues, the test implementation must prioritize:\n1. **Proper fs.promises mocking setup** using `vi.mock('node:fs/promises')` instead of `vi.mocked()`\n2. **Fake timer implementation** for exponential backoff testing to avoid real delays\n3. **Platform detection mocking** for Windows-specific behavior testing\n4. **Error simulation patterns** that work with the corrected mocking infrastructure\n\nThe existing file-storage.spec.ts shows extensive testing patterns but suffers from the same mocking issues, requiring careful attention to ensure the retry logic tests don't exhibit similar problems. The test strategy should include validation that the retry helper works correctly with the current file locking mechanism in FileOperations while maintaining compatibility with the existing test infrastructure once the mocking issues are resolved.\n</info added on 2025-10-31T07:24:56.333Z>",
@@ -12475,7 +12475,7 @@
         "updatedAt": "2025-10-31T13:54:23.901Z"
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Fix Workflow Orchestrator Validation Logic",
         "description": "Debug and fix workflow orchestrator RED phase validation to ensure proper test failure detection and workflow state transitions",
         "details": "Investigate workflow orchestrator test failures in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts. Fix validation logic that determines when tests fail during RED phase. Ensure proper state transitions from RED → GREEN → REFACTOR phases. Update test result processing to correctly identify genuine test failures vs setup issues.",
@@ -12547,7 +12547,7 @@
         "updatedAt": "2025-10-31T11:45:07.884Z"
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Optimize LRU Cache Test Performance",
         "description": "Reduce LRU eviction test dataset size from 100+ entries to 20 entries to prevent test timeouts while maintaining test coverage",
         "details": "Update LRU cache tests that currently create large datasets (100+ entries) causing 5-second timeouts. Reduce to 20 entries while ensuring eviction behavior is still properly tested. Focus on packages/tm-core/tests/integration/storage/ cache-related tests. Maintain test coverage of eviction policies, memory limits, and performance characteristics.",
@@ -12602,7 +12602,7 @@
         "updatedAt": "2025-10-31T12:42:33.205Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Fix Empty Cache Result Handling",
         "description": "Update cache implementation to properly differentiate between cache misses and empty string values, fixing cache key collision issues",
         "details": "Modify cache get/set logic to distinguish between undefined (cache miss), null (intentional null value), and empty string (valid empty value). Implement proper cache key differentiation by tag or namespace to prevent collisions. Focus on cache service implementations and ensure proper return value handling in consuming code.",
@@ -12671,7 +12671,7 @@
         "updatedAt": "2025-10-31T13:25:06.074Z"
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Create Cross-Platform Test Validation Suite",
         "description": "Establish comprehensive test validation on both Windows and Linux platforms, including CI/CD pipeline integration and performance benchmarking",
         "details": "Create platform-specific test runners that validate all 640 tests pass on both Windows and Linux. Set up CI/CD integration with Windows Server and Linux Ubuntu runners. Implement test performance monitoring to track execution times and identify regressions. Create documentation for platform-specific testing procedures and troubleshooting guides.\n<info added on 2025-10-31T07:18:06.395Z>\nI'll investigate the current test infrastructure state to provide accurate context for this task update.Based on my codebase analysis, I can provide the following update for Task 10:\n\n## Research Session Findings - Critical Infrastructure Issues Identified\n\nInvestigation reveals the project currently runs exclusively on Ubuntu Linux in CI/CD (.github/workflows/ci.yml shows only ubuntu-latest runners), creating significant cross-platform testing gaps. The codebase has pervasive Node.js built-in module mocking failures using vi.mocked(fs.readFile) patterns that require proper vi.mock('node:fs/promises') declarations to fix 50+ failing tests across config services.\n\n**Key Platform-Specific Risks Discovered:**\n- Windows file locking vulnerabilities (EPERM errors) already identified in packages/tm-core/src/modules/config/services/runtime-state-manager.service.ts with ENOENT handling\n- Missing Windows retry logic for atomic file operations despite atomic write interface defined in packages/tm-core/src/common/interfaces/storage.interface.ts\n- Constructor mocking anti-patterns preventing dependency injection testing in config-manager.spec.ts\n- Mixed test frameworks (Jest in root package.json, Vitest in individual packages) complicating cross-platform validation\n\n**Infrastructure Dependencies:**\nThe project uses individual package-level vitest.config.ts files (apps/cli, apps/mcp, packages/tm-core) requiring matrix strategy coordination. Root-level test scripts use Jest with coverage thresholds while package-level scripts use Vitest, necessitating unified cross-platform test execution strategies.\n\n**Implementation Priority Adjustments:**\nGiven the research findings, subtask 1 (Windows/Linux CI matrix) becomes critical for exposing platform-specific file system issues before implementing performance monitoring. The validation suite must address both the underlying mocking infrastructure problems and platform differences to achieve the target of 640 tests passing consistently on both platforms.\n</info added on 2025-10-31T07:18:06.395Z>",
@@ -12842,14 +12842,14 @@
         "expansionPrompt": "Map out cross-platform runners (Windows/Linux) with repeat execution, update CI to a matrix workflow with performance tracking, add scripts/wrappers for local parity, document platform nuances, and build reporting to flag flaky or slow tests."
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Upgrade LRU Cache Implementation with HashMap-based Storage",
         "description": "Replace current LRU cache array-based lookups with Map data structure for O(1) performance instead of O(n) complexity in file-storage.ts",
         "details": "Current FileStorage class in packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts uses lru-cache package but may have inefficient lookup patterns. Implement optimized cache with Map-based storage for constant-time lookups. Add performance benchmarks comparing before/after cache performance with 100, 500, and 1000 items. Ensure cache eviction policy and TTL behavior remains consistent. Add cache hit/miss metrics logging.",
         "testStrategy": "Create performance benchmark tests measuring cache lookup times with varying cache sizes. Unit tests for cache eviction policy correctness. Integration tests ensuring no regression in file storage functionality. Memory usage profiling to ensure cache doesn't exceed memory bounds.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -12857,8 +12857,10 @@
             "description": "Examine the existing lru-cache package usage in FileStorage class to identify specific performance issues with O(n) array-based lookups and document current cache behavior patterns",
             "dependencies": [],
             "details": "Review the current LRUCache implementation in packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts lines 43-60. Document the cache configuration (max: 100, ttl: 5000ms), cache key generation using CacheKeyBuilder, and identify where O(n) operations occur. Analyze the getCacheKey, isCacheValid, and cache invalidation patterns. Document current cache hit/miss logging and prepare baseline metrics for comparison.",
-            "status": "pending",
-            "testStrategy": "Create benchmark tests to measure current cache lookup performance with varying cache sizes (100, 500, 1000 items). Document baseline performance metrics including cache hit ratios and lookup times."
+            "status": "done",
+            "testStrategy": "Create benchmark tests to measure current cache lookup performance with varying cache sizes (100, 500, 1000 items). Document baseline performance metrics including cache hit ratios and lookup times.",
+            "updatedAt": "2025-10-31T16:28:18.002Z",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -12868,8 +12870,10 @@
               1
             ],
             "details": "Design a custom LRU cache using JavaScript Map for O(1) key-value lookups combined with a doubly-linked list for O(1) insertion/deletion at arbitrary positions. Maintain the same interface as the current LRUCache but with HashMap-based storage. Preserve the existing TTL behavior (5000ms), updateAgeOnGet/updateAgeOnHas settings, and max capacity (100). Design cache hit/miss metrics logging system.",
-            "status": "pending",
-            "testStrategy": "Unit tests for the new cache implementation covering eviction policy, TTL expiration, capacity limits, and O(1) performance characteristics. Memory usage tests to ensure efficient storage."
+            "status": "done",
+            "testStrategy": "Unit tests for the new cache implementation covering eviction policy, TTL expiration, capacity limits, and O(1) performance characteristics. Memory usage tests to ensure efficient storage.",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T16:28:26.822Z"
           },
           {
             "id": 3,
@@ -12879,8 +12883,10 @@
               2
             ],
             "details": "Replace the LRUCache import and initialization in file-storage.ts with the new HashMap-based implementation. Update the cache usage in loadTasks, loadTask, and cache invalidation methods. Implement cache hit/miss metrics logging with counters for cache hits, misses, evictions, and TTL expirations. Ensure the getCacheKey, isCacheValid, and invalidateCache methods work with the new implementation. Maintain backward compatibility with existing cache behavior.",
-            "status": "pending",
-            "testStrategy": "Integration tests ensuring no regression in file storage functionality. Cache behavior verification tests for loadTasks, loadTask, and cache invalidation scenarios. Metrics collection validation tests."
+            "status": "in-progress",
+            "testStrategy": "Integration tests ensuring no regression in file storage functionality. Cache behavior verification tests for loadTasks, loadTask, and cache invalidation scenarios. Metrics collection validation tests.",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T16:28:38.502Z"
           },
           {
             "id": 4,
@@ -12891,7 +12897,8 @@
             ],
             "details": "Create benchmark tests in packages/tm-core/tests/integration/storage/ that measure cache lookup performance with varying cache sizes. Implement tests for sequential lookups, random access patterns, cache eviction scenarios, and TTL expiration handling. Measure execution time, memory allocation, cache hit ratios, and eviction frequency. Compare HashMap-based implementation against the original lru-cache package performance. Include stress tests with high cache turnover.",
             "status": "pending",
-            "testStrategy": "Performance benchmark suite measuring cache operations under different load patterns. Memory profiling to verify reduced allocation overhead. Statistical analysis of performance improvements with confidence intervals."
+            "testStrategy": "Performance benchmark suite measuring cache operations under different load patterns. Memory profiling to verify reduced allocation overhead. Statistical analysis of performance improvements with confidence intervals.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -12902,12 +12909,14 @@
             ],
             "details": "Run comprehensive validation tests to ensure the new HashMap-based cache maintains identical behavior to the original lru-cache implementation. Verify TTL expiration timing, LRU eviction order, capacity limits, and cache invalidation patterns. Validate that cache hit/miss metrics are accurately collected and logged. Confirm that O(1) performance is achieved for lookup operations while maintaining consistent eviction policy. Document performance improvements achieved with quantitative metrics.",
             "status": "pending",
-            "testStrategy": "Regression tests ensuring cache behavior parity with original implementation. Performance validation confirming O(1) lookup complexity. Cache policy correctness tests for eviction order and TTL behavior. End-to-end integration tests with FileStorage operations."
+            "testStrategy": "Regression tests ensuring cache behavior parity with original implementation. Performance validation confirming O(1) lookup complexity. Cache policy correctness tests for eviction order and TTL behavior. End-to-end integration tests with FileStorage operations.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2025-10-31T16:28:38.502Z"
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "Implement Write Queue and Batch File Operations",
         "description": "Optimize the atomic file write operations in FileOperations class by implementing write queuing and batching for multiple concurrent file operations",
         "details": "Current file-operations.ts already uses async operations with atomic writes and locking. Enhance this by adding a write queue that can batch multiple pending writes to different files and execute them in parallel. Implement write coalescing for rapid successive writes to the same file. Add metrics for write operation performance and queue depth. Maintain existing retry logic and error handling while improving throughput.",
@@ -12923,7 +12932,8 @@
             "dependencies": [],
             "details": "Create interfaces and types for WriteQueueEntry, BatchWriteOptions, and WriteMetrics. Design queue processing strategies including parallel batching for different files and write coalescing for same-file operations. Define interfaces for performance monitoring including queue depth, write throughput, and operation timing metrics.",
             "status": "pending",
-            "testStrategy": "Unit tests for interface compliance and type safety. Mock implementations to verify queue entry structure and batch processing logic."
+            "testStrategy": "Unit tests for interface compliance and type safety. Mock implementations to verify queue entry structure and batch processing logic.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -12934,7 +12944,8 @@
             ],
             "details": "Implement WriteQueue class with Map-based file queues for organizing writes by file path. Add write coalescing logic to merge rapid successive writes to the same file, keeping only the latest data. Implement priority-based processing and entry lifecycle management with proper cleanup mechanisms.",
             "status": "pending",
-            "testStrategy": "Unit tests for queue operations including enqueue, dequeue, and coalescing. Tests for write merging behavior and priority handling. Memory leak tests for proper cleanup."
+            "testStrategy": "Unit tests for queue operations including enqueue, dequeue, and coalescing. Tests for write merging behavior and priority handling. Memory leak tests for proper cleanup.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -12945,7 +12956,8 @@
             ],
             "details": "Build BatchProcessor class that processes queued writes in parallel for different files using Promise.all with concurrency limits. Maintain existing atomic write behavior using temporary files and rename operations. Integrate with existing retry logic and error handling while adding batch-level error recovery.",
             "status": "pending",
-            "testStrategy": "Integration tests with multiple concurrent file writes. Tests for atomic write guarantees during batch operations. Error injection tests for batch-level retry behavior and cleanup."
+            "testStrategy": "Integration tests with multiple concurrent file writes. Tests for atomic write guarantees during batch operations. Error injection tests for batch-level retry behavior and cleanup.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -12956,7 +12968,8 @@
             ],
             "details": "Create WriteMetrics class to track queue depth, write throughput (ops/second), average batch size, and operation latency. Add metrics for write coalescing effectiveness and retry statistics. Implement metrics export functionality and integration with existing logger for performance monitoring and debugging.",
             "status": "pending",
-            "testStrategy": "Performance benchmarks comparing single vs batched operation throughput. Metrics accuracy tests for queue depth and timing measurements. Integration tests for metrics export and logging."
+            "testStrategy": "Performance benchmarks comparing single vs batched operation throughput. Metrics accuracy tests for queue depth and timing measurements. Integration tests for metrics export and logging.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -12967,25 +12980,26 @@
             ],
             "details": "Replace direct writeJson calls with queue-based operations. Add configuration options for enabling/disabling batching, queue size limits, and batch processing intervals. Ensure existing file locking mechanism works with queued operations. Maintain full backward compatibility with current FileOperations API used by FileStorage class.",
             "status": "pending",
-            "testStrategy": "Integration tests with existing FileStorage usage patterns. Backward compatibility tests ensuring no API changes. Performance tests demonstrating improved throughput for multiple concurrent writes while maintaining data consistency."
+            "testStrategy": "Integration tests with existing FileStorage usage patterns. Backward compatibility tests ensuring no API changes. Performance tests demonstrating improved throughput for multiple concurrent writes while maintaining data consistency.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "Optimize TasksDomain Save Operations with Dirty Tracking",
         "description": "Implement dirty tracking and debounced saves in task domain operations to minimize redundant file writes and improve update performance",
         "details": "Add dirty tracking to packages/tm-core/src/modules/tasks/domains/ task operations. Implement debounced batch saves with 100ms window to prevent excessive file writes during rapid task updates. Only serialize and save modified tasks rather than entire task collections. Add flush() method for immediate persistence when needed. Ensure no data loss during shutdown or errors.",
         "testStrategy": "Unit tests for dirty tracking accuracy and debounce timing. Performance benchmarks comparing save times before/after optimization. Integration tests for data consistency during rapid updates. Stress tests with hundreds of rapid task modifications.",
         "priority": "high",
         "dependencies": [
-          12
+          "12"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "Optimize Jest Test Configuration for Smart Test Execution",
         "description": "Configure Jest to use dependency-aware test execution, parallel test runners, and optimize test file patterns to reduce unnecessary test runs",
         "details": "Current package.json shows Jest configuration. Enhance with smart test execution by configuring Jest with --findRelatedTests for changed files, optimize --maxWorkers based on CPU cores, implement test file filtering based on dependency graph. Add coverage thresholds and configure Jest to skip unchanged modules. Implement test result caching and parallel execution optimization.",
@@ -12996,7 +13010,7 @@
         "subtasks": []
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "Implement Task Object Structural Sharing",
         "description": "Add copy-on-write semantics to Task objects to minimize memory allocation and improve cloning performance during task updates",
         "details": "Implement immutable Task objects with structural sharing in packages/tm-core/src/common/types/. Use copy-on-write pattern where unchanged properties share references between task versions. Add lazy deep cloning only when persistence is required. Maintain TaskMapper compatibility while reducing memory footprint for task operations that don't modify all properties.",
@@ -13007,20 +13021,20 @@
         "subtasks": []
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Parallelize Task Markdown Generation Operations",
         "description": "Implement parallel generation of task markdown files with concurrency control to improve large task set processing performance",
         "details": "Enhance task file generation in packages/tm-core/src/modules/integration/services/ to process markdown generation in parallel batches. Implement concurrency limiting (10 concurrent operations) to prevent file system overload. Add progress reporting for large task sets. Maintain existing file naming and content generation logic while improving throughput through parallelization.",
         "testStrategy": "Performance benchmarks comparing sequential vs parallel generation times. File integrity verification for concurrent writes. Resource usage monitoring during large batch operations. Integration tests ensuring generated markdown content accuracy.",
         "priority": "medium",
         "dependencies": [
-          12
+          "12"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 17,
+        "id": "17",
         "title": "Optimize Event Emitter with Lazy Listener Registration",
         "description": "Implement lazy listener registration and automatic cleanup in task domain event systems to reduce memory overhead and improve performance",
         "details": "Review event emitter usage in packages/tm-core/src/modules/tasks/domains/ and implement lazy listener registration. Only register event listeners when first subscriber attaches. Implement automatic cleanup when last listener is removed. Add listener lifecycle tracking and memory usage monitoring. Maintain existing event functionality while reducing baseline memory consumption.",
@@ -13031,7 +13045,7 @@
         "subtasks": []
       },
       {
-        "id": 18,
+        "id": "18",
         "title": "Optimize Template Processing with Compiled Regex Patterns",
         "description": "Implement single-pass template variable substitution with compiled regex patterns and variable caching for template processing",
         "details": "Optimize template processing in packages/tm-core/src/modules/ by implementing compiled regex patterns for variable substitution. Create template compilation cache for repeated template usage. Replace multiple-pass regex operations with single-pass processing. Add performance benchmarks for template processing operations with varying complexity levels.",
@@ -13042,7 +13056,7 @@
         "subtasks": []
       },
       {
-        "id": 19,
+        "id": "19",
         "title": "Implement Git Command Batching and Process Pool",
         "description": "Optimize git operations in git-adapter.ts by implementing command batching and process pooling to reduce git command overhead",
         "details": "Enhance packages/tm-core/src/modules/git/adapters/git-adapter.ts to batch multiple git commands and maintain a pool of git processes. Implement command queuing for sequential operations that can be combined. Add process lifecycle management with cleanup on shutdown. Maintain existing git operation reliability while improving performance for multiple sequential commands.",
@@ -13053,7 +13067,7 @@
         "subtasks": []
       },
       {
-        "id": 20,
+        "id": "20",
         "title": "Implement Short-Circuit Validation Chain Optimization",
         "description": "Optimize validation chains to use short-circuit evaluation and cost-based validator ordering to improve validation performance",
         "details": "Review validation logic in packages/tm-core/src/modules/tasks/services/ and implement short-circuit evaluation. Order validators by execution cost (cheapest first). Stop validation chain on first failure rather than running all validators. Add validation performance metrics and cost profiling for validator operations.",
@@ -13065,9 +13079,13 @@
       }
     ],
     "metadata": {
-      "created": "2025-10-31T15:08:26.454Z",
-      "updated": "2025-10-31T15:08:26.454Z",
-      "description": "Tasks for chore-performance-optimisation-test-fixes context"
+      "version": "1.0.0",
+      "lastModified": "2025-10-31T16:28:38.522Z",
+      "taskCount": 20,
+      "completedCount": 9,
+      "tags": [
+        "chore-performance-optimisation-test-fixes"
+      ]
     }
   }
 }

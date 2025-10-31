@@ -2,7 +2,6 @@
  * @fileoverview Refactored file-based storage implementation for Task Master
  */
 
-import { LRUCache } from 'lru-cache';
 import type {
 	Task,
 	TaskMetadata,
@@ -21,7 +20,11 @@ import { ComplexityReportManager } from '../../../reports/managers/complexity-re
 import { getLogger } from '../../../../common/logger/factory.js';
 import {
 	CacheNamespace,
-	CacheKeyBuilder
+	CacheKeyBuilder,
+	CacheManager,
+	LRUCacheStrategy,
+	isCacheMiss,
+	type CacheMetrics
 } from '../../../../common/cache/index.js';
 
 /**
@@ -29,33 +32,47 @@ import {
  */
 interface CacheEntry {
 	tasks: Task[];
-	timestamp: number;
 }
 
 /**
  * File-based storage implementation using a single tasks.json file with separated concerns
+ * Now with clean cache architecture using dependency injection
  */
 export class FileStorage implements IStorage {
 	private formatHandler: FormatHandler;
 	private fileOps: FileOperations;
 	private pathResolver: PathResolver;
 	private complexityManager: ComplexityReportManager;
-	private taskCache: LRUCache<string, CacheEntry>;
+	private cacheManager: CacheManager;
 	private readonly CACHE_TTL = 5000; // 5 seconds in milliseconds
 	private logger = getLogger('FileStorage');
 
-	constructor(projectPath: string) {
+	constructor(projectPath: string, cacheManager?: CacheManager) {
 		this.formatHandler = new FormatHandler();
 		this.fileOps = new FileOperations();
 		this.pathResolver = new PathResolver(projectPath);
 		this.complexityManager = new ComplexityReportManager(projectPath);
 
-		// Initialize LRU cache with max 100 entries
-		this.taskCache = new LRUCache<string, CacheEntry>({
-			max: 100,
+		// Use injected cache or create default
+		this.cacheManager = cacheManager || this.createDefaultCache();
+	}
+
+	/**
+	 * Create default cache configuration with LRU strategy
+	 */
+	private createDefaultCache(): CacheManager {
+		const strategy = new LRUCacheStrategy({
+			maxEntries: 100,
 			ttl: this.CACHE_TTL,
-			updateAgeOnGet: false, // Don't reset TTL on cache hits
-			updateAgeOnHas: false
+			updateAgeOnGet: false,
+			updateAgeOnHas: false,
+			maxMemory: 50 * 1024 * 1024, // 50MB max
+			enableMetrics: true
+		});
+
+		return new CacheManager({
+			strategy,
+			enableMonitoring: false // Can be enabled for debugging
 		});
 	}
 
@@ -70,6 +87,7 @@ export class FileStorage implements IStorage {
 	 * Close storage and cleanup resources
 	 */
 	async close(): Promise<void> {
+		this.cacheManager.clear();
 		await this.fileOps.cleanup();
 	}
 
@@ -142,19 +160,18 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
-	 * Check if a cache entry is still valid
+	 * Invalidate cache entries by tag (selective invalidation)
 	 */
-	private isCacheValid(entry: CacheEntry): boolean {
-		const now = Date.now();
-		return now - entry.timestamp < this.CACHE_TTL;
+	private invalidateCacheForTag(tag: string): void {
+		const count = this.cacheManager.invalidateTag(tag);
+		this.logger.debug(`Invalidated ${count} cache entries for tag: ${tag}`);
 	}
 
 	/**
-	 * Invalidate all cache entries
+	 * Get cache performance metrics
 	 */
-	private invalidateCache(): void {
-		this.taskCache.clear();
-		this.logger.debug('Cache invalidated');
+	getCacheMetrics(): CacheMetrics {
+		return this.cacheManager.getMetrics();
 	}
 
 	/**
@@ -167,10 +184,10 @@ export class FileStorage implements IStorage {
 		const cacheKey = this.getCacheKey(resolvedTag, options);
 
 		// Check cache first
-		const cachedEntry = this.taskCache.get(cacheKey);
-		if (cachedEntry && this.isCacheValid(cachedEntry)) {
+		const cachedResult = this.cacheManager.get<CacheEntry>(cacheKey);
+		if (!isCacheMiss(cachedResult)) {
 			this.logger.debug(`Cache hit for key: ${cacheKey}`);
-			return cachedEntry.tasks;
+			return cachedResult.tasks;
 		}
 
 		this.logger.debug(`Cache miss for key: ${cacheKey}`);
@@ -200,11 +217,15 @@ export class FileStorage implements IStorage {
 				resolvedTag
 			);
 
-			// Cache the result
-			this.taskCache.set(cacheKey, {
-				tasks: enrichedTasks,
-				timestamp: Date.now()
-			});
+			// Cache the result with namespace and tags for selective invalidation
+			this.cacheManager.set(
+				cacheKey,
+				{ tasks: enrichedTasks },
+				{
+					namespace: CacheNamespace.Storage,
+					tags: [resolvedTag]
+				}
+			);
 
 			return enrichedTasks;
 		} catch (error: any) {
