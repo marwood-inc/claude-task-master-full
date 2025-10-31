@@ -11199,7 +11199,7 @@
           "3",
           "4"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11234,15 +11234,16 @@
               2
             ],
             "details": "Implement workload simulations for CLI repeated commands (task-master list, next, show) and MCP tool usage patterns. Create scenarios for typical development workflows including frequent task retrieval, status updates, and cache utilization patterns. Establish performance thresholds: 70%+ reduction in file I/O operations, 50%+ faster single task retrieval, 90%+ latency reduction for cached reads. Include automated threshold validation and performance regression detection.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Automated benchmark tests that fail if performance regressions are detected. Comparison testing between optimized and unoptimized code paths. Performance threshold validation with clear pass/fail criteria.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:57:54.894Z"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 3,
         "expansionPrompt": "Build comprehensive benchmarking infrastructure: create core performance metrics collection module with file I/O counting, memory tracking, and latency measurement capabilities, implement dataset size testing framework with realistic test data generation for small/medium/large scenarios, and develop workload simulation suite mimicking actual CLI and MCP usage patterns with performance threshold validation.",
-        "updatedAt": "2025-10-31T04:54:41.177Z"
+        "updatedAt": "2025-10-31T04:57:54.894Z"
       },
       {
         "id": "8",
@@ -11432,9 +11433,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:54:41.186Z",
+      "lastModified": "2025-10-31T04:57:54.903Z",
       "taskCount": 10,
-      "completedCount": 8,
+      "completedCount": 9,
       "tags": [
         "chore-performance-optimisation"
       ]
