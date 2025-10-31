@@ -7,8 +7,8 @@
 		},
 		"zen": {
 			"type": "stdio",
-			"command": "d:\\code\\marwood-inc\\zen-mcp-server\\.zen_venv\\Scripts\\python.exe",
-			"args": ["d:\\code\\marwood-inc\\zen-mcp-server\\server.py"],
+			"command": "path/to/zen-mcp-server/.zen_venv/Scripts/python.exe",
+			"args": ["path/to/zen-mcp-server/server.py"],
 			"env": {
 				"DEFAULT_MODEL": "auto",
 				"DEFAULT_THINKING_MODE_THINKDEEP": "high",
