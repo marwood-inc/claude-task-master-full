@@ -25,8 +25,38 @@ export const baseConfig: Partial<UserConfig> = {
 	format: 'esm',
 	platform: 'node',
 	dts: isDevelopment,
-	minify: isProduction,
-	treeshake: isProduction,
+	// Advanced minification for production
+	minify: isProduction
+		? {
+				compress: {
+					drop_console: true, // Remove console.* calls
+					drop_debugger: true, // Remove debugger statements
+					pure_funcs: [
+						'console.debug',
+						'console.trace',
+						'logger.debug',
+						'logger.trace'
+					] // Remove these function calls
+				},
+				mangle: {
+					keep_classnames: false, // Mangle class names for smaller bundles
+					keep_fnames: false // Mangle function names for smaller bundles
+				}
+		  }
+		: false,
+	// Advanced tree-shaking for production
+	treeshake: isProduction
+		? {
+				preset: 'recommended',
+				moduleSideEffects: false // Assume no side effects in modules
+		  }
+		: false,
+	// Production-specific optimizations
+	...(isProduction && {
+		target: 'node18', // Target Node.js 18+ for optimal performance
+		splitting: true, // Enable code splitting for better caching
+		clean: true // Clean output directory before build
+	}),
 	// Better debugging in development
 	...(isDevelopment && {
 		keepNames: true,
@@ -48,4 +78,27 @@ export function mergeConfig(
 		...base,
 		...overrides
 	} as UserConfig;
+}
+
+/**
+ * Create a banner for CLI executables (shebang)
+ * Use this for packages that produce CLI binaries
+ */
+export function createCliBanner(): string {
+	return '#!/usr/bin/env node';
+}
+
+/**
+ * Configuration preset for CLI packages
+ * Includes shebang banner for executable output
+ */
+export function createCliConfig(
+	overrides: Partial<UserConfig> = {}
+): UserConfig {
+	return mergeConfig(baseConfig, {
+		banner: {
+			js: createCliBanner()
+		},
+		...overrides
+	});
 }
