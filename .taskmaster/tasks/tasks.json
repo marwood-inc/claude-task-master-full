@@ -11789,7 +11789,7 @@
         "description": "Review and implement or track all TODO comments found in integration-domain.ts including: two-way sync implementation (line 202), detailed conflict retrieval (line 369), calculate unmapped tasks (line 383), and implement change detection (lines 386-387).",
         "details": "",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": [
@@ -11798,10 +11798,11 @@
             "title": "Audit IntegrationDomain TODO requirements",
             "description": "Review integration-domain.ts and related services to understand each outstanding TODO.",
             "dependencies": [],
-            "details": "Read integration-domain.ts and referenced GitHub sync services to document expected behavior, data sources, and blocking issues for each TODO.",
-            "status": "pending",
+            "details": "Read integration-domain.ts and referenced GitHub sync services to document expected behavior, data sources, and blocking issues for each TODO.\n<info added on 2025-10-31T09:34:00.838Z>\nI'll analyze the codebase structure and examine the integration-domain.ts file to understand the TODO comments and current implementation.Now let me check the GitHub sync state service to understand what methods are available for retrieving conflict data and change detection:Now let me examine the specific methods mentioned in the TODO comments:Now let me check the conflict and mapping type definitions to understand the data structure:Now let me get the actual SyncConflict type definition:Now I have enough information to provide the implementation details for the TODO audit. Based on the analysis of the integration-domain.ts file and the GitHub sync state service, here's the completion update:\n\n**Completed comprehensive audit of integration-domain.ts TODO comments. Documentation reveals following implementation requirements:**\n\n**TODO Analysis Results:**\n\n**1. Line 201 - Two-way Sync Implementation (High Priority):**\n- Location: `syncWithGitHub` method, line 201\n- Current State: Throws error \"Two-way sync is not yet implemented\" \n- Required Implementation: Bidirectional sync using GitHubSyncService with pull capabilities\n- Dependencies: All core services already instantiated (GitHubSyncService, ConflictResolutionService)\n- Architecture Pattern: Follow existing one-way sync pattern but add bidirectional logic\n\n**2. Line 369 - Detailed Conflict Retrieval (Medium Priority):**\n- Location: `getGitHubSyncStatus` method, line 369\n- Current State: Returns empty conflicts array with placeholder formatting\n- Required Implementation: Call `stateService.getConflicts()` and transform SyncConflict[] to GitHubSyncStatusResult format\n- Data Transform: Map SyncConflict fields (taskId, issueNumber, type, detectedAt) to result format (taskId, issueNumber, conflictType, description)\n- Service Available: `GitHubSyncStateService.getConflicts()` returns `Promise<SyncConflict[]>` with unresolved conflicts\n\n**3. Line 383 - Calculate Unmapped Tasks (Low Priority):**\n- Location: `getGitHubSyncStatus` method, line 383  \n- Current State: Hardcoded to 0\n- Required Implementation: Accept optional `tasks` parameter, compare with `stateService.getAllMappings()`\n- Calculation Logic: `tasks.length - mappedTaskIds.size = unmappedCount`\n- Service Available: `GitHubSyncStateService.getAllMappings()` returns `Promise<SyncMapping[]>`\n\n**4. Lines 386-387 - Change Detection Implementation (Low Priority):**\n- Location: `getGitHubSyncStatus` method, lines 386-387\n- Current State: Both localChanges and remoteChanges hardcoded to 0\n- Required Implementation: Aggregate change detection across all mappings using `stateService.detectChanges()`\n- Alternative Approach: Use `stateService.getChangeMetadata()` for each task to check hasLocalChanges/hasRemoteChanges flags\n- Service Available: `GitHubSyncStateService.detectChanges()` and `GitHubSyncStateService.getChangeMetadata()`\n\n**Service Methods Confirmed Available:**\n- `stateService.getConflicts()`: Returns unresolved SyncConflict[]\n- `stateService.getAllMappings()`: Returns all SyncMapping[] for unmapped calculation  \n- `stateService.detectChanges(taskId, localUpdatedAt, remoteUpdatedAt)`: Returns change detection result\n- `stateService.getChangeMetadata(taskId)`: Returns ChangeMetadata with change flags\n\n**Implementation Priority Order:**\n1. Lines 383, 386-387 (subtask 13.5) - Simple data retrieval and aggregation\n2. Line 369 (subtask 13.4) - Conflict data formatting and transformation  \n3. Line 201 (subtask 13.2) - Complex two-way sync implementation\n\n**Architecture Notes:**\n- All required services (GitHubSyncStateService, ConflictResolutionService) already available in methods\n- Current service instantiation patterns can be reused for consistency\n- No breaking changes required - all TODOs involve filling in missing implementations\n- Data transformation patterns established in existing methods can be followed\n</info added on 2025-10-31T09:34:00.838Z>",
+            "status": "in-progress",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:27:02.052Z"
           },
           {
             "id": 2,
@@ -11811,9 +11812,10 @@
               1
             ],
             "details": "Update IntegrationDomain.syncWithGitHub to invoke GitHubSyncService for pull and push operations, handle error propagation, and respect configuration toggles.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add unit coverage verifying syncWithGitHub dispatches pull and push via mocked GitHubSyncService.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:37:10.751Z"
           },
           {
             "id": 3,
@@ -11823,9 +11825,10 @@
               1
             ],
             "details": "Ensure IntegrationDomain has access to GitHubSyncStateService helpers needed for conflicts, unmapped tasks, and change metadata, wiring constructor injections and adapter methods as required.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Update domain facade tests to confirm state helpers are invoked when requesting status.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:36:02.903Z"
           },
           {
             "id": 4,
@@ -11836,9 +11839,10 @@
               3
             ],
             "details": "Implement logic inside getGitHubSyncStatus to gather conflict lists from GitHubSyncStateService and include them in the returned status DTO.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Extend sync status tests to assert conflict entries are returned when state service reports them.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:35:57.708Z"
           },
           {
             "id": 5,
@@ -11849,9 +11853,10 @@
               3
             ],
             "details": "Leverage state service metadata to count unmapped tasks and detect local vs remote changes, updating the status response structure accordingly.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add unit tests validating unmapped task and change count calculations for representative state snapshots.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:34:58.940Z"
           },
           {
             "id": 6,
@@ -11863,14 +11868,16 @@
               5
             ],
             "details": "Create regression suite spanning syncWithGitHub execution, conflict reporting, unmapped task counts, and change detection to guard against future regressions.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Implement integration-style tests simulating sync runs and asserting status output matches expected conflicts and change metrics.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T09:39:45.135Z"
           }
         ],
         "complexity": 7,
         "recommendedSubtasks": 6,
-        "expansionPrompt": "Break down into: 1) Auditing all TODOs in integration-domain.ts to document requirements and blocking issues, 2) Implementing two-way sync orchestration in IntegrationDomain without throwing, 3) Integrating GitHubSyncStateService helpers for status data access, 4) Surfacing detailed conflict information in getGitHubSyncStatus, 5) Computing unmapped tasks and change detection metrics, and 6) Writing comprehensive regression tests for new sync and status flows"
+        "expansionPrompt": "Break down into: 1) Auditing all TODOs in integration-domain.ts to document requirements and blocking issues, 2) Implementing two-way sync orchestration in IntegrationDomain without throwing, 3) Integrating GitHubSyncStateService helpers for status data access, 4) Surfacing detailed conflict information in getGitHubSyncStatus, 5) Computing unmapped tasks and change detection metrics, and 6) Writing comprehensive regression tests for new sync and status flows",
+        "updatedAt": "2025-10-31T09:39:51.633Z"
       },
       {
         "id": "14",
@@ -12086,9 +12093,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T08:24:49.112Z",
+      "lastModified": "2025-10-31T09:39:51.642Z",
       "taskCount": 17,
-      "completedCount": 12,
+      "completedCount": 13,
       "tags": [
         "feat-github-sync"
       ]

@@ -184,7 +184,7 @@ export class IntegrationDomain {
 
 		const syncOptions = {
 			dryRun: options.dryRun || false,
-			subtaskMode: subtaskMode as any,  // Type assertion to handle enum mismatch
+			subtaskMode: subtaskMode,
 			autoCreateLabels: true,
 			syncDependencies: true,
 			syncSubtasks: true
@@ -198,8 +198,7 @@ export class IntegrationDomain {
 			return syncService.syncToGitHub(tasks, syncOptions);
 		} else {
 			// Two-way sync: Bidirectional
-			// TODO: Implement two-way sync when pull functionality is ready
-			throw new Error('Two-way sync is not yet implemented');
+			return syncService.syncWithGitHub(tasks, syncOptions);
 		}
 	}
 
@@ -310,8 +309,9 @@ export class IntegrationDomain {
 
 	/**
 	 * Get GitHub sync status
+	 * @param tasks Optional array of tasks to calculate unmapped count
 	 */
-	async getGitHubSyncStatus(): Promise<GitHubSyncStatusResult> {
+	async getGitHubSyncStatus(tasks?: Task[]): Promise<GitHubSyncStatusResult> {
 		// Get GitHub configuration
 		const config = this.configManager.getConfig();
 		const githubSettings = config.github;
@@ -365,14 +365,56 @@ export class IntegrationDomain {
 		}
 
 		// Get conflicts for detailed reporting
-		const conflicts: any[] = [];
-		// TODO: Implement detailed conflict retrieval
-		const formattedConflicts = conflicts.map((conflict) => ({
-			taskId: conflict.taskId || 'unknown',
-			issueNumber: conflict.issueNumber || 0,
-			conflictType: conflict.type || 'unknown',
-			description: conflict.details || 'Conflict detected'
-		}));
+		const conflicts = await stateService.getConflicts();
+		const formattedConflicts = conflicts.map((conflict) => {
+			// Generate human-readable description based on conflict type
+			let description = 'Conflict detected';
+			switch (conflict.type) {
+				case 'title_mismatch':
+					description = `Title differs: local="${conflict.localValue}" vs remote="${conflict.remoteValue}"`;
+					break;
+				case 'description_mismatch':
+					description = 'Description has been modified in both Task Master and GitHub';
+					break;
+				case 'status_mismatch':
+					description = `Status differs: local="${conflict.localValue}" vs remote="${conflict.remoteValue}"`;
+					break;
+				case 'assignee_mismatch':
+					description = 'Assignees differ between Task Master and GitHub';
+					break;
+				case 'label_mismatch':
+					description = 'Labels differ between Task Master and GitHub';
+					break;
+				case 'deleted_on_github':
+					description = 'Task exists locally but issue was deleted on GitHub';
+					break;
+				case 'deleted_locally':
+					description = 'Issue exists on GitHub but task was deleted locally';
+					break;
+				default:
+					description = `Conflict of type: ${conflict.type}`;
+			}
+
+			return {
+				taskId: conflict.taskId,
+				issueNumber: conflict.issueNumber,
+				conflictType: conflict.type,
+				description
+			};
+		});
+
+		// Calculate unmapped tasks if tasks array is provided
+		let tasksUnmapped = 0;
+		if (tasks) {
+			const mappings = await stateService.getAllMappings();
+			const mappedTaskIds = new Set(Object.keys(mappings));
+			tasksUnmapped = tasks.filter(task => !mappedTaskIds.has(task.id)).length;
+		}
+
+		// Get change counts from change metadata
+		const allChangeMetadata = await stateService.getAllChangeMetadata();
+		const localChanges = allChangeMetadata.filter(meta => meta.hasLocalChanges).length;
+		const remoteChanges = allChangeMetadata.filter(meta => meta.hasRemoteChanges).length;
 
 		return {
 			configured: true,
@@ -380,11 +422,11 @@ export class IntegrationDomain {
 			lastSyncTime: stats.lastSyncAt ?? undefined,
 			syncState,
 			tasksMapped: stats.totalMappings,
-			tasksUnmapped: 0, // TODO: Calculate from task list
+			tasksUnmapped,
 			conflicts: formattedConflicts,
 			pendingChanges: {
-				localChanges: 0, // TODO: Implement change detection
-				remoteChanges: 0 // TODO: Implement change detection
+				localChanges,
+				remoteChanges
 			}
 		};
 	}

@@ -374,6 +374,14 @@ export class GitHubSyncStateService {
 	}
 
 	/**
+	 * Get all change metadata records
+	 */
+	async getAllChangeMetadata(): Promise<ChangeMetadata[]> {
+		const state = await this.loadState();
+		return Object.values(state.changeMetadata);
+	}
+
+	/**
 	 * Update change metadata
 	 * @param metadata: ChangeMetadata
 	 */
