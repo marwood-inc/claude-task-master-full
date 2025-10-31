@@ -1,0 +1,121 @@
+{
+  "$schema": "https://claude.ai/schemas/background-agent-v1.json",
+  "name": "task-master-specialist",
+  "version": "1.0.0",
+  "description": "Automatically handles Task Master operations when triggered by CLI commands, natural language prompts, or task tags",
+  "enabled": true,
+  "agentPath": "../agents/task-master-specialist.md",
+  "triggers": {
+    "cliCommands": {
+      "patterns": [
+        "^task-master\\s+(list|show|next|expand|update|update-task|update-subtask|set-status|analyze-complexity|complexity-report|add-task|add-dependency|move|validate-dependencies|generate)\\b",
+        "^tm\\s+(list|show|next|expand|update|status)\\b"
+      ],
+      "description": "Triggers on Task Master CLI commands"
+    },
+    "naturalLanguage": {
+      "keywords": [
+        "task master",
+        "taskmaster",
+        "show tasks",
+        "list tasks",
+        "next task",
+        "what's next",
+        "task status",
+        "update task",
+        "expand task",
+        "task dependencies",
+        "analyze complexity",
+        "task progress"
+      ],
+      "patterns": [
+        "\\b(show|list|display|view)\\s+(the\\s+)?(task|tasks)\\b",
+        "\\bwhat('s|\\s+is)\\s+(next|the\\s+next\\s+task)\\b",
+        "\\b(mark|set|update)\\s+task\\s+\\d+(\\.\\d+)?\\s+(as\\s+)?(done|complete|in-progress|pending)\\b",
+        "\\btask\\s+\\d+(\\.\\d+)?\\s+(status|details|info)\\b"
+      ],
+      "description": "Triggers on natural language mentions of Task Master operations"
+    },
+    "taskTags": {
+      "tags": ["taskmaster", "task-master"],
+      "sources": ["git", "branch", "commit", "config"],
+      "description": "Triggers when work is tagged with 'taskmaster' in git metadata or config"
+    }
+  },
+  "delegation": {
+    "targets": {
+      "primary": "task-master-specialist",
+      "fallback": "general-purpose"
+    },
+    "scope": "auto",
+    "priority": "high"
+  },
+  "requiredTools": [
+    "Bash(task-master *)",
+    "mcp__task_master_ai__*",
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep"
+  ],
+  "outputChannel": {
+    "format": "structured",
+    "includeMetadata": true,
+    "templates": {
+      "statusSummary": true,
+      "nextActions": true,
+      "commandSuggestions": true,
+      "progressReport": true
+    }
+  },
+  "fallbackRules": {
+    "onError": {
+      "action": "manual",
+      "message": "Automatic Task Master delegation failed. Please run commands manually or check configuration.",
+      "suggestCommands": true
+    },
+    "onTimeout": {
+      "action": "cancel",
+      "timeoutMs": 30000
+    },
+    "onMissingTools": {
+      "action": "degrade",
+      "message": "Some Task Master tools are unavailable. Falling back to basic CLI operations."
+    }
+  },
+  "configuration": {
+    "autoUpdateStatus": true,
+    "proactiveSuggestions": true,
+    "verboseLogging": false,
+    "respectManualOverride": true
+  },
+  "integrations": {
+    "gitConfig": {
+      "enabled": true,
+      "tagKey": "task-master.tag"
+    },
+    "taskMasterConfig": {
+      "enabled": true,
+      "configPath": ".taskmaster/config.json",
+      "activeTagKey": "activeTag"
+    },
+    "cliBridge": {
+      "enabled": true,
+      "metadataPath": "apps/cli/src/command-registry.ts",
+      "delegationHelper": "packages/tm-bridge/src/delegation-helper.ts"
+    }
+  },
+  "documentation": {
+    "setupGuide": ".claude/AGENT_SETUP.md",
+    "architecture": "CLAUDE.md",
+    "workflow": ".taskmaster/CLAUDE.md",
+    "troubleshooting": ".claude/README.md"
+  },
+  "metadata": {
+    "author": "Task Master AI Team",
+    "createdDate": "2025-10-31",
+    "lastModified": "2025-10-31",
+    "tags": ["automation", "task-management", "delegation", "background-agent"]
+  }
+}

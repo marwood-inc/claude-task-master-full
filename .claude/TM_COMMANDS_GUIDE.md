@@ -6,6 +6,23 @@ Complete guide to using Task Master through Claude Code's slash commands.
 
 All Task Master functionality is available through the `/project:tm/` namespace with natural language support and intelligent features.
 
+### Automatic Specialist Delegation
+
+Task Master operations are automatically handled by a specialized agent when you:
+- Run Task Master CLI commands (`task-master list`, `show`, `next`, etc.)
+- Use natural language prompts mentioning Task Master ("show me the tasks", "what's next")
+- Work on tasks tagged with `taskmaster` in your git branch or commits
+
+The specialist agent provides:
+- ✅ Consistent, formatted responses aligned with CLI output
+- 📋 Proactive task suggestions based on dependencies
+- 🔄 Automatic status tracking and progress updates
+- 💡 Contextual guidance and next action recommendations
+
+**Manual Override**: Explicitly invoke the specialist with `@agent-taskmaster:task-master-specialist` when needed.
+
+**Configuration**: The automatic delegation feature is specified in `.claude/background-agents/task-master-specialist.json` but requires future Claude Code support to be fully active.
+
 ## Quick Start
 
 ```bash

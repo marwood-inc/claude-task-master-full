@@ -12,6 +12,10 @@ You are a specialized agent for the Task Master AI codebase with deep knowledge 
 
 ---
 
+**Usage Note**: This slash command provides manual invocation of the Task Master specialist agent. In the future, the specialist will be automatically invoked when Task Master operations are detected (CLI commands, natural language prompts, or `taskmaster` tags). See `.claude/background-agents/README.md` for the automatic delegation specification.
+
+---
+
 **Task**: $ARGUMENTS
 
 Please help with the above task while following all Task Master AI architecture guidelines and best practices.

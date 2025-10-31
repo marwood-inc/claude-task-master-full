@@ -29,6 +29,26 @@ Complete guide covering:
 
 Quick access command for invoking the specialist agent.
 
+### 4. Background Agent Delegation (Specification)
+**Files**:
+- `.claude/background-agents/task-master-specialist.json` - Delegation configuration
+- `.claude/background-agents/README.md` - Implementation status and documentation
+
+**Status**: ⚠️ Specified but not yet implemented in Claude Code
+
+Automatic agent delegation that will handle Task Master operations when triggered by:
+- CLI commands (`task-master list`, `show`, `next`, etc.)
+- Natural language prompts mentioning Task Master
+- Work tagged with `taskmaster` in git metadata
+
+**Benefits when implemented**:
+- Transparent handling of Task Master operations
+- Consistent, formatted responses aligned with CLI
+- Proactive task suggestions and guidance
+- Automatic status tracking
+
+**Current Usage**: Manual invocation only (see methods below)
+
 ## How to Use
 
 ### Method 1: Slash Command (Recommended)

@@ -14,3 +14,14 @@ export {
 	type UpdateBridgeParams,
 	type RemoteUpdateResult
 } from './update-bridge.js';
+
+export {
+	shouldDelegateToSpecialist,
+	emitDelegationMetadata,
+	getActiveTag,
+	isDelegationEnabled,
+	getDelegationConfig,
+	type DelegationContext,
+	type DelegationMetadata,
+	type DelegationConfig
+} from './delegation-helper.js';

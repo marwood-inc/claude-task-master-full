@@ -25,6 +25,10 @@ export interface CommandMetadata {
 	description: string;
 	commandClass: typeof Command;
 	category?: 'task' | 'auth' | 'utility' | 'development';
+	/** Whether this command should trigger background agent delegation */
+	delegateToSpecialist?: boolean;
+	/** Target specialist agent name */
+	specialistAgent?: string;
 }
 
 /**
@@ -40,37 +44,49 @@ export class CommandRegistry {
 			name: 'list',
 			description: 'List all tasks with filtering and status overview',
 			commandClass: ListTasksCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'show',
 			description: 'Display detailed information about a specific task',
 			commandClass: ShowCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'next',
 			description: 'Find the next available task to work on',
 			commandClass: NextCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'start',
 			description: 'Start working on a task with claude-code',
 			commandClass: StartCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'set-status',
 			description: 'Update the status of one or more tasks',
 			commandClass: SetStatusCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'export',
 			description: 'Export tasks to external systems',
 			commandClass: ExportCommand as any,
-			category: 'task'
+			category: 'task',
+			delegateToSpecialist: true,
+			specialistAgent: 'task-master-specialist'
 		},
 		{
 			name: 'autopilot',
