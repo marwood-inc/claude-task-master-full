@@ -33,6 +33,83 @@
   });
   ```
 
+### Test Best Practices
+
+#### Mock Infrastructure
+- **Centralize mocks** in `tests/test-helpers/` for reusability
+- **Use vi.fn()** for all mock methods to enable call tracking
+- **Mock constructors properly** with vi.fn().mockImplementation()
+- Example:
+  ```typescript
+  // tests/test-helpers/mock-registry.ts
+  export class MockConfigLoader {
+    loadLocalConfig = vi.fn();
+    loadGlobalConfig = vi.fn();
+  }
+  
+  vi.mock('./config-loader.service.js', () => ({
+    ConfigLoader: MockConfigLoader
+  }));
+  ```
+
+#### Fake Timers
+- **ALWAYS use vi.useFakeTimers()** for time-based tests (TTL, timeouts, debouncing)
+- Clean up with vi.useRealTimers() in afterEach()
+- Example:
+  ```typescript
+  describe('Cache TTL', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+    
+    it('expires after TTL', async () => {
+      await cache.set('key', 'value', 5000);
+      vi.advanceTimersByTime(6000);
+      expect(await cache.get('key')).toBeUndefined();
+    });
+  });
+  ```
+
+#### Test Data
+- **Use minimal datasets** (10-20 items) to prove behavior
+- **Separate performance tests** from correctness tests
+- **Clean up after each test** with afterEach() hooks
+
+#### Cross-Platform Testing
+- **Test on Windows and Unix** for path handling
+- **Use path.normalize()** from Node.js for consistency
+- **Remove platform-specific prefixes** (Windows drive letters) early
+
+## Performance Guidelines
+
+### Caching
+- **Cache read-heavy operations** with proper invalidation
+- **Include context in cache keys**: `tasks:${tag}:${project}`
+- **Invalidate on writes** to maintain consistency
+- **Don't cache empty results** unless intentional
+
+### File Operations
+- **Use async/await** for all I/O operations
+- **Batch parallel operations** with Promise.all()
+- **Implement retry logic** for transient errors (EPERM, ENOENT)
+- **Use exponential backoff** for retries
+
+### Error Handling
+- **Create domain-specific error classes** for better debugging
+- **Include context** in error messages
+- **Implement retry strategies** for transient failures
+- Example:
+  ```typescript
+  export class WorkflowValidationError extends TaskMasterError {
+    constructor(
+      message: string,
+      public readonly phase: WorkflowPhase,
+      public readonly failures: ValidationFailure[]
+    ) {
+      super(message, 'WORKFLOW_VALIDATION_ERROR', { phase, failures });
+    }
+  }
+  ```
+
 ## Architecture Guidelines
 
 ### Business Logic Separation

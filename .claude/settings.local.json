@@ -37,7 +37,21 @@
       "Bash(Select-Object -Last 40)",
       "Bash(Select-Object -Last 50)",
       "Bash(task-master next:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(temp_cache_test.ts)",
+      "Bash(temp_test.ts)",
+      "Bash(Select-String -Pattern \"retry|backoff|EPERM|ENOENT\" -Context 2)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Select-String -Pattern \"useFakeTimers|advanceTimers\" -Context 1)",
+      "Bash(Select-Object -First 30)",
+      "Bash(sed:*)",
+      "mcp__zen__chat",
+      "Bash(Select-Object -Skip 177 -First 10)",
+      "Bash(pnpm build:*)",
+      "Bash(cmd /c \"pnpm run build:core\")",
+      "Bash(npx pnpm build:core)",
+      "Bash(task-master parse-prd:*)",
+      "mcp__oraios_serena__think_about_collected_information"
     ],
     "deny": [],
     "ask": []
