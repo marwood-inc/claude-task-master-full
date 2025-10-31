@@ -47,6 +47,13 @@ export {
 	compareRunIds
 } from './run-id-generator.js';
 
+// Export mutex utilities
+export {
+	ResourceMutex,
+	MutexTimeoutError,
+	type ResourceMutexOptions
+} from './mutex.js';
+
 // Additional utility exports
 
 /**
