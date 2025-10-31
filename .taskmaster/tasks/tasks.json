@@ -11199,7 +11199,7 @@
           "3",
           "4"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -11207,9 +11207,10 @@
             "description": "Implement the core benchmarking infrastructure to collect and measure performance metrics including file I/O operations, memory usage, and latency measurements.",
             "dependencies": [],
             "details": "Create scripts/benchmark-performance.js with modules for collecting key metrics: file I/O operation counting, latency measurement for loadTasks() and loadTask() operations, memory usage tracking over time, and cache hit/miss ratio collection. Implement utility functions for starting/stopping measurements, data aggregation, and metric calculation. Include timestamp tracking and memory profiling capabilities.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for metric collection accuracy and performance measurement utilities. Verify measurement overhead is minimal and doesn't affect actual performance significantly.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:51:20.206Z"
           },
           {
             "id": 2,
@@ -11239,7 +11240,8 @@
         ],
         "complexity": 6,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Build comprehensive benchmarking infrastructure: create core performance metrics collection module with file I/O counting, memory tracking, and latency measurement capabilities, implement dataset size testing framework with realistic test data generation for small/medium/large scenarios, and develop workload simulation suite mimicking actual CLI and MCP usage patterns with performance threshold validation."
+        "expansionPrompt": "Build comprehensive benchmarking infrastructure: create core performance metrics collection module with file I/O counting, memory tracking, and latency measurement capabilities, implement dataset size testing framework with realistic test data generation for small/medium/large scenarios, and develop workload simulation suite mimicking actual CLI and MCP usage patterns with performance threshold validation.",
+        "updatedAt": "2025-10-31T04:51:20.206Z"
       },
       {
         "id": "8",
@@ -11325,7 +11327,7 @@
           "4",
           "5"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11333,9 +11335,10 @@
             "description": "Set up the test file structure with Jest configuration, imports, and test data fixtures for single task lookup testing",
             "dependencies": [],
             "details": "Create packages/tm-core/tests/unit/storage/file-storage-lookup.test.ts with proper Jest setup, import FileStorage class and required dependencies, create mock task data fixtures covering regular tasks and subtasks with various ID formats, set up beforeEach/afterEach hooks for test isolation, configure test environment with temporary directories for file operations",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests verifying test setup works correctly and mock data is properly structured",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:39:21.281Z"
           },
           {
             "id": 2,
@@ -11345,9 +11348,10 @@
               1
             ],
             "details": "Test regular task lookup with non-dotted IDs (1, 2, 3), subtask lookup with dotted notation (1.1, 2.3, 1.1.1), non-existent task handling returning null/undefined, malformed ID formats, case sensitivity, whitespace handling, boundary conditions with very large IDs, verify identical results between loadTask() and loadTasks() filtering approaches for backward compatibility",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Correctness tests ensuring identical results for all supported task ID formats compared to existing loadTasks() filtering approach",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:41:50.616Z"
           },
           {
             "id": 3,
@@ -11358,14 +11362,16 @@
               2
             ],
             "details": "Implement performance tests measuring latency difference between optimized single task lookup and loadTasks() filtering, test with datasets of varying sizes (10, 100, 1000+ tasks), measure file I/O operation counts, memory allocation patterns for single vs multiple task loading, cache hit/miss ratios when cache is implemented, include realistic CLI and MCP usage patterns with repeated single task access",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Performance comparison tests measuring latency difference and memory usage tests confirming reduced allocation for single task retrieval with target 50%+ improvement in retrieval speed",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:43:19.966Z"
           }
         ],
         "complexity": 5,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Systematically test optimized lookup functionality: establish test infrastructure with Jest configuration, mock data fixtures, and test environment setup for single task retrieval testing, implement correctness tests covering all supported task ID formats (regular, dotted notation, edge cases) ensuring backward compatibility, and create performance comparison tests measuring latency improvements and memory usage reduction against existing loadTasks approach."
+        "expansionPrompt": "Systematically test optimized lookup functionality: establish test infrastructure with Jest configuration, mock data fixtures, and test environment setup for single task retrieval testing, implement correctness tests covering all supported task ID formats (regular, dotted notation, edge cases) ensuring backward compatibility, and create performance comparison tests measuring latency improvements and memory usage reduction against existing loadTasks approach.",
+        "updatedAt": "2025-10-31T04:43:19.966Z"
       },
       {
         "id": "10",
@@ -11425,9 +11431,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:33:01.477Z",
+      "lastModified": "2025-10-31T04:51:20.214Z",
       "taskCount": 10,
-      "completedCount": 7,
+      "completedCount": 8,
       "tags": [
         "chore-performance-optimisation"
       ]
