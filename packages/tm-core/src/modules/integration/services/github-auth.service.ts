@@ -146,7 +146,7 @@ export class GitHubAuthService {
 				const errorName = (error as { name: string }).name;
 
 				if (errorName === 'GitHubAuthenticationError') {
-					const authError = error as { message: string; code: string };
+					const authError = error as unknown as { message: string; code: string };
 					return {
 						valid: false,
 						error: authError.message,

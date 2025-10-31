@@ -380,7 +380,9 @@ export type GitHubIssueUpdate = Partial<
 >;
 
 export type GitHubLabelUpdate = Partial<
-	Pick<GitHubLabel, 'name' | 'color' | 'description'>
+	Pick<GitHubLabel, 'name' | 'color' | 'description'> & {
+		new_name: string;
+	}
 >;
 
 export type GitHubMilestoneUpdate = Partial<

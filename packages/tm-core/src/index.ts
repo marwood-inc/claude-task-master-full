@@ -125,3 +125,13 @@ export { TaskLoaderService } from './modules/tasks/services/task-loader.service.
 
 // Integration - Advanced
 export { ExportService } from './modules/integration/services/export.service.js';
+export { GitHubAuthService } from './modules/integration/services/github-auth.service.js';
+export type {
+	TokenValidationResult,
+	PermissionCheckResult,
+	RateLimitStatus
+} from './modules/integration/services/github-auth.service.js';
+
+// Config - Advanced
+export { ConfigManager } from './modules/config/managers/config-manager.js';
+export type { GitHubSettings } from './common/interfaces/configuration.interface.js';

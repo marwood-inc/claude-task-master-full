@@ -237,6 +237,39 @@ export interface SecuritySettings {
 }
 
 /**
+ * GitHub integration settings
+ */
+export interface GitHubSettings {
+	/** Enable GitHub integration */
+	enabled: boolean;
+	/** GitHub personal access token (prefer GITHUB_TOKEN environment variable) */
+	token?: string;
+	/** Repository owner (username or organization) */
+	owner?: string;
+	/** Repository name */
+	repo?: string;
+	/** How to handle subtasks in GitHub */
+	subtaskMode: 'checklist' | 'separate-issues';
+	/** Conflict resolution strategy */
+	conflictResolution: 'prefer-local' | 'prefer-remote' | 'manual';
+	/** Feature toggles */
+	features: {
+		/** Sync milestones */
+		syncMilestones: boolean;
+		/** Sync to GitHub Projects */
+		syncProjects: boolean;
+		/** Sync assignees */
+		syncAssignees: boolean;
+		/** Sync labels */
+		syncLabels: boolean;
+	};
+	/** Sync direction */
+	syncDirection: 'to-github' | 'from-github' | 'bidirectional';
+	/** Auto-sync on task updates */
+	autoSync: boolean;
+}
+
+/**
  * Workflow and autopilot TDD settings
  */
 export interface WorkflowSettings {
@@ -341,6 +374,9 @@ export interface IConfiguration {
 
 	/** Security settings */
 	security: SecuritySettings;
+
+	/** GitHub integration settings */
+	github?: GitHubSettings;
 
 	/** Custom user-defined settings */
 	custom?: Record<string, unknown>;

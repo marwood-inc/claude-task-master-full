@@ -32,6 +32,7 @@ export type {
 	RetrySettings,
 	LoggingSettings,
 	SecuritySettings,
+	GitHubSettings,
 	ConfigValidationResult,
 	EnvironmentConfig,
 	ConfigSchema,

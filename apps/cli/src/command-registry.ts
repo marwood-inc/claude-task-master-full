@@ -15,6 +15,7 @@ import { StartCommand } from './commands/start.command.js';
 import { SetStatusCommand } from './commands/set-status.command.js';
 import { ExportCommand } from './commands/export.command.js';
 import { AutopilotCommand } from './commands/autopilot/index.js';
+import { GitHubCommand } from './commands/github.command.js';
 
 /**
  * Command metadata for registration
@@ -91,6 +92,14 @@ export class CommandRegistry {
 			description: 'Manage workspace context (organization/brief)',
 			commandClass: ContextCommand as any,
 			category: 'auth'
+		},
+
+		// Integration Commands
+		{
+			name: 'github',
+			description: 'GitHub integration and synchronization',
+			commandClass: GitHubCommand as any,
+			category: 'utility'
 		}
 	];
 

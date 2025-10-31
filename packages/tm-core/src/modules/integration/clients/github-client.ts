@@ -475,12 +475,26 @@ export class GitHubClient {
 		try {
 			this.logger.debug('Updating label', { owner, repo, name });
 
-			const { data: label } = await this.octokit.rest.issues.updateLabel({
+			const updateData: {
+				owner: string;
+				repo: string;
+				name: string;
+				new_name?: string;
+				color?: string;
+				description?: string;
+			} = {
 				owner,
 				repo,
-				name,
-				...data
-			});
+				name
+			};
+
+			if (data.new_name) updateData.new_name = data.new_name;
+			if (data.color) updateData.color = data.color;
+			if (data.description !== undefined && data.description !== null) {
+				updateData.description = data.description;
+			}
+
+			const { data: label } = await this.octokit.rest.issues.updateLabel(updateData);
 
 			this.logger.info('Label updated', { name: label.name });
 
@@ -604,13 +618,31 @@ export class GitHubClient {
 		try {
 			this.logger.debug('Updating milestone', { owner, repo, milestoneNumber });
 
+			const updateData: {
+				owner: string;
+				repo: string;
+				milestone_number: number;
+				title?: string;
+				state?: 'open' | 'closed';
+				description?: string;
+				due_on?: string;
+			} = {
+				owner,
+				repo,
+				milestone_number: milestoneNumber
+			};
+
+			if (data.title) updateData.title = data.title;
+			if (data.state) updateData.state = data.state;
+			if (data.description !== undefined && data.description !== null) {
+				updateData.description = data.description;
+			}
+			if (data.due_on !== undefined && data.due_on !== null) {
+				updateData.due_on = data.due_on;
+			}
+
 			const { data: milestone } = await this.octokit.rest.issues.updateMilestone(
-				{
-					owner,
-					repo,
-					milestone_number: milestoneNumber,
-					...data
-				}
+				updateData
 			);
 
 			this.logger.info('Milestone updated', { title: milestone.title });
