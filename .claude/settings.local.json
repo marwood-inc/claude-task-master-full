@@ -3,9 +3,18 @@
     "allow": [
       "Bash(task-master show:*)",
       "Bash(task-master set-status:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "mcp__oraios_serena__read_file",
+      "mcp__oraios_serena__activate_project",
+      "mcp__oraios_serena__find_file",
+      "mcp__oraios_serena__search_for_pattern"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "task-master-ai",
+    "zen",
+    "oraios/serena"
+  ]
 }
