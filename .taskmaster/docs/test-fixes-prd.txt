@@ -1,0 +1,664 @@
+===============================================================================
+TEST FIXES PRD - PERFORMANCE ENHANCEMENTS BRANCH
+===============================================================================
+
+OVERVIEW
+--------
+
+The performance-enhancements branch currently has 159 failing tests out of 640 
+total tests (75.2% success rate). This PRD outlines a systematic approach to 
+fix all failing tests and achieve 100% test coverage stability across both 
+Windows and Unix/Linux platforms. The fixes address critical infrastructure 
+issues, business logic bugs, performance test timeouts, and platform-specific 
+compatibility problems.
+
+PROBLEM STATEMENT
+The performance-enhancements branch cannot be merged to production with 24% of 
+tests failing. These failures span mocking infrastructure, cache behavior, 
+template rendering, path handling, and file I/O operations.
+
+TARGET USERS
+Development team working on Task Master AI
+
+VALUE PROPOSITION
+- Enable safe deployment of performance optimizations
+- Establish reliable test infrastructure for future development
+- Ensure cross-platform compatibility (Windows + Unix/Linux)
+- Improve developer confidence in test suite
+
+
+===============================================================================
+CORE FEATURES
+===============================================================================
+
+1. VITEST MOCKING INFRASTRUCTURE REPAIR
+----------------------------------------
+
+What it does:
+Fixes the core mocking setup that affects 50+ tests where vi.mocked() 
+functions don't have mockResolvedValue/mockRejectedValue available.
+
+Why it's important:
+This is the highest-impact fix - resolving it will fix approximately 50 test 
+failures across multiple files (config-loader, config-persistence, 
+runtime-state-manager).
+
+How it works:
+- Replace improper mock setups with proper vi.mock() module mocking
+- Ensure all Node.js built-in modules (fs/promises, path, etc.) are mocked 
+  correctly
+- Use vi.fn() for all mocked methods to ensure proper typing and functionality
+
+
+2. CONSTRUCTOR MOCKING SYSTEM
+------------------------------
+
+What it does:
+Fixes constructor mocking issues where mock factories return object literals 
+instead of constructors, causing "is not a constructor" errors.
+
+Why it's important:
+Affects 13 tests in config-manager.spec.ts and prevents proper dependency 
+injection testing.
+
+How it works:
+- Update mock factories to use vi.fn().mockImplementation()
+- Ensure mocked constructors return proper instances with all required methods
+- Maintain proper class hierarchies in mocks
+
+
+3. TEMPLATE ENGINE VARIABLE PRESERVATION
+-----------------------------------------
+
+What it does:
+Updates template engine to preserve {{placeholders}} when variables are 
+missing instead of removing them entirely.
+
+Why it's important:
+Current behavior breaks template rendering contract and can cause silent 
+failures in production.
+
+How it works:
+- Modify regex replacement logic to return original match when variable is 
+  undefined
+- Only replace placeholders when variables are explicitly provided
+- Maintain backward compatibility for existing templates
+
+
+4. CROSS-PLATFORM PATH SANITIZATION
+------------------------------------
+
+What it does:
+Fixes Windows drive letter handling in path sanitization logic to prevent 
+malformed project identifiers.
+
+Why it's important:
+Windows-specific failures indicate production issues for Windows users.
+
+How it works:
+- Strip Windows drive letters (C:, D:, etc.) before sanitization
+- Normalize path separators across platforms
+- Ensure consistent identifier generation regardless of OS
+
+
+5. CACHE TTL TESTING INFRASTRUCTURE
+------------------------------------
+
+What it does:
+Replaces real timers with fake timers in cache TTL tests to eliminate 5-second 
+test timeouts.
+
+Why it's important:
+Slow tests impact developer productivity and CI/CD pipeline efficiency.
+
+How it works:
+- Use vi.useFakeTimers() in test setup
+- Fast-forward time with vi.advanceTimersByTime() instead of real waits
+- Ensure cache expiration logic is properly tested without performance penalty
+
+
+6. ATOMIC FILE WRITE RETRY LOGIC
+---------------------------------
+
+What it does:
+Adds retry logic and platform-specific handling for atomic write EPERM/ENOENT 
+errors on Windows.
+
+Why it's important:
+File locking issues on Windows cause intermittent test failures and indicate 
+production reliability concerns.
+
+How it works:
+- Implement exponential backoff retry strategy
+- Handle Windows-specific file locking gracefully
+- Add proper error logging for debugging
+
+
+===============================================================================
+USER EXPERIENCE
+===============================================================================
+
+DEVELOPER PERSONAS
+------------------
+
+PRIMARY PERSONA - CORE CONTRIBUTOR
+- Works on tm-core business logic
+- Needs reliable, fast test feedback
+- Uses both Windows and macOS/Linux
+- Expects tests to pass consistently
+
+SECONDARY PERSONA - CI/CD PIPELINE
+- Automated testing on every PR
+- Requires cross-platform compatibility
+- Needs predictable, fast execution times
+- Must catch regressions before merge
+
+
+KEY USER FLOWS
+--------------
+
+Flow 1: Local Development Testing
+
+  # Developer makes changes to config system
+  npm run dev
+
+  # Runs specific test file
+  npx vitest run packages/tm-core/src/modules/config/services/config-loader.service.spec.ts
+
+  Expected: All tests pass in <2 seconds
+  Result: Green checkmarks, clear error messages if any failures
+
+
+Flow 2: Full Test Suite Validation
+
+  # Before submitting PR
+  npx vitest run
+
+  Expected: 640/640 tests pass in <60 seconds
+  Result: Comprehensive summary with performance metrics
+
+
+Flow 3: Cross-Platform Verification
+
+  # CI runs tests on Windows
+  npm run test -- --run
+
+  # CI runs tests on Linux
+  npm run test -- --run
+
+  Expected: Identical results on both platforms
+  Result: Platform-specific issues caught before production
+
+
+UI/UX CONSIDERATIONS
+--------------------
+
+Test Output Clarity:
+- Clear distinction between mock setup errors vs business logic failures
+- Helpful error messages pointing to specific lines
+- Performance metrics for slow tests (>1s)
+
+Developer Feedback Loop:
+- Tests complete in <5 seconds for single files
+- Full suite completes in <60 seconds
+- Watch mode provides instant feedback
+
+Error Recovery:
+- Clear instructions when mocks fail
+- Suggestions for fixing common issues
+- Links to relevant documentation
+
+
+===============================================================================
+TECHNICAL ARCHITECTURE
+===============================================================================
+
+SYSTEM COMPONENTS
+-----------------
+
+Performance Enhancements Test Suite
+├── Mocking Infrastructure (Priority 1)
+│   ├── vi.mock() module mocking system
+│   ├── Constructor mock factories
+│   └── Spy/stub configuration
+├── Business Logic Tests (Priority 2)
+│   ├── Template engine rendering
+│   ├── Path sanitization
+│   └── Workflow validation
+├── Performance Tests (Priority 3)
+│   ├── Cache TTL with fake timers
+│   ├── LRU eviction optimization
+│   └── Memory snapshot collection
+└── Platform Compatibility (Cross-cutting)
+    ├── Windows file I/O handling
+    ├── Path normalization
+    └── Atomic write strategies
+
+
+DATA MODELS
+-----------
+
+Mock Configuration Schema:
+
+  interface MockSetup {
+    modulePath: string;
+    exports: Record<string, MockFunction | MockConstructor>;
+    platform?: 'windows' | 'unix' | 'all';
+  }
+
+  interface MockFunction {
+    implementation: (...args: any[]) => any;
+    defaultResolvedValue?: any;
+    defaultRejectedValue?: Error;
+  }
+
+  interface MockConstructor {
+    implementation: (...args: any[]) => object;
+    methods: Record<string, MockFunction>;
+  }
+
+
+Test Configuration Schema:
+
+  interface TestConfig {
+    useFakeTimers: boolean;
+    platform: 'windows' | 'unix';
+    timeout: number;
+    retries: number;
+    setupFiles: string[];
+  }
+
+
+APIS AND INTEGRATIONS
+---------------------
+
+Vitest Testing API:
+- vi.mock() for module mocking
+- vi.fn() for function mocking
+- vi.spyOn() for spy creation
+- vi.useFakeTimers() for time manipulation
+
+Node.js File System:
+- fs/promises for async file operations
+- Atomic write patterns for data integrity
+- Platform-specific path handling
+
+Cache System Integration:
+- TTL-based expiration
+- LRU eviction policy
+- Memory-efficient storage
+
+
+INFRASTRUCTURE REQUIREMENTS
+---------------------------
+
+Development Environment:
+- Node.js 18+ (ESM support)
+- Vitest 1.0+ (modern testing framework)
+- TypeScript 5.0+ (strict mode)
+
+CI/CD Pipeline:
+- Windows Server runner
+- Linux runner (Ubuntu)
+- Parallel test execution
+- Test result caching
+
+Performance Targets:
+- Single test file: <5 seconds
+- Full test suite: <60 seconds
+- Memory usage: <500MB per test run
+- Zero flaky tests
+
+
+===============================================================================
+DEVELOPMENT ROADMAP
+===============================================================================
+
+PHASE 1: CRITICAL MOCKING INFRASTRUCTURE (DAYS 1-2)
+----------------------------------------------------
+
+Scope: Fix the foundation that affects 50+ tests
+
+Deliverables:
+1. Update all vi.mock() setups for Node.js built-in modules
+2. Fix constructor mocking in config-manager.spec.ts
+3. Fix environment config provider test setup
+4. Create mock setup documentation and examples
+
+Acceptance Criteria:
+- All config-loader tests pass
+- All config-persistence tests pass
+- All runtime-state-manager tests pass
+- All config-manager tests pass
+- Mock functions have proper TypeScript types
+- ~66 tests now passing (from ~481 to ~547)
+
+Technical Tasks:
+- Replace vi.mocked() with proper vi.mock() module declarations
+- Update constructor mocks to use vi.fn().mockImplementation()
+- Add mock setup helpers for common patterns
+- Document mocking best practices
+
+
+PHASE 2: BUSINESS LOGIC FIXES (DAY 3)
+--------------------------------------
+
+Scope: Fix template engine, path handling, and workflow validation
+
+Deliverables:
+1. Template engine preserves missing variable placeholders
+2. Path sanitization handles Windows drive letters correctly
+3. Workflow orchestrator RED phase validation works properly
+4. Platform-specific test suites for path handling
+
+Acceptance Criteria:
+- Template engine tests pass on all platforms
+- Workflow state manager tests pass on Windows and Linux
+- Workflow orchestrator validation tests pass
+- ~8 additional tests passing (from ~547 to ~555)
+
+Technical Tasks:
+- Update template.replace() regex logic
+- Add drive letter stripping to path sanitization
+- Debug and fix workflow validation logic
+- Add platform detection to test setup
+
+
+PHASE 3: PERFORMANCE TEST OPTIMIZATION (DAYS 4-5)
+--------------------------------------------------
+
+Scope: Fix cache TTL timeouts and optimize slow tests
+
+Deliverables:
+1. Cache TTL tests use fake timers
+2. Empty cache result handling fixed
+3. LRU eviction test optimized
+4. Atomic write retry logic implemented
+
+Acceptance Criteria:
+- All cache TTL tests complete in <1 second
+- No test timeouts
+- Cache tests pass 100% of the time (no flakiness)
+- Atomic writes succeed on Windows with file locking
+- ~10 additional tests passing (from ~555 to ~565)
+
+Technical Tasks:
+- Add vi.useFakeTimers() to cache tests
+- Implement cache key differentiation by tag
+- Reduce LRU test scale from 100+ to 20 entries
+- Add exponential backoff retry for Windows file operations
+
+
+PHASE 4: VERIFICATION AND DOCUMENTATION (DAY 6)
+------------------------------------------------
+
+Scope: Full validation and knowledge transfer
+
+Deliverables:
+1. All 640 tests passing on Windows and Linux
+2. Test best practices documentation
+3. CI/CD pipeline validation
+4. Performance benchmarks
+
+Acceptance Criteria:
+- 640/640 tests passing on all platforms
+- Test suite completes in <60 seconds
+- Zero flaky tests (run 10 times successfully)
+- Documentation complete and reviewed
+- CI/CD pipeline green on all platforms
+
+Technical Tasks:
+- Run full test suite 10 times on Windows
+- Run full test suite 10 times on Linux
+- Document all mock patterns and examples
+- Add test performance monitoring
+- Create troubleshooting guide
+
+
+===============================================================================
+LOGICAL DEPENDENCY CHAIN
+===============================================================================
+
+FOUNDATION LAYER (MUST COMPLETE FIRST)
+---------------------------------------
+
+1. Vitest Mock Infrastructure - Blocks all config-related tests
+2. Constructor Mocking - Blocks dependency injection tests
+3. Test Configuration Setup - Blocks platform-specific tests
+
+Rationale: These are infrastructure issues that affect multiple test files. 
+Fixing them first unblocks the most tests with the least effort.
+
+
+BUSINESS LOGIC LAYER (DEPENDS ON FOUNDATION)
+---------------------------------------------
+
+4. Template Engine Fix - Independent, can be done in parallel
+5. Path Sanitization - Independent, can be done in parallel
+6. Workflow Validation - May depend on mock fixes
+
+Rationale: These are isolated business logic issues that don't affect other 
+systems. Can be parallelized once foundation is stable.
+
+
+PERFORMANCE LAYER (DEPENDS ON FOUNDATION + BUSINESS LOGIC)
+-----------------------------------------------------------
+
+7. Cache TTL with Fake Timers - Depends on mock infrastructure
+8. Empty Cache Handling - Depends on cache TTL fixes
+9. LRU Optimization - Independent optimization
+10. Atomic Write Retry - Independent platform fix
+
+Rationale: Performance tests often interact with multiple systems. Fixing 
+business logic first ensures we're testing correct behavior.
+
+
+VERIFICATION LAYER (DEPENDS ON EVERYTHING)
+-------------------------------------------
+
+11. Cross-Platform Validation - Requires all fixes complete
+12. Documentation - Requires understanding all patterns
+13. CI/CD Integration - Final step before merge
+
+Rationale: Can only validate when all fixes are complete. Documentation 
+captures learned patterns.
+
+
+===============================================================================
+RISKS AND MITIGATIONS
+===============================================================================
+
+TECHNICAL CHALLENGES
+--------------------
+
+Risk 1: Mock Changes Break Other Tests
+  Impact: High - Could cause cascading failures
+  Probability: Medium
+  Mitigation:
+    - Run full test suite after each mock change
+    - Use feature flags for risky changes
+    - Maintain backward compatibility for 1 version
+    - Rollback plan: revert individual commits
+
+Risk 2: Platform-Specific Behaviors
+  Impact: Medium - Windows vs Linux differences
+  Probability: High
+  Mitigation:
+    - Test on both platforms continuously
+    - Use platform detection and conditional logic
+    - Add CI runners for both Windows and Linux
+    - Document platform-specific quirks
+
+Risk 3: Fake Timers Side Effects
+  Impact: Medium - May affect other async operations
+  Probability: Low
+  Mitigation:
+    - Isolate fake timer usage to specific tests
+    - Always cleanup with vi.useRealTimers() in afterEach
+    - Test async operations that shouldn't be affected
+    - Document timer expectations
+
+Risk 4: Cache Behavior Changes
+  Impact: High - Core system functionality
+  Probability: Low
+  Mitigation:
+    - Comprehensive cache behavior tests
+    - Performance benchmarks before/after
+    - Feature flag for cache changes
+    - Gradual rollout strategy
+
+
+MVP SCOPING
+-----------
+
+MVP Definition: 
+All Priority 1 and 2 issues fixed (mocking infrastructure + business logic)
+
+MVP Success Metrics:
+- At least 555/640 tests passing (~87%)
+- All config system tests passing
+- All template engine tests passing
+- All path sanitization tests passing
+
+Post-MVP Enhancements:
+- Performance test optimizations (Priority 3)
+- Advanced monitoring and metrics
+- Test parallelization
+- Enhanced error messages
+
+Rationale: 
+Priority 1-2 fixes address correctness issues. Priority 3 fixes are 
+optimizations that can be deferred if needed.
+
+
+RESOURCE CONSTRAINTS
+--------------------
+
+Time Constraint: 6-day timeline is aggressive
+
+Mitigation:
+- Focus on high-impact fixes first (Priority 1)
+- Parallelize independent work (template + path fixes)
+- Timebox investigations (2 hours max per issue)
+- Accept "good enough" for low-impact tests
+
+Knowledge Constraint: Team may not be familiar with vitest mocking patterns
+
+Mitigation:
+- Create mock pattern examples early
+- Pair programming for complex mocks
+- Document as we go
+- Knowledge sharing sessions
+
+Platform Testing Constraint: May not have easy access to Windows/Linux VMs
+
+Mitigation:
+- Use CI/CD runners for platform validation
+- Set up Docker containers for Linux testing
+- Use Windows Subsystem for Linux (WSL) where appropriate
+- Leverage cloud-based test runners
+
+
+===============================================================================
+APPENDIX
+===============================================================================
+
+RESEARCH FINDINGS
+-----------------
+
+Vitest Mocking Best Practices:
+
+  // GOOD - Proper module mock
+  vi.mock('node:fs/promises', () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn()
+  }));
+
+  // BAD - Improper mock that loses types
+  vi.mock('node:fs/promises');
+  const mockedFs = vi.mocked(fs);
+
+
+Constructor Mocking Pattern:
+
+  // GOOD - Returns constructor function
+  vi.mock('./config-loader.js', () => ({
+    ConfigLoader: vi.fn().mockImplementation(() => ({
+      loadLocalConfig: vi.fn(),
+      loadGlobalConfig: vi.fn()
+    }))
+  }));
+
+  // BAD - Returns object literal
+  vi.mock('./config-loader.js', () => ({
+    ConfigLoader: () => ({
+      loadLocalConfig: vi.fn()
+    })
+  }));
+
+
+Fake Timers Pattern:
+
+  // GOOD - Proper setup/cleanup
+  describe('Cache TTL', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+    
+    it('expires after TTL', async () => {
+      await cache.set('key', 'value');
+      vi.advanceTimersByTime(6000);
+      expect(await cache.get('key')).toBeNull();
+    });
+  });
+
+
+TECHNICAL SPECIFICATIONS
+-------------------------
+
+Test Performance Benchmarks:
+
+  Test Category      | Current        | Target    | Method
+  -------------------|----------------|-----------|------------------
+  Cache TTL          | 5000ms timeout | <1000ms   | Fake timers
+  LRU Eviction       | 5000ms timeout | <2000ms   | Reduce scale
+  Mock Setup         | N/A            | <100ms    | Proper vi.mock()
+  Full Suite         | Unknown        | <60s      | All optimizations
+
+
+Platform Compatibility Matrix:
+
+  Feature            | Windows | Linux | macOS | Notes
+  -------------------|---------|-------|-------|------------------
+  Path Sanitization  | ⚠️      | ✅    | ✅    | Drive letter issues
+  Atomic Writes      | ⚠️      | ✅    | ✅    | File locking
+  Mock Setup         | ✅      | ✅    | ✅    | Platform agnostic
+  Fake Timers        | ✅      | ✅    | ✅    | Platform agnostic
+
+
+SUCCESS CRITERIA CHECKLIST
+---------------------------
+
+[ ] 640/640 tests passing
+[ ] Zero flaky tests (10 consecutive runs)
+[ ] Tests complete in <60 seconds
+[ ] All platforms validated (Windows + Linux)
+[ ] No memory leaks in cache tests
+[ ] Proper error messages
+[ ] Documentation complete
+[ ] CI/CD pipeline green
+[ ] Code review approved
+[ ] Ready for merge to main
+
+
+RELATED DOCUMENTATION
+---------------------
+
+- TEST_FIXES_PLAN.md - Detailed implementation plan
+- Vitest Mocking Guide: https://vitest.dev/guide/mocking.html
+- Node.js Path Module Docs: https://nodejs.org/api/path.html
+- Task Master Architecture: README.md
+
+===============================================================================
+END OF DOCUMENT
+===============================================================================

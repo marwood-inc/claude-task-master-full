@@ -10869,7 +10869,7 @@
   "chore-performance-optimisation": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Implement In-Memory Caching Infrastructure",
         "description": "Add LRU-based caching layer to FileStorage class to eliminate redundant file I/O operations for recently accessed task data",
         "details": "Implement a Map-based cache with TTL (time-to-live) functionality in the FileStorage class. Add cache data structures including private fields: taskCache Map, CACHE_TTL constant (5 seconds), and helper methods getCacheKey(), isCacheValid(). The cache key format should be `${tag}-${JSON.stringify(options)}` to handle different filter combinations. Implement cache population after successful file reads and cache validation before file operations. Use existing lru-cache package (v10.2.0) from dependencies for memory management. Add debug logging for cache hits/misses using existing logging infrastructure.",
@@ -10937,7 +10937,7 @@
         "updatedAt": "2025-10-31T03:12:04.096Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Implement Cache Integration in loadTasks Method",
         "description": "Modify the loadTasks() method to check cache before file reads and populate cache after successful reads",
         "details": "Update the loadTasks() method in file-storage.ts (line 115) to check cache using getCacheKey() before calling fileOps.readJson(). If cache hit and valid TTL, return cached data immediately. On cache miss, proceed with file read, parse data, apply filters, enrich with complexity data, then cache the final result before returning. Ensure cache key includes tag and options parameters for accurate cache hits across different query patterns.",
@@ -10992,7 +10992,7 @@
         "updatedAt": "2025-10-31T03:24:36.775Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "Implement Cache Invalidation for Write Operations",
         "description": "Add cache invalidation to all write methods (saveTasks, updateTask, updateTaskStatus, deleteTask) to ensure data consistency",
         "details": "Add cache.clear() calls to all write operations in FileStorage: saveTasks() (line 215), updateTask() (line 363), updateTaskStatus() (line 402), deleteTask() (line 555), and tag management methods (deleteTag, renameTag, copyTag). Use conservative approach of clearing entire cache on any write operation to prioritize data consistency over performance. Add cache invalidation logging at debug level. Consider implementing more granular invalidation in future iterations if needed.",
@@ -11048,7 +11048,7 @@
         "updatedAt": "2025-10-31T03:30:50.570Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Optimize Single Task Lookup Performance",
         "description": "Refactor loadTask() method to avoid loading all tasks when fetching a single task by ID",
         "details": "Refactor the loadTask() method (line 152) to implement optimized retrieval path for regular tasks. Extract current subtask logic into private loadSubtask() method since subtasks require parent context. For regular tasks (non-dotted IDs), implement early-exit parsing: read file, parse tasks, find target task immediately without processing all tasks, enrich only the found task. Maintain backward compatibility with existing return format and behavior. Current implementation calls loadTasks() which processes all tasks unnecessarily.",
@@ -11105,7 +11105,7 @@
         "updatedAt": "2025-10-31T04:14:00.976Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Extract Subtask Lookup Logic",
         "description": "Create separate loadSubtask() private method to handle dotted notation task IDs requiring parent context",
         "details": "Extract the subtask handling logic from loadTask() (lines 156-206) into a private loadSubtask() method. This method should maintain existing behavior for subtasks since they require parent task context and full task loading. Keep the complex subtask ID parsing, parent task lookup, dependency resolution, and subtask result formatting unchanged. The goal is to separate concerns so regular task lookup can be optimized while maintaining subtask functionality.",
@@ -11147,7 +11147,7 @@
         "updatedAt": "2025-10-31T04:33:01.471Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Enhance Production Build Configuration",
         "description": "Update tsdown.base.ts with advanced minification, tree-shaking, and dead code elimination for smaller production bundles",
         "details": "Enhance packages/build-config/src/tsdown.base.ts (lines 23-37) with production optimizations. Add advanced minify configuration with compress options: drop_console: true, drop_debugger: true, pure_funcs for logger.debug/trace removal. Add mangle options: keep_classnames: false, keep_fnames: false. Configure treeshake with preset: 'recommended' and moduleSideEffects: false. Add production-specific settings: banner for CLI shebang, target: 'node18', code splitting for better caching. Maintain current external dependencies configuration.",
@@ -11187,7 +11187,7 @@
         "updatedAt": "2025-10-31T03:50:27.300Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "Create Performance Benchmark Suite",
         "description": "Develop comprehensive benchmarking tools to measure and validate performance improvements across different dataset sizes",
         "details": "Create scripts/benchmark-performance.js to measure key performance metrics: file I/O operation count, latency for loadTasks() and loadTask() operations, memory usage over time, cache hit/miss ratios. Test with small (10 tasks), medium (100 tasks), and large (1000+ tasks) datasets. Measure before/after metrics for cache implementation and single task optimization. Include realistic workload simulations for CLI repeated commands and MCP tool usage patterns.",
@@ -11246,7 +11246,7 @@
         "updatedAt": "2025-10-31T04:57:54.894Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "Create Comprehensive Test Suite for Cache Layer",
         "description": "Develop unit and integration tests specifically for the caching functionality to ensure correctness and performance",
         "details": "Create packages/tm-core/tests/unit/storage/file-storage-cache.test.ts with comprehensive test coverage for cache behavior: cache hit/miss scenarios, TTL expiration testing, cache invalidation on all write operations, multiple tags cached separately, cache behavior with different LoadTasksOptions. Create integration tests verifying cache works across CLI commands and MCP tools. Target 95%+ coverage on new cache code. Include memory leak tests for long-running processes.",
@@ -11319,7 +11319,7 @@
         "updatedAt": "2025-10-31T03:41:37.407Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Create Single Task Lookup Test Suite",
         "description": "Develop unit tests for optimized single task retrieval covering both regular tasks and subtasks",
         "details": "Create packages/tm-core/tests/unit/storage/file-storage-lookup.test.ts focusing on single task retrieval performance and correctness. Test regular task lookup (non-dotted IDs), subtask lookup (dotted notation), non-existent task handling, enrichment of single task vs multiple tasks, performance comparison with loadTasks() approach. Verify backward compatibility with existing loadTask() behavior. Include tests for various task ID formats supported by the system.",
@@ -11376,7 +11376,7 @@
         "updatedAt": "2025-10-31T04:43:19.966Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Validate Production Build and Create Release Documentation",
         "description": "Perform comprehensive testing of production builds, document performance improvements, and prepare release artifacts",
         "details": "Run full test suite against production build to ensure no functional regressions from build optimizations. Measure and document bundle size reductions. Test CLI commands and MCP server functionality in production mode. Update CHANGELOG.md with performance improvements and technical details. Create changeset for release with quantified performance metrics. Document cache behavior for developers in technical documentation. Verify all performance targets are met: 70-90% I/O reduction, 50-80% faster single task retrieval, 20-30% smaller bundles.",
@@ -11442,7 +11442,9 @@
       "completedCount": 10,
       "tags": [
         "chore-performance-optimisation"
-      ]
+      ],
+      "created": "2025-10-31T06:37:15.854Z",
+      "description": "Tasks for chore-performance-optimisation context"
     }
   },
   "feat-github-sync": {
@@ -12077,6 +12079,654 @@
       "created": "2025-10-31T01:43:23.383Z",
       "updated": "2025-10-31T01:54:56.901Z",
       "description": "Tasks for feat-github-sync context"
+    }
+  },
+  "chore-performance-optimisation-test-fixes": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Fix Vitest Module Mocking Infrastructure",
+        "description": "Replace improper vi.mocked() usage with proper vi.mock() module declarations for Node.js built-in modules (fs/promises, path, etc.) to restore mockResolvedValue/mockRejectedValue functionality",
+        "details": "Update all test files using vi.mocked(fs.readFile).mockResolvedValue() patterns to use proper vi.mock('node:fs/promises', () => ({ readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn() })) declarations. This affects 50+ tests across config-loader, config-persistence, and runtime-state-manager test files. Focus on packages/tm-core/src/modules/config/services/*.spec.ts files first as they have the highest concentration of failures.",
+        "testStrategy": "Run vitest on individual config service test files after each fix. Verify that vi.mocked() calls now have proper mock methods available. Test with 'npx vitest run packages/tm-core/src/modules/config/services/config-loader.service.spec.ts' to confirm fixes work.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Fix Config Service Module Mocks (fs/promises, path)",
+            "description": "Replace vi.mocked() patterns with proper vi.mock() declarations in config service test files to restore mockResolvedValue/mockRejectedValue functionality",
+            "dependencies": [],
+            "details": "Update packages/tm-core/src/modules/config/services/*.spec.ts files to use vi.mock('node:fs/promises', () => ({ readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn() })) instead of vi.mocked(fs.readFile) patterns. Focus on config-loader.service.spec.ts, config-persistence.service.spec.ts, and runtime-state-manager.service.spec.ts as primary targets with highest test failure concentration.",
+            "status": "pending",
+            "testStrategy": "Run 'npx vitest run packages/tm-core/src/modules/config/services/config-loader.service.spec.ts' after each file conversion to verify mock methods are available"
+          },
+          {
+            "id": 2,
+            "title": "Convert Constructor Mocks to vi.fn().mockImplementation",
+            "description": "Update constructor mock factories to use vi.fn().mockImplementation() instead of object literals to fix 'is not a constructor' errors",
+            "dependencies": [
+              1
+            ],
+            "details": "Replace patterns like 'ConfigLoader: () => ({ loadLocalConfig: vi.fn() })' with 'ConfigLoader: vi.fn().mockImplementation(() => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() }))' in config-manager.spec.ts and related files. Ensure all mocked classes can be instantiated with 'new' operator for dependency injection testing.",
+            "status": "pending",
+            "testStrategy": "Run vitest on config-manager.spec.ts to verify mocked classes instantiate correctly and all required methods exist on instances"
+          },
+          {
+            "id": 3,
+            "title": "Implement Fake Timers for Cache TTL Tests",
+            "description": "Replace real setTimeout/setInterval with vi.useFakeTimers() in cache tests to eliminate 5-second timeouts and improve performance",
+            "dependencies": [
+              1
+            ],
+            "details": "Update cache test files to use vi.useFakeTimers() in beforeEach() and vi.useRealTimers() in afterEach(). Replace time waits with vi.advanceTimersByTime(6000) to fast-forward past TTL expiration. Target packages/tm-core/tests/integration/storage/file-storage-cache.test.ts and similar cache test files.",
+            "status": "pending",
+            "testStrategy": "Verify cache TTL tests complete in <1 second instead of 5+ seconds and cache.get() returns null after advancing timers past TTL values"
+          },
+          {
+            "id": 4,
+            "title": "Fix Template Engine Variable Preservation Logic",
+            "description": "Update template engine regex replacement to preserve {{placeholders}} when variables are missing instead of removing them",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Modify template.replace() method in packages/tm-core/src/modules/git/services/template-engine.test.ts to return original placeholder when variable is undefined/null. Change behavior from {{missing}} → '' to {{missing}} → '{{missing}}'. Update regex from unconditional /{{(w+)}}/g replacement to conditional replacement checking variable existence.",
+            "status": "pending",
+            "testStrategy": "Add test cases for missing variables, verify defined variables replace correctly while undefined variables remain as placeholders"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Fix Constructor Mocking in Config Manager Tests",
+        "description": "Update constructor mock factories to use vi.fn().mockImplementation() instead of returning object literals, fixing 'is not a constructor' errors in config-manager.spec.ts",
+        "details": "Replace mock factories like 'ConfigLoader: () => ({ loadLocalConfig: vi.fn() })' with 'ConfigLoader: vi.fn().mockImplementation(() => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() }))' to ensure proper constructor behavior. Update all service mocks in config-manager.spec.ts and similar files. This pattern is required for dependency injection testing to work correctly.",
+        "testStrategy": "Run vitest on config-manager.spec.ts specifically. Verify that mocked classes can be instantiated with 'new' operator and that all required methods are available on instances. Check that dependency injection works in ConfigManager constructor.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update ConfigLoader mock to use vi.fn().mockImplementation()",
+            "description": "Replace the ConfigLoader mock factory that returns object literals with a proper constructor mock using vi.fn().mockImplementation() pattern",
+            "dependencies": [],
+            "details": "Replace 'ConfigLoader: () => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() })' with 'ConfigLoader: vi.fn().mockImplementation(() => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() }))' in config-manager.spec.ts. Ensure the mock can be instantiated with 'new' operator and exposes all required methods.",
+            "status": "pending",
+            "testStrategy": "Verify ConfigLoader mock can be instantiated with 'new ConfigLoader()' and that loadLocalConfig/loadGlobalConfig methods are available on the instance"
+          },
+          {
+            "id": 2,
+            "title": "Update all service dependency mocks to constructor pattern",
+            "description": "Convert all remaining service mocks in config-manager.spec.ts to use vi.fn().mockImplementation() constructor pattern instead of object literals",
+            "dependencies": [
+              1
+            ],
+            "details": "Update mocks for ConfigPersistence, RuntimeStateManager, and any other service dependencies to use the vi.fn().mockImplementation() pattern. Ensure each mock returns proper instances with all required methods available for dependency injection testing.",
+            "status": "pending",
+            "testStrategy": "Verify all mocked services can be instantiated as constructors and that ConfigManager can successfully inject these dependencies during instantiation"
+          },
+          {
+            "id": 3,
+            "title": "Run and validate config-manager.spec.ts test suite",
+            "description": "Execute the updated config-manager.spec.ts test suite to confirm all constructor mocking fixes work correctly",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Run 'npx vitest run packages/tm-core/src/modules/config/managers/config-manager.spec.ts' to verify all tests pass. Check that there are no 'is not a constructor' errors and that dependency injection works properly in ConfigManager constructor. Fix any remaining issues discovered during test execution.",
+            "status": "pending",
+            "testStrategy": "All tests in config-manager.spec.ts should pass without constructor errors. Verify ConfigManager can instantiate with mocked dependencies and that all mock methods are properly accessible"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Fix Template Engine Variable Preservation",
+        "description": "Update template engine regex replacement logic to preserve {{placeholders}} when variables are missing instead of removing them entirely",
+        "details": "Modify the template.replace() method in packages/tm-core/src/modules/git/services/template-engine.test.ts and related implementation to return the original placeholder when a variable is undefined/null. Current behavior: {{missing}} → '' (empty). Required behavior: {{missing}} → '{{missing}}' (preserved). Update regex from /{{(\\w+)}}/g with unconditional replacement to conditional replacement that checks if variable exists.",
+        "testStrategy": "Add specific test cases for missing variables in template engine tests. Verify that defined variables are replaced correctly while undefined variables remain as placeholders. Test edge cases with mixed defined/undefined variables in same template.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update TemplateEngine to preserve undefined placeholders",
+            "description": "Modify the template.replace() method in packages/tm-core/src/modules/git/services/template-engine.ts to conditionally replace placeholders only when variables are defined, preserving {{placeholder}} format for undefined variables",
+            "dependencies": [],
+            "details": "Change the regex replacement logic from unconditional replacement to conditional replacement that checks if variable exists. Update /{{(w+)}}/g pattern to return original placeholder {{key}} when variable is undefined/null instead of empty string. Locate the replacement logic around line 94 and modify to preserve placeholders for missing variables.",
+            "status": "pending",
+            "testStrategy": "Add test cases in template-engine.test.ts covering mixed defined/undefined variables. Test scenarios: all variables defined (current behavior), all variables undefined (should preserve placeholders), mixed defined/undefined variables in same template. Verify existing functionality remains intact."
+          },
+          {
+            "id": 2,
+            "title": "Run template engine test suite and validate changes",
+            "description": "Execute the template engine module test suite to ensure the variable preservation changes work correctly and don't break existing functionality",
+            "dependencies": [
+              1
+            ],
+            "details": "Run 'npx vitest run packages/tm-core/src/modules/git/services/template-engine.test.ts' to validate the implementation. Verify that all existing tests pass and new test cases for undefined variable preservation work correctly. Check that the change resolves the issue where {{missing}} returns empty string instead of preserving the placeholder.",
+            "status": "pending",
+            "testStrategy": "Execute full test suite for template engine module. Verify test coverage includes edge cases like empty templates, templates with only undefined variables, and templates mixing defined/undefined variables. Confirm no regression in existing template replacement functionality."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Fix Cross-Platform Path Sanitization",
+        "description": "Update path sanitization logic to strip Windows drive letters (C:, D:, etc.) before processing to prevent malformed project identifiers on Windows",
+        "details": "Modify path sanitization functions to detect and remove Windows drive letters using pattern /^[A-Za-z]:/ before applying path normalization. Add platform detection logic and ensure consistent path separator handling across Windows/Unix systems. Focus on packages/tm-core/src/common/utils/path-normalizer.spec.ts and related implementation files.",
+        "testStrategy": "Create platform-specific test suites that run on both Windows and Unix-like systems. Test with paths like 'C:\\Users\\Project' and '/home/user/project' to ensure consistent sanitized output. Verify that project identifiers are identical regardless of OS.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Windows drive letter detection and removal utility",
+            "description": "Create utility function to detect and strip Windows drive letters from path strings before normalization processing",
+            "dependencies": [],
+            "details": "Add utility function that uses regex pattern /^[A-Za-z]:/ to detect Windows drive letters at start of paths. Function should remove drive letters like 'C:', 'D:', etc. and return cleaned path. Include platform detection to only apply on Windows systems. Place in packages/tm-core/src/common/utils/path-normalizer.ts",
+            "status": "pending",
+            "testStrategy": "Test with various Windows drive letter patterns (C:, D:, Z:) and verify they are stripped. Test Unix paths remain unchanged. Verify case insensitivity."
+          },
+          {
+            "id": 2,
+            "title": "Update normalizeProjectPath function to strip drive letters",
+            "description": "Modify the normalizeProjectPath function to use drive letter stripping before base64url encoding to ensure consistent identifiers",
+            "dependencies": [
+              1
+            ],
+            "details": "Update normalizeProjectPath in packages/tm-core/src/common/utils/path-normalizer.ts:24 to call drive letter removal utility before applying base64 encoding. Ensure the function maintains round-trip compatibility with denormalizeProjectPath. Standardize path separators to forward slashes after drive letter removal.",
+            "status": "pending",
+            "testStrategy": "Test that Windows paths like 'C:\\Users\\Project' and Unix paths like '/home/user/project' produce identical normalized outputs. Verify round-trip encoding/decoding works correctly."
+          },
+          {
+            "id": 3,
+            "title": "Update denormalizeProjectPath for round-trip fidelity",
+            "description": "Adjust denormalizeProjectPath function to maintain proper round-trip behavior with the updated normalization logic",
+            "dependencies": [
+              2
+            ],
+            "details": "Modify denormalizeProjectPath to handle the new normalization flow that strips drive letters. Ensure that when paths are denormalized, they maintain correct format for the target platform. Add logic to restore appropriate path separators based on current platform while maintaining cross-platform identifier consistency.",
+            "status": "pending",
+            "testStrategy": "Verify that normalize then denormalize operations produce usable paths on both platforms. Test edge cases with various path formats and ensure no data loss in round-trip operations."
+          },
+          {
+            "id": 4,
+            "title": "Expand cross-platform test cases in path-normalizer.spec.ts",
+            "description": "Add comprehensive cross-platform test cases to validate consistent path sanitization across Windows and Unix systems",
+            "dependencies": [
+              3
+            ],
+            "details": "Update packages/tm-core/src/common/utils/path-normalizer.spec.ts to include extensive test cases for Windows drive letters, mixed path separators, and cross-platform scenarios. Add test cases that verify identical normalized outputs for equivalent paths on different platforms. Include edge cases and platform-specific path formats.",
+            "status": "pending",
+            "testStrategy": "Run tests on both Windows and Unix systems if possible. Verify all new test cases pass and that existing round-trip tests at line 232 continue to work. Ensure no regressions in existing functionality."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Fake Timers for Cache TTL Tests",
+        "description": "Replace real setTimeout/setInterval with vi.useFakeTimers() in cache TTL tests to eliminate 5-second timeouts and improve test performance",
+        "details": "Update cache-related test files to use vi.useFakeTimers() in beforeEach() and vi.useRealTimers() in afterEach(). Replace real time waits with vi.advanceTimersByTime(6000) to fast-forward past TTL expiration. Focus on packages/tm-core/tests/integration/storage/file-storage-cache.test.ts and similar cache test files. Ensure cache expiration logic is tested without performance penalty.",
+        "testStrategy": "Verify that cache TTL tests complete in <1 second instead of 5+ seconds. Test cache expiration behavior by advancing fake timers past TTL values. Ensure cache.get() returns null after TTL expiration when using fake timers.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up vi.useFakeTimers() infrastructure in cache test files",
+            "description": "Add beforeEach() and afterEach() hooks to properly initialize and cleanup fake timers in cache-related test files",
+            "dependencies": [],
+            "details": "Add vi.useFakeTimers() in beforeEach() and vi.useRealTimers() in afterEach() hooks to packages/tm-core/tests/integration/storage/file-storage-cache.test.ts and packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.spec.ts. Ensure proper test isolation by resetting timers between tests.",
+            "status": "pending",
+            "testStrategy": "Verify that fake timers are properly initialized and cleaned up between tests. Run test suite to ensure no timer leakage between test cases."
+          },
+          {
+            "id": 2,
+            "title": "Replace setTimeout-based waits with vi.advanceTimersByTime calls",
+            "description": "Convert all real timeout waits in cache TTL tests to use fake timer advancement for faster test execution",
+            "dependencies": [
+              1
+            ],
+            "details": "Replace all instances of 'await new Promise(resolve => setTimeout(resolve, 5000))' and similar patterns with 'vi.advanceTimersByTime(6000)' to fast-forward past TTL expiration periods. Focus on file-storage-cache.test.ts line 374 and similar TTL test scenarios.",
+            "status": "pending",
+            "testStrategy": "Verify that cache TTL tests complete in under 1 second instead of 5+ seconds. Ensure cache expiration behavior remains correct with fake timers."
+          },
+          {
+            "id": 3,
+            "title": "Update Date.now() assertions for fake timer compatibility",
+            "description": "Audit and fix duration-based assertions that rely on real Date.now() timestamps to work with fake timers",
+            "dependencies": [
+              1
+            ],
+            "details": "Review all cache test assertions that check timestamps or durations using Date.now(). Replace with fake timer-compatible approaches or use vi.getRealSystemTime() when real timestamps are needed. Ensure timing assertions accurately reflect fake timer state.",
+            "status": "pending",
+            "testStrategy": "Test that all duration and timestamp assertions pass with fake timers. Verify that cache expiration timing logic works correctly with mocked time."
+          },
+          {
+            "id": 4,
+            "title": "Test cache expiration behavior with fake timers",
+            "description": "Implement comprehensive test cases that verify cache TTL expiration works correctly when using fake timer advancement",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Add test cases that set cache items with TTL, advance fake timers past expiration, and verify cache.get() returns null. Test edge cases like advancing timers to just before and just after TTL expiration. Ensure cache semantics remain intact with fake timers.",
+            "status": "pending",
+            "testStrategy": "Verify that cache.get() returns null after TTL expiration when using vi.advanceTimersByTime(). Test that cache items remain accessible before TTL expiration."
+          },
+          {
+            "id": 5,
+            "title": "Run regression testing on storage integration suites",
+            "description": "Execute complete storage integration test suites to ensure fake timer changes don't break existing cache functionality",
+            "dependencies": [
+              4
+            ],
+            "details": "Run full storage integration test suite after implementing fake timers. Verify that all cache operations (get, set, delete, TTL) work correctly with fake timers. Check for any timing-related regressions or test failures introduced by the fake timer implementation.",
+            "status": "pending",
+            "testStrategy": "Execute storage integration tests and verify all tests pass with significantly improved performance (sub-second vs 5+ seconds). Confirm no functional regressions in cache behavior."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Add Atomic File Write Retry Logic for Windows",
+        "description": "Implement exponential backoff retry strategy for atomic write operations to handle Windows file locking (EPERM/ENOENT) errors gracefully",
+        "details": "Add retry logic to atomic write operations with exponential backoff starting at 50ms, doubling up to 1000ms max, with 3 retry attempts. Implement platform-specific error handling for Windows EPERM (permission denied) and ENOENT (file not found) errors. Add proper error logging for debugging file locking issues. Focus on file storage adapter implementations.\n<info added on 2025-10-31T07:24:56.333Z>\nI'll analyze the codebase first to understand the current file storage and atomic write implementation before generating the update.Based on my analysis of the codebase, I found that the project already has well-established patterns for error handling, file operations, and retry logic in other modules. The file-operations.ts file at line 61 contains the performAtomicWrite method that needs the retry logic. Here's the comprehensive research findings that should be appended to the task:\n\n## CODEBASE RESEARCH FINDINGS - Testing Infrastructure Issues Integration\n\nThe investigation revealed critical testing infrastructure problems that directly impact the implementation and testing strategy for this atomic file write retry logic:\n\n### Primary Concern: Vitest Mocking Infrastructure Failures\nThe current test suite exhibits fundamental mocking pattern issues that will affect testing the retry functionality:\n\n1. **Module Mock Anti-Pattern**: Tests use `vi.mocked()` instead of proper `vi.mock()` declarations for Node.js built-in modules like fs/promises, causing `mockResolvedValue` and `mockRejectedValue` to be undefined in 50+ test files.\n\n2. **Constructor Mocking Failures**: Mock factories return object literals instead of proper constructor functions, leading to \"is not a constructor\" errors when testing dependency injection scenarios.\n\n### Implementation Location Analysis\nLocated the target implementation at `packages/tm-core/src/modules/storage/adapters/file-storage/file-operations.ts:61` in the `performAtomicWrite` method. The current implementation uses `fs.rename()` for atomic operations but lacks retry logic for Windows file locking scenarios.\n\n### Existing Retry Pattern Reference\nFound established retry/backoff patterns in `packages/tm-core/src/modules/ai/providers/base-provider.ts` with constants:\n- `DEFAULT_MAX_RETRIES = 3`\n- `BASE_RETRY_DELAY_MS = 1000` \n- `BACKOFF_MULTIPLIER = 2`\n- `MAX_RETRY_DELAY_MS = 32000`\n\nThis provides a proven pattern to adapt for file operations with Windows-specific parameters (50ms base, 1000ms max).\n\n### Windows Error Handling Context\nThe codebase has extensive EPERM/ENOENT error handling patterns across multiple modules, particularly in config services and storage adapters, providing established patterns for platform-specific error classification.\n\n### Test Strategy Implications\nDue to the identified Vitest infrastructure issues, the test implementation must prioritize:\n1. **Proper fs.promises mocking setup** using `vi.mock('node:fs/promises')` instead of `vi.mocked()`\n2. **Fake timer implementation** for exponential backoff testing to avoid real delays\n3. **Platform detection mocking** for Windows-specific behavior testing\n4. **Error simulation patterns** that work with the corrected mocking infrastructure\n\nThe existing file-storage.spec.ts shows extensive testing patterns but suffers from the same mocking issues, requiring careful attention to ensure the retry logic tests don't exhibit similar problems. The test strategy should include validation that the retry helper works correctly with the current file locking mechanism in FileOperations while maintaining compatibility with the existing test infrastructure once the mocking issues are resolved.\n</info added on 2025-10-31T07:24:56.333Z>",
+        "testStrategy": "Create Windows-specific tests that simulate file locking scenarios. Verify that retry logic activates on EPERM/ENOENT errors and succeeds after delays. Test that non-retryable errors fail immediately without unnecessary retries.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement exponential backoff helper function",
+            "description": "Create a reusable exponential backoff helper function within FileOperations class to handle retry logic with configurable parameters",
+            "dependencies": [],
+            "details": "Implement a private method `performWithRetry` in FileOperations class that accepts an operation function, starting delay (50ms), max delay (1000ms), and max attempts (3). The function should implement exponential backoff by doubling the delay after each failure up to the maximum delay. Include proper TypeScript typing and error handling for the retry mechanism.",
+            "status": "pending",
+            "testStrategy": "Create unit tests that verify exponential backoff timing, maximum retry attempts, and proper delay progression. Mock setTimeout to test timing without actual delays."
+          },
+          {
+            "id": 2,
+            "title": "Add Windows platform detection and error filtering",
+            "description": "Implement platform-specific error detection to identify Windows EPERM and ENOENT errors that should trigger retry logic",
+            "dependencies": [
+              1
+            ],
+            "details": "Add platform detection using process.platform to identify Windows environments. Create error classification logic that identifies retryable errors (EPERM, ENOENT) versus non-retryable errors. Implement error code checking for Windows-specific file locking scenarios. Only trigger retry logic on Windows for specific error codes.",
+            "status": "pending",
+            "testStrategy": "Test platform detection across different OS environments. Verify that only EPERM/ENOENT errors trigger retries on Windows, while other errors fail immediately. Test non-Windows platforms to ensure no regression."
+          },
+          {
+            "id": 3,
+            "title": "Update performAtomicWrite with retry integration",
+            "description": "Integrate the exponential backoff retry logic into the existing performAtomicWrite method at file-operations.ts:61",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Modify the performAtomicWrite method to wrap the fs.rename operation with the retry helper. Implement proper error catching and classification to determine if retry should be attempted. Maintain existing functionality for successful operations while adding resilience for Windows file locking issues. Preserve original error throwing for non-retryable errors.",
+            "status": "pending",
+            "testStrategy": "Create integration tests that simulate Windows file locking scenarios using fs.rename mocks. Verify successful retry after transient failures and immediate failure for permanent errors."
+          },
+          {
+            "id": 4,
+            "title": "Add structured logging for retry operations",
+            "description": "Implement comprehensive logging for retry attempts, failures, and successes to aid in debugging file locking issues",
+            "dependencies": [
+              3
+            ],
+            "details": "Add structured logging using the existing logging infrastructure to track retry attempts, delays, error details, and final outcomes. Include context such as file paths, attempt numbers, delay durations, and error codes. Ensure log levels are appropriate (debug for retry attempts, warn for final failures). Format logs to be easily searchable for debugging purposes.",
+            "status": "pending",
+            "testStrategy": "Verify that appropriate log messages are generated during retry scenarios. Test log content includes relevant debugging information like file paths, attempt counts, and error details. Ensure no sensitive information is logged."
+          },
+          {
+            "id": 5,
+            "title": "Create comprehensive unit tests with fs.rename mocking",
+            "description": "Develop thorough unit tests that mock fs.rename to simulate various failure and success scenarios for the retry logic",
+            "dependencies": [
+              4
+            ],
+            "details": "Create test suites that stub fs.rename to simulate different failure patterns: immediate success, success after retries, permanent failures, and mixed scenarios. Test edge cases like maximum retry exhaustion, non-Windows platforms, and non-retryable errors. Verify timing behavior with fake timers and ensure proper error propagation. Include performance tests to ensure retries don't impact normal operations.",
+            "status": "pending",
+            "testStrategy": "Run the complete storage adapter test suite to ensure no regressions. Verify new retry tests cover all code paths including success, failure, and retry scenarios. Test with both mocked and real file operations where appropriate."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Fix Workflow Orchestrator Validation Logic",
+        "description": "Debug and fix workflow orchestrator RED phase validation to ensure proper test failure detection and workflow state transitions",
+        "details": "Investigate workflow orchestrator test failures in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts. Fix validation logic that determines when tests fail during RED phase. Ensure proper state transitions from RED → GREEN → REFACTOR phases. Update test result processing to correctly identify genuine test failures vs setup issues.",
+        "testStrategy": "Run workflow orchestrator tests in isolation. Verify that RED phase correctly detects test failures, GREEN phase detects test passes, and REFACTOR phase handles code improvements. Test with various test result scenarios including timeouts, syntax errors, and assertion failures.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate TestResultValidator into handleTDDPhaseTransition method",
+            "description": "Replace manual count-based validation in handleTDDPhaseTransition with TestResultValidator calls to provide configurable validation logic",
+            "dependencies": [],
+            "details": "Modify handleTDDPhaseTransition method in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.ts:152 to use TestResultValidator instead of manual test count checks. Import and instantiate TestResultValidator, replace existing validation logic with validator.validate() calls, and ensure proper error handling for validation failures.",
+            "status": "pending",
+            "testStrategy": "Unit tests to verify TestResultValidator integration replaces manual validation logic correctly and maintains existing phase transition behavior"
+          },
+          {
+            "id": 2,
+            "title": "Define workflow state changes for validation errors",
+            "description": "Establish how TestResultValidator errors should modify workflow state and trigger appropriate workflow events",
+            "dependencies": [
+              1
+            ],
+            "details": "Define state transition rules when TestResultValidator detects validation errors during RED/GREEN phase transitions. Specify which validation errors should block phase transitions, which should emit warnings, and how workflow events should be triggered. Update workflow state machine to handle validation-driven state changes.",
+            "status": "pending",
+            "testStrategy": "Integration tests to verify workflow state responds correctly to different validation error scenarios and maintains proper state consistency"
+          },
+          {
+            "id": 3,
+            "title": "Update orchestrator tests for validator enforcement",
+            "description": "Modify workflow orchestrator tests to expect and validate TestResultValidator enforcement behavior",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update test cases in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts:1408 and related tests to expect validator-driven errors instead of manual validation. Mock TestResultValidator appropriately, verify error scenarios trigger expected workflow behavior, and ensure tests validate the integration between validator and orchestrator.",
+            "status": "pending",
+            "testStrategy": "Run workflow orchestrator test suite to verify all tests pass with updated validator integration and proper error handling expectations"
+          },
+          {
+            "id": 4,
+            "title": "Execute workflow test suite validation",
+            "description": "Run complete workflow orchestrator test suite to verify all changes work together correctly",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Execute full workflow test suite including packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts to verify TestResultValidator integration doesn't break existing functionality. Test RED → GREEN → REFACTOR phase transitions with various test result scenarios including failures, passes, timeouts, and syntax errors.",
+            "status": "pending",
+            "testStrategy": "Full workflow test suite execution with focus on phase transition scenarios and validation of proper test failure detection and state management"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Optimize LRU Cache Test Performance",
+        "description": "Reduce LRU eviction test dataset size from 100+ entries to 20 entries to prevent test timeouts while maintaining test coverage",
+        "details": "Update LRU cache tests that currently create large datasets (100+ entries) causing 5-second timeouts. Reduce to 20 entries while ensuring eviction behavior is still properly tested. Focus on packages/tm-core/tests/integration/storage/ cache-related tests. Maintain test coverage of eviction policies, memory limits, and performance characteristics.",
+        "testStrategy": "Verify that LRU tests complete in <2 seconds with reduced dataset. Confirm that eviction behavior (least recently used items removed first) still works correctly with smaller dataset. Test edge cases like cache at exactly capacity limit.",
+        "priority": "low",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Identify and Analyze LRU Cache Test Files",
+            "description": "Locate all LRU cache test files in packages/tm-core/tests/integration/storage/ and analyze current dataset sizes and timeout issues",
+            "dependencies": [],
+            "details": "Search for test files containing LRU cache tests, particularly focusing on file-storage.spec.ts:517 mentioned in the complexity analysis. Document current dataset sizes (100+ entries), identify specific tests causing 5-second timeouts, and map out which tests need dataset reduction while preserving eviction behavior coverage.",
+            "status": "pending",
+            "testStrategy": "Create inventory of all LRU cache tests with current dataset sizes and execution times to establish baseline measurements"
+          },
+          {
+            "id": 2,
+            "title": "Reduce Dataset Sizes and Add Eviction Assertions",
+            "description": "Update LRU cache tests to use 20 entries instead of 100+ entries and add tighter assertions to verify eviction behavior",
+            "dependencies": [
+              1
+            ],
+            "details": "Modify test datasets from 150 tags and large loops down to 20 entries maximum. Update assertion logic to specifically verify that least recently used items are evicted first when cache reaches capacity. Ensure eviction policies, memory limits, and performance characteristics are still adequately tested with smaller datasets.",
+            "status": "pending",
+            "testStrategy": "Verify that eviction behavior (LRU items removed first) works correctly with 20-entry datasets and that cache capacity limits are properly enforced"
+          },
+          {
+            "id": 3,
+            "title": "Validate Performance Improvements and Test Coverage",
+            "description": "Run optimized LRU cache tests to confirm sub-2-second execution times while maintaining comprehensive test coverage",
+            "dependencies": [
+              2
+            ],
+            "details": "Execute the modified LRU cache test suite to verify performance improvements achieve target of <2 seconds execution time. Confirm that test coverage for eviction policies, memory limits, and edge cases remains intact despite reduced dataset sizes. Document performance improvements and ensure no regression in test reliability.",
+            "status": "pending",
+            "testStrategy": "Run LRU cache tests multiple times to ensure consistent sub-2-second performance and verify edge cases like cache at exactly capacity limit still pass"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Fix Empty Cache Result Handling",
+        "description": "Update cache implementation to properly differentiate between cache misses and empty string values, fixing cache key collision issues",
+        "details": "Modify cache get/set logic to distinguish between undefined (cache miss), null (intentional null value), and empty string (valid empty value). Implement proper cache key differentiation by tag or namespace to prevent collisions. Focus on cache service implementations and ensure proper return value handling in consuming code.",
+        "testStrategy": "Test cache with various value types: undefined (should be cache miss), null (should be cached null), empty string (should be cached empty string), and valid strings. Verify that each scenario behaves correctly and doesn't interfere with others.",
+        "priority": "low",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update cache key generation to include namespace/tag differentiation",
+            "description": "Modify cache key generation logic to include derived tag/projectRoot namespaces to prevent cache key collisions between different project contexts",
+            "dependencies": [],
+            "details": "Update the cache key composition in apps/extension/src/utils/task-master-api/index.ts at line 114 to build keys that include projectRoot or tag-based namespacing. Replace raw options-based key generation with structured key format that prevents collisions when different projects have similar option patterns. Ensure backward compatibility with existing cache entries.",
+            "status": "pending",
+            "testStrategy": "Test cache key generation with identical options but different projectRoot values to verify unique keys are generated. Verify no cache collisions occur between different project contexts."
+          },
+          {
+            "id": 2,
+            "title": "Fix cache truthiness checks to distinguish empty values from misses",
+            "description": "Replace simple truthiness check 'if (cached)' with proper cache miss detection to handle empty strings, arrays, and null values correctly",
+            "dependencies": [],
+            "details": "Modify the cache hit detection logic at apps/extension/src/utils/task-master-api/index.ts line 118 to use explicit undefined checking instead of truthiness. Implement proper differentiation between undefined (cache miss), null (intentional null value), and empty string/array (valid empty values). Use 'cached !== undefined' or hasOwnProperty checks to determine cache hits.",
+            "status": "pending",
+            "testStrategy": "Test cache behavior with empty strings, empty arrays, null values, and undefined values. Verify that empty strings and arrays are treated as valid cached values while undefined indicates cache miss."
+          },
+          {
+            "id": 3,
+            "title": "Update getTasks caching to handle falsy cached values properly",
+            "description": "Revise getTasks caching implementation to treat cached falsy values as valid cache hits rather than cache misses",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update the getTasks method caching logic to properly handle scenarios where the cached result is an empty array or other falsy values. Ensure that when getTasks returns an empty task list, this empty result is cached and reused instead of being treated as a cache miss on subsequent calls. Apply the improved cache checking logic from previous subtasks.",
+            "status": "pending",
+            "testStrategy": "Test getTasks caching with scenarios that return empty task arrays. Verify that subsequent calls to getTasks with identical parameters return the cached empty array instead of re-executing the operation."
+          },
+          {
+            "id": 4,
+            "title": "Add comprehensive regression tests for cache value handling",
+            "description": "Create regression tests covering empty string, null, and undefined cache scenarios to ensure proper cache behavior across all value types",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement comprehensive test coverage for cache handling of various value types including undefined (cache miss), null (cached null), empty string (cached empty), empty arrays (cached empty), and valid non-empty values. Add tests to verify cache key collision prevention and proper namespace separation. Run extension API tests to ensure no regressions in existing functionality.",
+            "status": "pending",
+            "testStrategy": "Create test cases for each value type scenario and verify correct cache behavior. Run full extension API test suite to ensure no breaking changes. Add performance tests to verify cache efficiency improvements."
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Create Cross-Platform Test Validation Suite",
+        "description": "Establish comprehensive test validation on both Windows and Linux platforms, including CI/CD pipeline integration and performance benchmarking",
+        "details": "Create platform-specific test runners that validate all 640 tests pass on both Windows and Linux. Set up CI/CD integration with Windows Server and Linux Ubuntu runners. Implement test performance monitoring to track execution times and identify regressions. Create documentation for platform-specific testing procedures and troubleshooting guides.\n<info added on 2025-10-31T07:18:06.395Z>\nI'll investigate the current test infrastructure state to provide accurate context for this task update.Based on my codebase analysis, I can provide the following update for Task 10:\n\n## Research Session Findings - Critical Infrastructure Issues Identified\n\nInvestigation reveals the project currently runs exclusively on Ubuntu Linux in CI/CD (.github/workflows/ci.yml shows only ubuntu-latest runners), creating significant cross-platform testing gaps. The codebase has pervasive Node.js built-in module mocking failures using vi.mocked(fs.readFile) patterns that require proper vi.mock('node:fs/promises') declarations to fix 50+ failing tests across config services.\n\n**Key Platform-Specific Risks Discovered:**\n- Windows file locking vulnerabilities (EPERM errors) already identified in packages/tm-core/src/modules/config/services/runtime-state-manager.service.ts with ENOENT handling\n- Missing Windows retry logic for atomic file operations despite atomic write interface defined in packages/tm-core/src/common/interfaces/storage.interface.ts\n- Constructor mocking anti-patterns preventing dependency injection testing in config-manager.spec.ts\n- Mixed test frameworks (Jest in root package.json, Vitest in individual packages) complicating cross-platform validation\n\n**Infrastructure Dependencies:**\nThe project uses individual package-level vitest.config.ts files (apps/cli, apps/mcp, packages/tm-core) requiring matrix strategy coordination. Root-level test scripts use Jest with coverage thresholds while package-level scripts use Vitest, necessitating unified cross-platform test execution strategies.\n\n**Implementation Priority Adjustments:**\nGiven the research findings, subtask 1 (Windows/Linux CI matrix) becomes critical for exposing platform-specific file system issues before implementing performance monitoring. The validation suite must address both the underlying mocking infrastructure problems and platform differences to achieve the target of 640 tests passing consistently on both platforms.\n</info added on 2025-10-31T07:18:06.395Z>",
+        "testStrategy": "Run full test suite 10 consecutive times on both Windows and Linux to ensure zero flaky tests. Verify test suite completes in <60 seconds on both platforms. Document any platform-specific quirks or requirements for future reference.",
+        "priority": "low",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Windows and Linux CI Matrix Configuration",
+            "description": "Configure GitHub Actions workflow to run tests on both Windows Server and Ubuntu Linux platforms using matrix strategy",
+            "dependencies": [],
+            "details": "Update .github/workflows/ci.yml to include a matrix strategy with both ubuntu-latest and windows-latest runners. Configure platform-specific environment variables and dependencies. Ensure proper Node.js setup and package manager configuration for both platforms. Add conditional steps for platform-specific requirements.",
+            "status": "pending",
+            "testStrategy": "Verify CI pipeline runs successfully on both platforms. Check that all environment setup steps complete without errors on Windows and Linux."
+          },
+          {
+            "id": 2,
+            "title": "Create Platform-Specific Test Runners and Scripts",
+            "description": "Develop cross-platform test execution scripts that handle platform differences and provide consistent test running experience",
+            "dependencies": [
+              1
+            ],
+            "details": "Create scripts/test-windows.ps1 and scripts/test-linux.sh that handle platform-specific test execution. Add wrapper scripts that detect the current platform and execute appropriate test runner. Handle path separators, environment variables, and command syntax differences between Windows and Linux.",
+            "status": "pending",
+            "testStrategy": "Run test scripts on both Windows and Linux locally. Verify all 640 tests execute successfully on both platforms with identical results."
+          },
+          {
+            "id": 3,
+            "title": "Implement Test Performance Monitoring and Metrics Collection",
+            "description": "Add performance tracking to monitor test execution times and detect regressions across platforms",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement test timing collection using Vitest reporters or custom hooks. Create performance metrics storage that tracks execution times per test file and overall suite duration. Add regression detection logic that flags tests taking significantly longer than baseline. Store metrics in JSON format for analysis.",
+            "status": "pending",
+            "testStrategy": "Verify performance metrics are collected accurately. Test regression detection by artificially slowing down a test and confirming it gets flagged."
+          },
+          {
+            "id": 4,
+            "title": "Add Repeated Test Execution for Flaky Test Detection",
+            "description": "Implement test suite repetition mechanism to identify and flag flaky tests across platforms",
+            "dependencies": [
+              3
+            ],
+            "details": "Create test runner that executes the full test suite 10 consecutive times on each platform. Implement flaky test detection logic that identifies tests with inconsistent pass/fail results. Generate reports showing flaky test patterns and platform-specific issues. Add configuration options for repeat count and failure thresholds.",
+            "status": "pending",
+            "testStrategy": "Run 10 consecutive test executions and verify flaky test detection works correctly. Confirm zero flaky tests are reported for stable test suite."
+          },
+          {
+            "id": 5,
+            "title": "Create Platform-Specific Documentation and Troubleshooting Guides",
+            "description": "Document platform differences, setup requirements, and troubleshooting procedures for cross-platform testing",
+            "dependencies": [
+              4
+            ],
+            "details": "Create comprehensive documentation covering Windows and Linux testing setup, platform-specific requirements, common issues and solutions. Document environment variable differences, path handling quirks, and dependency installation procedures. Include troubleshooting guide for platform-specific test failures and CI/CD pipeline issues.",
+            "status": "pending",
+            "testStrategy": "Validate documentation by following setup procedures on clean Windows and Linux environments. Verify troubleshooting guides resolve common platform issues."
+          },
+          {
+            "id": 6,
+            "title": "Build Test Results Reporting and Dashboard",
+            "description": "Create comprehensive reporting system that aggregates test results, performance metrics, and platform comparisons",
+            "dependencies": [
+              5
+            ],
+            "details": "Develop test results dashboard that displays cross-platform test status, performance comparisons, and flaky test reports. Implement CI integration that publishes test reports as GitHub Actions artifacts. Create summary reports showing test suite health across platforms with trend analysis and performance benchmarks.",
+            "status": "pending",
+            "testStrategy": "Verify dashboard accurately displays test results from both platforms. Test report generation and artifact publishing in CI pipeline."
+          },
+          {
+            "id": 7,
+            "title": "Implement CI/CD Matrix Strategy for Windows and Linux Runners",
+            "description": "Configure GitHub Actions workflow to run tests on both Windows Server and Ubuntu Linux in parallel matrix configuration with performance tracking",
+            "dependencies": [
+              1,
+              2,
+              5,
+              6
+            ],
+            "details": "Update .github/workflows/ci.yml to use matrix strategy with windows-latest and ubuntu-latest runners. Configure Node.js setup for both platforms, ensure package manager compatibility (npm/pnpm), and add platform-specific environment variables. Include test execution timing and result collection for cross-platform performance comparison.",
+            "status": "pending",
+            "testStrategy": "Verify CI matrix runs successfully on both platforms. Confirm test suite execution times are captured and reported. Test with deliberate failures to ensure proper error reporting on both platforms."
+          },
+          {
+            "id": 8,
+            "title": "Create Platform-Specific Test Execution Scripts",
+            "description": "Develop cross-platform test runner scripts with repeat execution capabilities for local development parity with CI/CD",
+            "dependencies": [
+              7
+            ],
+            "details": "Create scripts/test-windows.ps1 and scripts/test-linux.sh that execute the full test suite 10 consecutive times with timing metrics. Include platform-specific setup commands, environment variable handling, and result aggregation. Ensure scripts work in both PowerShell and Bash environments with proper exit codes.",
+            "status": "pending",
+            "testStrategy": "Run scripts on actual Windows and Linux machines. Verify 10 consecutive test runs complete without failures. Confirm timing data is collected and platform differences are documented."
+          },
+          {
+            "id": 9,
+            "title": "Implement Test Performance Monitoring and Regression Detection",
+            "description": "Build performance tracking system to monitor test execution times and identify performance regressions across platforms",
+            "dependencies": [
+              8
+            ],
+            "details": "Create performance monitoring module that captures test execution times, stores historical data, and flags regressions when tests exceed baseline thresholds. Implement JSON report generation with timing breakdowns by test file and platform. Add automated alerts for tests taking >60 seconds total or individual tests exceeding expected duration.",
+            "status": "pending",
+            "testStrategy": "Test performance monitoring with artificially slow tests. Verify regression detection triggers when thresholds are exceeded. Confirm historical data persistence and report generation accuracy."
+          },
+          {
+            "id": 10,
+            "title": "Document Platform-Specific Testing Procedures and Troubleshooting",
+            "description": "Create comprehensive documentation covering platform differences, testing procedures, and troubleshooting guides for Windows and Linux environments",
+            "dependencies": [
+              9
+            ],
+            "details": "Document identified platform-specific issues like Windows file locking, path separator differences, and permission handling. Create troubleshooting guides for common failures including EPERM errors, module resolution issues, and timing-related test failures. Include setup instructions for local cross-platform testing and CI/CD configuration details.",
+            "status": "pending",
+            "testStrategy": "Validate documentation by having team members follow setup procedures on fresh Windows and Linux environments. Verify troubleshooting guides resolve documented issues effectively."
+          },
+          {
+            "id": 11,
+            "title": "Create Flaky Test Detection and Reporting System",
+            "description": "Build automated system to identify and report flaky tests that fail intermittently across multiple consecutive runs",
+            "dependencies": [
+              9
+            ],
+            "details": "Implement flaky test detection logic that analyzes results from 10 consecutive test runs and flags tests with inconsistent pass/fail patterns. Create reporting dashboard showing flaky test frequency, platform-specific failures, and historical trends. Include automated issue creation for newly detected flaky tests with failure context and platform information.",
+            "status": "pending",
+            "testStrategy": "Test flaky detection with artificially unreliable tests. Verify system correctly identifies intermittent failures and generates actionable reports. Confirm false positive rate is minimal for consistently passing tests."
+          },
+          {
+            "id": 12,
+            "title": "Validate Cross-Platform Test Suite Stability and Performance",
+            "description": "Execute comprehensive validation ensuring all 640 tests pass consistently on both Windows and Linux with performance requirements met",
+            "dependencies": [
+              10,
+              11
+            ],
+            "details": "Run complete validation suite including 10 consecutive test executions on both platforms, performance threshold verification (<60 seconds total), and flaky test elimination. Generate final validation report with platform comparison metrics, performance baselines, and zero-flaky-test certification. Include recommendations for ongoing maintenance and monitoring.",
+            "status": "pending",
+            "testStrategy": "Execute final validation runs on clean Windows and Linux environments. Verify zero test failures across all platforms and runs. Confirm performance requirements are consistently met and no flaky tests are detected."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-31T06:37:15.861Z",
+      "updated": "2025-10-31T06:40:31.089Z",
+      "description": "Tasks for chore-performance-optimisation-test-fixes context"
     }
   }
 }
