@@ -5,6 +5,8 @@
 
 import { Command } from 'commander';
 import { GitHubConfigureCommand } from './github/configure.command.js';
+import { GitHubSyncCommand } from './github/sync.command.js';
+import { GitHubStatusCommand } from './github/status.command.js';
 
 /**
  * GitHubCommand - Main command for GitHub integration
@@ -19,6 +21,8 @@ export class GitHubCommand extends Command {
 
 		// Add subcommands
 		this.addCommand(new GitHubConfigureCommand());
+		this.addCommand(new GitHubSyncCommand());
+		this.addCommand(new GitHubStatusCommand());
 
 		// Default action shows help
 		this.action(() => {
