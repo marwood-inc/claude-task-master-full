@@ -1,0 +1,43 @@
+# Task ID: 4
+# Title: Implement One-Way Sync (Task → GitHub)
+# Status: in-progress
+# Dependencies: 1, 2, 3
+# Priority: high
+# Description: Create synchronization service for pushing local task changes to GitHub Issues without pulling remote changes
+# Details:
+Implement GitHubSyncService.syncToGitHub() method to create new issues for unmapped tasks and update existing issues for mapped tasks. Handle subtasks in both checklist mode (markdown items in parent issue body) and separate-issues mode (child issues with parent references in body). Apply status, priority, and complexity labels. Convert task dependencies to GitHub issue references ("Depends on #123" in body). Include dry-run mode for previewing changes without API calls. Record all mappings in sync state. Batch API operations for performance with 100 requests at a time.
+
+# Test Strategy:
+Unit tests with mocked GitHub client, integration tests creating real issues in test repository, subtask mode tests for both modes, large batch tests (100+ tasks), dependency chain tests, dry-run vs actual sync comparison
+
+# Subtasks:
+## 1. Design GitHub Sync State Management Schema [done]
+### Dependencies: None
+### Description: Create detailed specification for tracking task-to-issue mappings and sync metadata
+### Details:
+Define comprehensive JSON schema for .taskmaster/github-sync-state.json including fields for task ID, issue number, sync timestamps, mapping status, conflict markers, and synchronization history. Ensure schema supports 1000+ mappings with O(1) lookup performance and atomic file update capabilities.
+
+## 2. Implement GitHubSyncService Core Synchronization Logic [done]
+### Dependencies: 4.1
+### Description: Develop primary synchronization method for pushing local tasks to GitHub Issues
+### Details:
+Create syncToGitHub() method in GitHubSyncService that handles creating new issues for unmapped tasks, updating existing mapped issues, supporting both checklist and separate-issues subtask modes. Implement batch processing with GitHub API, with support for 100 requests per batch and dry-run mode.
+
+## 3. Implement GitHub Field Mapping and Transformation [pending]
+### Dependencies: 4.1
+### Description: Create bidirectional mapping between task-master data structures and GitHub Issue format
+### Details:
+Develop GitHubFieldMapper class with methods for converting task attributes to GitHub issue properties. Handle status mapping, priority labeling, description enrichment, and subtask representation in both checklist and separate-issues modes.
+
+## 4. Implement Dependency and Label Mapping Strategy [pending]
+### Dependencies: 4.1, 4.2, 4.3
+### Description: Design mechanism for converting task dependencies to GitHub issue references and applying appropriate labels
+### Details:
+Create logic to transform task dependencies into GitHub issue references (e.g., 'Depends on #123'), implement intelligent labeling for status, priority, and complexity. Support both markdown body references and GitHub issue linking mechanisms.
+
+## 5. Develop Sync State Persistence and Conflict Handling [pending]
+### Dependencies: 4.1, 4.2, 4.3, 4.4
+### Description: Implement robust mechanism for tracking sync operations and managing potential conflicts
+### Details:
+Create persistence layer for sync state in .taskmaster/github-sync-state.json, implement conflict detection by comparing local task and remote issue timestamps. Provide mechanisms for conflict resolution with support for preview and dry-run modes.
+

@@ -11475,7 +11475,7 @@
           "6",
           "8"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -11485,9 +11485,10 @@
               8
             ],
             "details": "Design the command structure in apps/cli/src/commands/ with TypeScript. Define options including --mode (one-way/two-way), --dry-run, --force, --subtask-mode, --repo. Implement robust option parsing and validation. Ensure clear help text and usage instructions follow task-master CLI conventions.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Command option validation tests, help text verification, CLI argument parsing tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T06:37:51.615Z"
           },
           {
             "id": 2,
@@ -11497,9 +11498,10 @@
               1
             ],
             "details": "Create progress tracking utilities with spinner/progress bar for long-running sync operations. Implement clear, actionable success and error messages. Design informative console output that shows sync progress, mapped/unmapped tasks, and potential conflicts. Use inquirer for interactive prompts when needed.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Progress indicator unit tests, error message display tests, user interaction flow tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T06:38:21.784Z"
           },
           {
             "id": 3,
@@ -11531,7 +11533,8 @@
         ],
         "complexity": 6,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "Divide into command structure definition, progress tracking/feedback systems, core sync logic implementation, and CLI registration/configuration. Follow established CLI patterns while adding GitHub-specific functionality."
+        "expansionPrompt": "Divide into command structure definition, progress tracking/feedback systems, core sync logic implementation, and CLI registration/configuration. Follow established CLI patterns while adding GitHub-specific functionality.",
+        "updatedAt": "2025-10-31T06:38:21.784Z"
       },
       {
         "id": "10",
@@ -11592,7 +11595,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T06:31:30.708Z",
+      "lastModified": "2025-10-31T06:38:21.790Z",
       "taskCount": 10,
       "completedCount": 7,
       "tags": [

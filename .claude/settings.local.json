@@ -20,7 +20,11 @@
       "Bash(then echo \"GitHub folder exists\")",
       "Bash(else echo \"GitHub folder does not exist\")",
       "Bash(fi)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "mcp__oraios_serena__find_file",
+      "mcp__oraios_serena__activate_project",
+      "mcp__oraios_serena__get_symbols_overview",
+      "mcp__oraios_serena__find_symbol"
     ]
   },
   "enabledMcpjsonServers": [

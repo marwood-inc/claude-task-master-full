@@ -1,0 +1,31 @@
+# Task ID: 7
+# Title: Implement Advanced GitHub Features
+# Status: pending
+# Dependencies: 4
+# Priority: low
+# Description: Add support for GitHub milestones, project boards, and assignee management for enterprise collaboration workflows
+# Details:
+Extend GitHubClient to support milestone CRUD operations, GitHub Projects v1 (REST API) integration for kanban boards, and assignee management. Create milestones for task groups, assign issues to milestones, add issues to project boards and update column placement based on status changes. Sync task assignee field to GitHub issue assignees with username validation. Include feature flags to enable/disable individual features. Support both GitHub.com and GitHub Enterprise via configurable base URL.
+
+# Test Strategy:
+Milestone CRUD tests, project integration tests, column movement tests, assignee sync tests, invalid username handling, feature flag tests
+
+# Subtasks:
+## 1. Implement GitHub Milestone CRUD Operations [pending]
+### Dependencies: None
+### Description: Extend GitHubClient to support full lifecycle management of GitHub milestones
+### Details:
+Create methods in GitHubClient for creating, reading, updating, and deleting GitHub milestones. Implement support for milestone title, description, due date, and state. Handle error scenarios and validate input parameters. Support both GitHub.com and GitHub Enterprise base URLs via configurable endpoint.
+
+## 2. Develop GitHub Projects Board Synchronization [pending]
+### Dependencies: 7.1
+### Description: Implement integration with GitHub Projects v1 REST API for kanban board management
+### Details:
+Create methods to add issues to project boards, update column placement based on task status changes, and manage project board columns. Implement feature flags to enable/disable project board synchronization. Handle column transitions, project board metadata retrieval, and error scenarios with robust logging.
+
+## 3. Implement GitHub Assignee Management [pending]
+### Dependencies: 7.1, 7.2
+### Description: Create assignee mapping and synchronization between task-master and GitHub issues
+### Details:
+Develop username validation for GitHub assignees, sync task assignee field with GitHub issue assignees, support multiple assignee scenarios. Implement bidirectional mapping with conflict resolution strategies. Add support for GitHub username lookup and validation via API. Create feature flag for assignee synchronization.
+

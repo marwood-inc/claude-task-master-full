@@ -1,0 +1,37 @@
+# Task ID: 9
+# Title: Implement CLI Commands and User Interface
+# Status: pending
+# Dependencies: 6, 8
+# Priority: medium
+# Description: Create user-friendly CLI commands for GitHub sync operations with comprehensive options and clear feedback
+# Details:
+Implement github-sync command with options for --mode (one-way/two-way), --dry-run, --force, --subtask-mode, --repo. Add github-status command to show sync state, conflicts, last sync timestamp, and mapped vs unmapped tasks. Include progress indicators for long sync operations, clear success/error messages, and actionable error guidance. Follow existing CLI patterns in task-master codebase. Add commands to apps/cli/src/commands/ and register in index.ts.
+
+# Test Strategy:
+Command option tests, progress indicator tests, error message tests, help text validation, CLI integration tests, user experience testing
+
+# Subtasks:
+## 1. Define GitHub Sync CLI Command Structure [pending]
+### Dependencies: 9.8
+### Description: Create comprehensive CLI command definition for github-sync with all required options
+### Details:
+Design the command structure in apps/cli/src/commands/ with TypeScript. Define options including --mode (one-way/two-way), --dry-run, --force, --subtask-mode, --repo. Implement robust option parsing and validation. Ensure clear help text and usage instructions follow task-master CLI conventions.
+
+## 2. Implement Progress Tracking and User Feedback Mechanisms [pending]
+### Dependencies: 9.1
+### Description: Develop comprehensive progress indicators and user feedback system for GitHub sync operations
+### Details:
+Create progress tracking utilities with spinner/progress bar for long-running sync operations. Implement clear, actionable success and error messages. Design informative console output that shows sync progress, mapped/unmapped tasks, and potential conflicts. Use inquirer for interactive prompts when needed.
+
+## 3. Implement GitHub Sync Core Logic [pending]
+### Dependencies: 9.1, 9.2
+### Description: Develop the primary synchronization logic for GitHub issue and task-master task synchronization
+### Details:
+Implement the core synchronization methods in the sync service. Handle one-way and two-way sync modes. Integrate with GitHubFieldMapper and GitHubSyncStateService. Support dry-run mode for safe previewing. Implement robust error handling and recovery mechanisms for sync operations.
+
+## 4. Register and Configure CLI Command [pending]
+### Dependencies: 9.1, 9.2, 9.3
+### Description: Register the GitHub sync command in the CLI's main command index and configure integration
+### Details:
+Update apps/cli/src/index.ts to register the new GitHub sync command. Configure command-line argument parsing, help text, and integration with core sync services. Ensure proper error handling and user guidance for command execution.
+

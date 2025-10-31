@@ -1,0 +1,37 @@
+# Task ID: 2
+# Title: Implement GitHub Field Mapping Service
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Create bidirectional transformation layer between task-master data structures and GitHub Issue format with semantic preservation
+# Details:
+Implement GitHubFieldMapper class with methods for taskToIssue() and issueToTask() conversions. Map task-master status values (pending/in-progress/done/blocked) to GitHub issue state + labels. Map priority levels to colored GitHub labels (low=green, high=orange, critical=red). Enrich issue descriptions by combining task description, details, and testStrategy into structured markdown. Handle subtasks in both checklist mode (markdown checklist items) and separate-issues mode (child issues with parent references). Include complexity metadata as labels and body sections.
+
+# Test Strategy:
+Unit tests for each mapping function, round-trip tests (task → issue → task) to ensure no data loss, edge case tests for missing fields and null values, semantic equivalence validation
+
+# Subtasks:
+## 1. Design GitHubFieldMapper Core Transformation Logic [done]
+### Dependencies: None
+### Description: Create the foundational mapping strategy for converting between task-master and GitHub issue formats
+### Details:
+Define interface and core transformation methods for taskToIssue() and issueToTask(). Create type definitions for mapping rules. Implement status, priority, and description mapping algorithms with support for semantic preservation across different task management systems.
+
+## 2. Implement Status and Priority Mapping Strategies [done]
+### Dependencies: 2.1
+### Description: Develop robust mapping between task-master status/priority and GitHub issue states and labels
+### Details:
+Create enum-based mapping for status values (pending/in-progress/done/blocked) to GitHub issue states. Implement label generation logic for priority levels with color coding (low=green, high=orange, critical=red). Ensure bidirectional conversion maintains original semantic meaning.
+
+## 3. Develop Subtask Handling Mechanisms [done]
+### Dependencies: 2.1, 2.2
+### Description: Implement flexible subtask representation strategies for GitHub issues
+### Details:
+Create methods to handle subtasks in two modes: markdown checklist items and separate GitHub issues. Implement parent-child issue linking, metadata preservation, and conversion logic. Support both flat and hierarchical subtask structures with semantic integrity.
+
+## 4. Implement Description Enrichment and Metadata Handling [done]
+### Dependencies: 2.1, 2.2, 2.3
+### Description: Create advanced description transformation with comprehensive metadata preservation
+### Details:
+Develop logic to combine task description, implementation details, and test strategy into structured markdown. Include additional metadata as GitHub issue body sections. Implement intelligent parsing and reconstruction of enriched descriptions to maintain context across conversions.
+
