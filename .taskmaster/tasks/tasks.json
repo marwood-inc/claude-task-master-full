@@ -11240,7 +11240,7 @@
           "2",
           "3"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11248,9 +11248,10 @@
             "description": "Develop comprehensive unit tests for FileStorage cache behavior including cache hits, misses, and TTL expiration scenarios",
             "dependencies": [],
             "details": "Create packages/tm-core/tests/unit/storage/file-storage-cache.test.ts with test cases for cache hit scenarios (repeated reads), cache miss scenarios (first read, expired TTL), TTL expiration testing with time mocking, and cache key generation for different LoadTasksOptions combinations. Mock file system operations to control test scenarios and verify cache behavior isolation.\n<info added on 2025-10-31T03:37:59.201Z>\nLet me analyze the existing codebase to understand the current test coverage for cache functionality.Based on my analysis of the existing file-storage.spec.ts file, I can confirm that the user's assessment is accurate. The existing test file already contains comprehensive cache hit/miss testing that covers all the scenarios mentioned in the subtask details.\n\nVERIFICATION COMPLETE: Analyzed packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.spec.ts which contains 479 lines of comprehensive cache testing using vitest framework. The existing tests already cover: cache hit/miss scenarios (lines 76-197), cache invalidation on all write operations including saveTasks, updateTask, updateTaskStatus, deleteTask, appendTasks, and tag operations (lines 199-362), TTL expiration testing with time delays (lines 364-397), performance verification with file read reduction and concurrent access (lines 399-434), and edge cases including empty lists and error handling (lines 436-478). All tests use proper vitest mocking with vi.spyOn(fs, 'readFile') to verify cache behavior. The cache key generation is implicitly tested through different LoadTasksOptions combinations including status filters and excludeSubtasks option. Subtask 8.1 requirements are already fully satisfied by the existing test coverage.\n</info added on 2025-10-31T03:37:59.201Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Use Jest with mocked file operations and time manipulation to test cache timing behavior. Verify cache statistics and hit/miss ratios match expected patterns.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T03:41:22.333Z"
           },
           {
             "id": 2,
@@ -11260,9 +11261,10 @@
               1
             ],
             "details": "Test cache invalidation for saveTasks(), updateTask(), updateTaskStatus(), deleteTask(), and tag management methods. Verify cache is cleared after write operations and rebuilt on subsequent reads. Test scenarios include write-then-read patterns, concurrent access patterns, and multiple tag cache invalidation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Mock file operations and verify cache.clear() calls occur after write operations. Test that stale data is never returned after cache invalidation.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T03:41:33.964Z"
           },
           {
             "id": 3,
@@ -11288,15 +11290,16 @@
               3
             ],
             "details": "Create memory leak detection tests for long-running processes with heavy cache usage. Implement performance regression tests measuring file I/O operations, cache hit ratios, and memory usage over time. Test with varying dataset sizes and access patterns. Include stress tests with rapid read/write cycles and concurrent access scenarios.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Use memory profiling tools and performance metrics collection to detect leaks and regressions. Set performance baselines and fail tests if metrics fall below acceptable thresholds.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T03:41:37.407Z"
           }
         ],
         "complexity": 7,
         "recommendedSubtasks": 4,
         "expansionPrompt": "Develop thorough cache testing coverage: create unit tests for cache hit/miss scenarios with time mocking for TTL validation, implement unit tests for cache invalidation across all write operations ensuring no stale data, develop integration tests validating cache functionality across CLI and MCP operations with real usage patterns, and create memory leak and performance tests for long-running processes with stress testing.",
-        "updatedAt": "2025-10-31T03:40:01.722Z"
+        "updatedAt": "2025-10-31T03:41:37.407Z"
       },
       {
         "id": "9",
@@ -11409,9 +11412,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T03:40:01.735Z",
+      "lastModified": "2025-10-31T03:41:37.415Z",
       "taskCount": 10,
-      "completedCount": 3,
+      "completedCount": 4,
       "tags": [
         "chore-performance-optimisation"
       ]
