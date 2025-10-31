@@ -237,6 +237,27 @@ export interface SecuritySettings {
 }
 
 /**
+ * Test generation settings
+ */
+export interface TestingSettings {
+	/** Default test framework */
+	defaultFramework: 'vitest' | 'jest' | 'mocha';
+	/** Default test output directory */
+	defaultOutputDir: string;
+	/** Default detail level */
+	defaultDetailLevel: 'minimal' | 'standard' | 'comprehensive';
+	/** Prompt before overwriting existing tests */
+	promptBeforeOverwrite: boolean;
+	/** Enable source file analysis for context */
+	enableSourceAnalysis: boolean;
+	/**
+	 * Maximum context size for AI in characters
+	 * @minimum 1000
+	 */
+	maxContextSize: number;
+}
+
+/**
  * Workflow and autopilot TDD settings
  */
 export interface WorkflowSettings {
@@ -329,6 +350,9 @@ export interface IConfiguration {
 
 	/** Workflow and autopilot settings */
 	workflow: WorkflowSettings;
+
+	/** Test generation settings */
+	testing: TestingSettings;
 
 	/** Storage configuration */
 	storage: StorageSettings;
@@ -561,6 +585,14 @@ export const DEFAULT_CONFIG_VALUES = {
 		ENABLE_STATE_BACKUP: true,
 		MAX_STATE_BACKUPS: 5,
 		ABORT_ON_MAX_ATTEMPTS: false
+	},
+	TESTING: {
+		defaultFramework: 'vitest' as const,
+		defaultOutputDir: 'tests',
+		defaultDetailLevel: 'standard' as const,
+		promptBeforeOverwrite: true,
+		enableSourceAnalysis: true,
+		maxContextSize: 50000
 	},
 	STORAGE: {
 		TYPE: 'auto' as const,

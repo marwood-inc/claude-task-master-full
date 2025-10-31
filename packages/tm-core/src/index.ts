@@ -104,6 +104,16 @@ export type {
 	TaskComplexityData
 } from './modules/reports/types.js';
 
+// Testing types
+export type {
+	TestFramework,
+	GenerateTestStrategy,
+	GenerateTestOptions,
+	GenerateTestResult,
+	TaskContext,
+	SourceContext
+} from './modules/testing/types/test-generation.types.js';
+
 // ========== Advanced API (for CLI/Extension/MCP) ==========
 
 // Auth - Advanced

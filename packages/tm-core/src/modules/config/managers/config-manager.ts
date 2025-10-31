@@ -8,7 +8,8 @@
 
 import type {
 	PartialConfiguration,
-	RuntimeStorageConfig
+	RuntimeStorageConfig,
+	TestingSettings
 } from '../../../common/interfaces/configuration.interface.js';
 import { DEFAULT_CONFIG_VALUES as DEFAULTS } from '../../../common/interfaces/configuration.interface.js';
 import { ConfigLoader } from '../services/config-loader.service.js';
@@ -175,6 +176,13 @@ export class ConfigManager {
 	}
 
 	/**
+	 * Get testing configuration
+	 */
+	getTestingConfig(): TestingSettings {
+		return this.config.testing || DEFAULTS.TESTING;
+	}
+
+	/**
 	 * Get response language setting
 	 */
 	getResponseLanguage(): string {
@@ -239,6 +247,15 @@ export class ConfigManager {
 		}
 		(this.config.custom as any).responseLanguage = language;
 		await this.persistence.saveConfig(this.config);
+	}
+
+	/**
+	 * Update testing configuration
+	 */
+	async updateTestingConfig(updates: Partial<TestingSettings>): Promise<void> {
+		await this.updateConfig({
+			testing: { ...this.getTestingConfig(), ...updates }
+		});
 	}
 
 	/**

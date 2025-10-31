@@ -11,6 +11,7 @@ import { WorkflowDomain } from './modules/workflow/workflow-domain.js';
 import { GitDomain } from './modules/git/git-domain.js';
 import { ConfigDomain } from './modules/config/config-domain.js';
 import { IntegrationDomain } from './modules/integration/integration-domain.js';
+import { TestingDomain } from './modules/testing/testing-domain.js';
 
 import {
 	ERROR_CODES,
@@ -49,6 +50,7 @@ export interface TmCoreOptions {
  * await tmcore.git.commit('feat: add feature');
  * const modelConfig = tmcore.config.getModelConfig();
  * await tmcore.integration.exportTasks({ ... });
+ * await tmcore.testing.generateTest({ taskId: '1.2', framework: 'vitest' });
  * ```
  *
  * @example MCP integration with logging
@@ -87,6 +89,7 @@ export class TmCore {
 	private _git!: GitDomain;
 	private _config!: ConfigDomain;
 	private _integration!: IntegrationDomain;
+	private _testing!: TestingDomain;
 
 	// Public readonly getters
 	get tasks(): TasksDomain {
@@ -106,6 +109,9 @@ export class TmCore {
 	}
 	get integration(): IntegrationDomain {
 		return this._integration;
+	}
+	get testing(): TestingDomain {
+		return this._testing;
 	}
 	get logger(): Logger {
 		return this._logger;
@@ -176,6 +182,7 @@ export class TmCore {
 			this._git = new GitDomain(this._projectPath);
 			this._config = new ConfigDomain(this._configManager);
 			this._integration = new IntegrationDomain(this._configManager);
+			this._testing = new TestingDomain(this._configManager);
 
 			// Initialize domains that need async setup
 			await this._tasks.initialize();
