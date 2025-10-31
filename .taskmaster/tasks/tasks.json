@@ -12057,7 +12057,7 @@
         "description": "CLI commands (sync.command.ts, configure.command.ts) catch all errors generically. Improve by implementing different handling for network vs validation errors, specific exit codes for different error types, and retry prompts for transient failures.",
         "details": "",
         "testStrategy": "",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [],
         "priority": "low",
         "subtasks": [
@@ -12067,9 +12067,10 @@
             "description": "Document differentiated handling for CLI error categories using TaskMasterError codes.",
             "dependencies": [],
             "details": "Audit TaskMasterError taxonomy, classify validation vs network vs transient codes, define mapping to CLI exit codes and retry semantics, and update shared error handling contract.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T11:58:23.168Z"
           },
           {
             "id": 2,
@@ -12079,9 +12080,10 @@
               1
             ],
             "details": "Update error-handler utility and CLI commands to branch on error classifications, assign specific exit codes, surface validation messaging, and add retry prompts for transient network failures.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Manual CLI dry runs covering validation, network, and transient scenarios to confirm tailored exit codes and prompts.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T12:02:11.647Z"
           },
           {
             "id": 3,
@@ -12098,12 +12100,13 @@
         ],
         "complexity": 5,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Split into: 1) Designing error classification strategy using TaskMasterError taxonomy for validation vs network vs transient failures with exit code mapping, 2) Implementing command-level error handling updates in sync, configure, and status commands with retry prompts and specific messaging, and 3) Creating automated regression tests for differentiated error flows and exit codes"
+        "expansionPrompt": "Split into: 1) Designing error classification strategy using TaskMasterError taxonomy for validation vs network vs transient failures with exit code mapping, 2) Implementing command-level error handling updates in sync, configure, and status commands with retry prompts and specific messaging, and 3) Creating automated regression tests for differentiated error flows and exit codes",
+        "updatedAt": "2025-10-31T12:02:11.647Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T11:33:17.521Z",
+      "lastModified": "2025-10-31T12:02:11.657Z",
       "taskCount": 17,
       "completedCount": 16,
       "tags": [

@@ -13,6 +13,8 @@ import {
 	SyncResultFormatter,
 	ErrorGuidance
 } from '../../utils/github-sync-progress.js';
+import { CommandActionWrapper } from '../../utils/command-action-wrapper.js';
+import { EnhancedErrorDisplay } from '../../utils/enhanced-error-display.js';
 
 /**
  * Options interface for the sync command
@@ -107,87 +109,96 @@ ${chalk.bold('Notes:')}
 	 * Execute the sync command
 	 */
 	private async executeSync(options: GitHubSyncCommandOptions): Promise<void> {
-		try {
-			// Validate options
-			if (!this.validateOptions(options)) {
-				process.exit(1);
-			}
-
-			// Initialize tm-core
-			const progress = new GitHubSyncProgress('Initializing Task Master...');
-			await this.initializeCore(options.project || process.cwd());
-			progress.succeed('Task Master initialized');
-
-			// Display sync header
-			this.displaySyncHeader(options);
-
-			// Fetch tasks
-			progress.updatePhase('fetching-tasks', 'Fetching tasks...');
-			const taskList = await this.tmCore!.tasks.list();
-			const tasks = taskList.tasks;
-
-			progress.succeed(`Loaded ${tasks.length} tasks`);
-
-			if (tasks.length === 0) {
-				progress.warn('No tasks to sync');
-				console.log(
-					chalk.yellow(
-						'\nNo tasks found. Add tasks with ' +
-							chalk.cyan('tm add-task') +
-							' or import from PRD.'
-					)
-				);
-				return;
-			}
-
-			// Perform sync
-			progress.updatePhase(
-				'syncing-to-github',
-				options.dryRun ? 'Previewing sync...' : 'Syncing to GitHub...'
+		// Validate options before any async operations
+		if (!this.validateOptions(options)) {
+			// Validation errors should exit with code 2
+			EnhancedErrorDisplay.displayAndExit(
+				new Error(`Invalid options provided`)
 			);
-
-			const coreResult = await this.tmCore!.integration.syncWithGitHub(tasks, {
-				mode: options.mode || 'one-way',
-				dryRun: options.dryRun || false,
-				force: options.force || false,
-				subtaskMode: options.subtaskMode,
-				repo: options.repo
-			});
-
-			// Convert core result to CLI result
-			const result: GitHubSyncResult = {
-				success: coreResult.success,
-				mode: options.mode || 'one-way',
-				tasksProcessed: coreResult.tasksProcessed,
-				tasksCreated: coreResult.tasksCreated,
-				tasksUpdated: coreResult.tasksUpdated,
-				tasksFailed: coreResult.tasksFailed,
-				errors: coreResult.errors || [],
-				warnings: coreResult.warnings || [],
-				dryRun: coreResult.dryRun
-			};
-
-			this.lastResult = result;
-
-			// Mark as complete
-			if (result.success) {
-				progress.succeed(
-					result.dryRun
-						? 'Dry run completed successfully'
-						: 'Sync completed successfully'
-				);
-			} else {
-				progress.fail('Sync completed with errors');
-			}
-
-			// Display results
-			this.displayResults(result);
-		} catch (error) {
-			// Display error with guidance
-			console.log(); // Empty line for spacing
-			ErrorGuidance.displayWithGuidance(error as Error);
-			process.exit(1);
 		}
+
+		// Wrap sync logic with error handling and retry support
+		await CommandActionWrapper.executeWithErrorHandling(
+			async () => {
+				// Initialize tm-core
+				const progress = new GitHubSyncProgress('Initializing Task Master...');
+				await this.initializeCore(options.project || process.cwd());
+				progress.succeed('Task Master initialized');
+
+				// Display sync header
+				this.displaySyncHeader(options);
+
+				// Fetch tasks
+				progress.updatePhase('fetching-tasks', 'Fetching tasks...');
+				const taskList = await this.tmCore!.tasks.list();
+				const tasks = taskList.tasks;
+
+				progress.succeed(`Loaded ${tasks.length} tasks`);
+
+				if (tasks.length === 0) {
+					progress.warn('No tasks to sync');
+					console.log(
+						chalk.yellow(
+							'\nNo tasks found. Add tasks with ' +
+								chalk.cyan('tm add-task') +
+								' or import from PRD.'
+						)
+					);
+					return;
+				}
+
+				// Perform sync
+				progress.updatePhase(
+					'syncing-to-github',
+					options.dryRun ? 'Previewing sync...' : 'Syncing to GitHub...'
+				);
+
+				const coreResult = await this.tmCore!.integration.syncWithGitHub(
+					tasks,
+					{
+						mode: options.mode || 'one-way',
+						dryRun: options.dryRun || false,
+						force: options.force || false,
+						subtaskMode: options.subtaskMode,
+						repo: options.repo
+					}
+				);
+
+				// Convert core result to CLI result
+				const result: GitHubSyncResult = {
+					success: coreResult.success,
+					mode: options.mode || 'one-way',
+					tasksProcessed: coreResult.tasksProcessed,
+					tasksCreated: coreResult.tasksCreated,
+					tasksUpdated: coreResult.tasksUpdated,
+					tasksFailed: coreResult.tasksFailed,
+					errors: coreResult.errors || [],
+					warnings: coreResult.warnings || [],
+					dryRun: coreResult.dryRun
+				};
+
+				this.lastResult = result;
+
+				// Mark as complete
+				if (result.success) {
+					progress.succeed(
+						result.dryRun
+							? 'Dry run completed successfully'
+							: 'Sync completed successfully'
+					);
+				} else {
+					progress.fail('Sync completed with errors');
+				}
+
+				// Display results
+				this.displayResults(result);
+			},
+			{
+				commandName: 'sync',
+				maxRetries: 2,
+				enableAutoRetry: true
+			}
+		);
 	}
 
 	/**

@@ -10,6 +10,8 @@ import ora, { type Ora } from 'ora';
 import { ConfigManager, type GitHubSettings } from '@tm/core';
 import { GitHubAuthService } from '@tm/core';
 import { displayError } from '../../utils/error-handler.js';
+import { CommandActionWrapper } from '../../utils/command-action-wrapper.js';
+import { EnhancedErrorDisplay } from '../../utils/enhanced-error-display.js';
 
 /**
  * Result type from configure command
@@ -96,193 +98,200 @@ ${chalk.bold('Notes:')}
 		autoSync?: boolean;
 		yes?: boolean;
 	}): Promise<void> {
-		const spinner: Ora = ora();
+		// Wrap configure logic with error handling and retry support
+		await CommandActionWrapper.executeWithErrorHandling(
+			async () => {
+				const spinner: Ora = ora();
 
-		try {
-			// Initialize config manager
-			this.configManager = await ConfigManager.create(process.cwd());
+				// Initialize config manager
+				this.configManager = await ConfigManager.create(process.cwd());
 
-			console.log(chalk.bold.cyan('\n━━━ GitHub Integration Configuration ━━━\n'));
-
-			// Get current configuration if exists
-			const currentConfig = this.configManager.getConfig();
-			const existingGitHubConfig = currentConfig.github;
-
-			// Determine if we're doing interactive or non-interactive setup
-			const isInteractive = !options.yes;
-
-			let githubSettings: GitHubSettings;
-
-			if (isInteractive) {
-				githubSettings = await this.interactiveSetup(
-					options,
-					existingGitHubConfig
-				);
-			} else {
-				githubSettings = await this.nonInteractiveSetup(
-					options,
-					existingGitHubConfig
-				);
-			}
-
-			// Validate the token and get user info
-			spinner.start('Validating GitHub token...');
-
-			const validation = await this.authService.validateToken(
-				githubSettings.token
-			);
-
-			if (!validation.valid) {
-				spinner.fail('Token validation failed');
-				console.log(chalk.red(`\n✗ ${validation.error}`));
 				console.log(
-					chalk.yellow(
-						'\nPlease provide a valid GitHub personal access token with repo and user scopes.'
-					)
-				);
-				console.log(
-					chalk.blue(
-						'Create a token at: https://github.com/settings/tokens/new'
-					)
+					chalk.bold.cyan('\n━━━ GitHub Integration Configuration ━━━\n')
 				);
 
-				this.lastResult = {
-					success: false,
-					configured: false,
-					message: validation.error
-				};
-				process.exit(1);
-			}
+				// Get current configuration if exists
+				const currentConfig = this.configManager.getConfig();
+				const existingGitHubConfig = currentConfig.github;
 
-			spinner.succeed(`Authenticated as ${chalk.cyan(validation.user!.login)}`);
+				// Determine if we're doing interactive or non-interactive setup
+				const isInteractive = !options.yes;
 
-			// Verify repository access if owner and repo are provided
-			if (githubSettings.owner && githubSettings.repo) {
-				spinner.start(
-					`Verifying access to ${githubSettings.owner}/${githubSettings.repo}...`
+				let githubSettings: GitHubSettings;
+
+				if (isInteractive) {
+					githubSettings = await this.interactiveSetup(
+						options,
+						existingGitHubConfig
+					);
+				} else {
+					githubSettings = await this.nonInteractiveSetup(
+						options,
+						existingGitHubConfig
+					);
+				}
+
+				// Validate the token and get user info
+				spinner.start('Validating GitHub token...');
+
+				const validation = await this.authService.validateToken(
+					githubSettings.token
 				);
 
-				const repoAccess = await this.authService.verifyRepositoryAccess(
-					githubSettings.token!,
-					githubSettings.owner,
-					githubSettings.repo
-				);
-
-				if (!repoAccess.accessible) {
-					spinner.fail('Repository access verification failed');
-					console.log(chalk.red(`\n✗ ${repoAccess.error}`));
+				if (!validation.valid) {
+					spinner.fail('Token validation failed');
+					console.log(chalk.red(`\n✗ ${validation.error}`));
 					console.log(
 						chalk.yellow(
-							'\nPlease ensure the repository exists and you have access to it.'
+							'\nPlease provide a valid GitHub personal access token with repo and user scopes.'
+						)
+					);
+					console.log(
+						chalk.blue(
+							'Create a token at: https://github.com/settings/tokens/new'
 						)
 					);
 
 					this.lastResult = {
 						success: false,
 						configured: false,
-						message: repoAccess.error
+						message: validation.error
 					};
-					process.exit(1);
+
+					// Throw error to trigger error handler (will exit with code 4)
+					throw new Error(`Authentication failed: ${validation.error}`);
 				}
 
-				const permissions = repoAccess.permissions!;
-				spinner.succeed('Repository access verified');
-
-				// Display permissions
-				console.log(chalk.dim('  Permissions:'));
-				console.log(
-					chalk.dim(
-						`    • Admin: ${permissions.admin ? chalk.green('✓') : chalk.red('✗')}`
-					)
-				);
-				console.log(
-					chalk.dim(
-						`    • Push: ${permissions.push ? chalk.green('✓') : chalk.red('✗')}`
-					)
-				);
-				console.log(
-					chalk.dim(
-						`    • Pull: ${permissions.pull ? chalk.green('✓') : chalk.red('✗')}`
-					)
+				spinner.succeed(
+					`Authenticated as ${chalk.cyan(validation.user!.login)}`
 				);
 
-				// Warn if no push access
-				if (!permissions.push) {
+				// Verify repository access if owner and repo are provided
+				if (githubSettings.owner && githubSettings.repo) {
+					spinner.start(
+						`Verifying access to ${githubSettings.owner}/${githubSettings.repo}...`
+					);
+
+					const repoAccess = await this.authService.verifyRepositoryAccess(
+						githubSettings.token!,
+						githubSettings.owner,
+						githubSettings.repo
+					);
+
+					if (!repoAccess.accessible) {
+						spinner.fail('Repository access verification failed');
+						console.log(chalk.red(`\n✗ ${repoAccess.error}`));
+						console.log(
+							chalk.yellow(
+								'\nPlease ensure the repository exists and you have access to it.'
+							)
+						);
+
+						this.lastResult = {
+							success: false,
+							configured: false,
+							message: repoAccess.error
+						};
+
+						// Throw error to trigger error handler (will exit with code 4)
+						throw new Error(`Authorization failed: ${repoAccess.error}`);
+					}
+
+					const permissions = repoAccess.permissions!;
+					spinner.succeed('Repository access verified');
+
+					// Display permissions
+					console.log(chalk.dim('  Permissions:'));
 					console.log(
-						chalk.yellow(
-							'\n⚠ Warning: You do not have push access to this repository.'
+						chalk.dim(
+							`    • Admin: ${permissions.admin ? chalk.green('✓') : chalk.red('✗')}`
 						)
 					);
 					console.log(
-						chalk.yellow(
-							'   GitHub sync will be read-only (can pull but not push).'
+						chalk.dim(
+							`    • Push: ${permissions.push ? chalk.green('✓') : chalk.red('✗')}`
 						)
 					);
+					console.log(
+						chalk.dim(
+							`    • Pull: ${permissions.pull ? chalk.green('✓') : chalk.red('✗')}`
+						)
+					);
+
+					// Warn if no push access
+					if (!permissions.push) {
+						console.log(
+							chalk.yellow(
+								'\n⚠ Warning: You do not have push access to this repository.'
+							)
+						);
+						console.log(
+							chalk.yellow(
+								'   GitHub sync will be read-only (can pull but not push).'
+							)
+						);
+					}
 				}
-			}
 
-			// Check token permissions
-			spinner.start('Checking token permissions...');
-			const permissionCheck = await this.authService.checkPermissions(
-				githubSettings.token
-			);
-			spinner.stop();
+				// Check token permissions
+				spinner.start('Checking token permissions...');
+				const permissionCheck = await this.authService.checkPermissions(
+					githubSettings.token
+				);
+				spinner.stop();
 
-			if (!permissionCheck.hasRequiredPermissions) {
-				console.log(chalk.yellow('\n⚠ Warning: ' + permissionCheck.message));
-			} else {
-				console.log(chalk.green('\n✓ ' + permissionCheck.message));
-			}
+				if (!permissionCheck.hasRequiredPermissions) {
+					console.log(
+						chalk.yellow('\n⚠ Warning: ' + permissionCheck.message)
+					);
+				} else {
+					console.log(chalk.green('\n✓ ' + permissionCheck.message));
+				}
 
-			// Display warnings if any
-			if (permissionCheck.warnings.length > 0) {
-				console.log(chalk.dim('\nPermission warnings:'));
-				permissionCheck.warnings.forEach((warning: string) => {
-					console.log(chalk.yellow(`  • ${warning}`));
+				// Display warnings if any
+				if (permissionCheck.warnings.length > 0) {
+					console.log(chalk.dim('\nPermission warnings:'));
+					permissionCheck.warnings.forEach((warning: string) => {
+						console.log(chalk.yellow(`  • ${warning}`));
+					});
+				}
+
+				// Save configuration
+				spinner.start('Saving configuration...');
+
+				await this.configManager.updateConfig({
+					github: githubSettings
 				});
+
+				spinner.succeed('Configuration saved successfully');
+
+				// Display summary
+				this.displayConfigurationSummary(githubSettings);
+
+				this.lastResult = {
+					success: true,
+					configured: true,
+					settings: githubSettings,
+					message: 'GitHub integration configured successfully'
+				};
+
+				console.log(
+					chalk.green(
+						'\n✓ GitHub integration is now configured and ready to use!'
+					)
+				);
+				console.log(
+					chalk.dim(
+						'\nRun `tm github sync` to synchronize your tasks with GitHub issues.'
+					)
+				);
+			},
+			{
+				commandName: 'configure',
+				maxRetries: 1,
+				enableAutoRetry: true
 			}
-
-			// Save configuration
-			spinner.start('Saving configuration...');
-
-			await this.configManager.updateConfig({
-				github: githubSettings
-			});
-
-			spinner.succeed('Configuration saved successfully');
-
-			// Display summary
-			this.displayConfigurationSummary(githubSettings);
-
-			this.lastResult = {
-				success: true,
-				configured: true,
-				settings: githubSettings,
-				message: 'GitHub integration configured successfully'
-			};
-
-			console.log(
-				chalk.green(
-					'\n✓ GitHub integration is now configured and ready to use!'
-				)
-			);
-			console.log(
-				chalk.dim(
-					'\nRun `tm github sync` to synchronize your tasks with GitHub issues.'
-				)
-			);
-		} catch (error) {
-			spinner.fail('Configuration failed');
-			displayError(error);
-
-			this.lastResult = {
-				success: false,
-				configured: false,
-				message: error instanceof Error ? error.message : 'Unknown error'
-			};
-
-			process.exit(1);
-		}
+		);
 	}
 
 	/**
