@@ -1544,4 +1544,430 @@ describe('WorkflowOrchestrator - State Machine Structure', () => {
 			expect(events[0].data?.adapterType).toBe('test-validator');
 		});
 	});
+
+	describe('Validation Event Emissions', () => {
+		beforeEach(() => {
+			// Setup orchestrator in SUBTASK_LOOP for validation tests
+			orchestrator.transition({ type: 'PREFLIGHT_COMPLETE' });
+			orchestrator.transition({
+				type: 'BRANCH_CREATED',
+				branchName: 'feature/test'
+			});
+			// Now in SUBTASK_LOOP phase, ready for TDD cycle
+		});
+
+		describe('validation:test-results event', () => {
+			it('should emit validation:test-results event for successful validation', () => {
+				const validationEvents: unknown[] = [];
+				orchestrator.on('validation:test-results', (data) =>
+					validationEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 0,
+					failed: 5,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(validationEvents).toHaveLength(1);
+				const event = validationEvents[0] as any;
+				expect(event.data.phase).toBe('RED');
+				expect(event.data.valid).toBe(true);
+				expect(event.data.testResults).toEqual(testResults);
+			});
+
+			it('should include validation details in event data', () => {
+				const validationEvents: unknown[] = [];
+				orchestrator.on('validation:test-results', (data) =>
+					validationEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 1,
+					passed: 1,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// This will emit warning but still be valid
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(validationEvents).toHaveLength(1);
+				const event = validationEvents[0] as any;
+				expect(event.data.valid).toBe(true);
+				expect(event.data.warnings).toBeDefined();
+				expect(event.data.suggestions).toBeDefined();
+			});
+
+			it('should emit validation:test-results even when validation fails', () => {
+				const validationEvents: unknown[] = [];
+				orchestrator.on('validation:test-results', (data) =>
+					validationEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 3,
+					failed: 2,
+					skipped: 0,
+					phase: 'GREEN'
+				};
+
+				// Move to GREEN phase first
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults: {
+						total: 5,
+						passed: 0,
+						failed: 5,
+						skipped: 0,
+						phase: 'RED'
+					}
+				});
+
+				// This should fail validation (GREEN phase with failures)
+				expect(() => {
+					orchestrator.transition({
+						type: 'GREEN_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				// Should have emitted validation:test-results event before throwing
+				expect(validationEvents.length).toBeGreaterThan(0);
+				const lastEvent = validationEvents[validationEvents.length - 1] as any;
+				expect(lastEvent.data.valid).toBe(false);
+			});
+		});
+
+		describe('validation:failed event', () => {
+			it('should emit validation:failed event when validation fails', () => {
+				const failedEvents: unknown[] = [];
+				orchestrator.on('validation:failed', (data) =>
+					failedEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 3,
+					failed: 2,
+					skipped: 0,
+					phase: 'GREEN'
+				};
+
+				// Move to GREEN phase
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults: {
+						total: 5,
+						passed: 0,
+						failed: 5,
+						skipped: 0,
+						phase: 'RED'
+					}
+				});
+
+				// This should fail validation and emit validation:failed
+				expect(() => {
+					orchestrator.transition({
+						type: 'GREEN_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				expect(failedEvents).toHaveLength(1);
+				const event = failedEvents[0] as any;
+				expect(event.data.phase).toBe('GREEN');
+				expect(event.data.errors).toBeDefined();
+				expect(event.data.errors.length).toBeGreaterThan(0);
+				expect(event.data.testResults).toEqual(testResults);
+			});
+
+			it('should include error details in validation:failed event', () => {
+				const failedEvents: unknown[] = [];
+				orchestrator.on('validation:failed', (data) =>
+					failedEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 0,
+					passed: 0,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// Empty test suite should fail validation
+				expect(() => {
+					orchestrator.transition({
+						type: 'RED_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				expect(failedEvents).toHaveLength(1);
+				const event = failedEvents[0] as any;
+				expect(event.data.errors).toContain('Cannot validate with empty test suite');
+				expect(event.data.suggestions).toBeDefined();
+			});
+
+			it('should NOT emit validation:failed when validation passes', () => {
+				const failedEvents: unknown[] = [];
+				orchestrator.on('validation:failed', (data) =>
+					failedEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 0,
+					failed: 5,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(failedEvents).toHaveLength(0);
+			});
+		});
+
+		describe('validation:warning event', () => {
+			it('should emit validation:warning when validation passes with warnings', () => {
+				const warningEvents: unknown[] = [];
+				orchestrator.on('validation:warning', (data) =>
+					warningEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 5,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// RED phase with all passing tests should emit warning
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(warningEvents).toHaveLength(1);
+				const event = warningEvents[0] as any;
+				expect(event.data.phase).toBe('RED');
+				expect(event.data.warnings).toBeDefined();
+				expect(event.data.warnings.length).toBeGreaterThan(0);
+			});
+
+			it('should include suggestions in validation:warning event', () => {
+				const warningEvents: unknown[] = [];
+				orchestrator.on('validation:warning', (data) =>
+					warningEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 5,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(warningEvents).toHaveLength(1);
+				const event = warningEvents[0] as any;
+				expect(event.data.suggestions).toBeDefined();
+				expect(event.data.suggestions.length).toBeGreaterThan(0);
+			});
+
+			it('should NOT emit validation:warning when validation fails', () => {
+				const warningEvents: unknown[] = [];
+				orchestrator.on('validation:warning', (data) =>
+					warningEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 0,
+					passed: 0,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// Empty test suite should fail without warning event
+				expect(() => {
+					orchestrator.transition({
+						type: 'RED_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				expect(warningEvents).toHaveLength(0);
+			});
+
+			it('should NOT emit validation:warning when validation passes without warnings', () => {
+				const warningEvents: unknown[] = [];
+				orchestrator.on('validation:warning', (data) =>
+					warningEvents.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 0,
+					failed: 5,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// RED phase with failures - no warnings expected
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(warningEvents).toHaveLength(0);
+			});
+		});
+
+		describe('Multiple event listeners', () => {
+			it('should allow multiple listeners to receive validation events', () => {
+				const listener1Events: unknown[] = [];
+				const listener2Events: unknown[] = [];
+				const listener3Events: unknown[] = [];
+
+				orchestrator.on('validation:test-results', (data) =>
+					listener1Events.push(data)
+				);
+				orchestrator.on('validation:test-results', (data) =>
+					listener2Events.push(data)
+				);
+				orchestrator.on('validation:test-results', (data) =>
+					listener3Events.push(data)
+				);
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 0,
+					failed: 5,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(listener1Events).toHaveLength(1);
+				expect(listener2Events).toHaveLength(1);
+				expect(listener3Events).toHaveLength(1);
+			});
+
+			it('should allow listening to multiple validation event types', () => {
+				const allEvents: { type: string; data: any }[] = [];
+
+				orchestrator.on('validation:test-results', (data) =>
+					allEvents.push({ type: 'test-results', data })
+				);
+				orchestrator.on('validation:failed', (data) =>
+					allEvents.push({ type: 'failed', data })
+				);
+				orchestrator.on('validation:warning', (data) =>
+					allEvents.push({ type: 'warning', data })
+				);
+
+				const testResults: TestResult = {
+					total: 0,
+					passed: 0,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				// Should emit validation:test-results and validation:failed
+				expect(() => {
+					orchestrator.transition({
+						type: 'RED_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				// Should have received both events
+				expect(allEvents.length).toBeGreaterThanOrEqual(2);
+				const eventTypes = allEvents.map((e) => e.type);
+				expect(eventTypes).toContain('test-results');
+				expect(eventTypes).toContain('failed');
+			});
+		});
+
+		describe('Event timing and ordering', () => {
+			it('should emit validation:test-results before validation:failed', () => {
+				const eventOrder: string[] = [];
+
+				orchestrator.on('validation:test-results', () =>
+					eventOrder.push('test-results')
+				);
+				orchestrator.on('validation:failed', () => eventOrder.push('failed'));
+
+				const testResults: TestResult = {
+					total: 0,
+					passed: 0,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				expect(() => {
+					orchestrator.transition({
+						type: 'RED_PHASE_COMPLETE',
+						testResults
+					});
+				}).toThrow();
+
+				expect(eventOrder).toEqual(['test-results', 'failed']);
+			});
+
+			it('should emit validation:test-results before validation:warning', () => {
+				const eventOrder: string[] = [];
+
+				orchestrator.on('validation:test-results', () =>
+					eventOrder.push('test-results')
+				);
+				orchestrator.on('validation:warning', () => eventOrder.push('warning'));
+
+				const testResults: TestResult = {
+					total: 5,
+					passed: 5,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				};
+
+				orchestrator.transition({
+					type: 'RED_PHASE_COMPLETE',
+					testResults
+				});
+
+				expect(eventOrder).toEqual(['test-results', 'warning']);
+			});
+		});
+	});
 });

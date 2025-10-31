@@ -1,7 +1,10 @@
+import type { TDDPhase } from '../types.js';
+
 /**
  * Test phase in TDD workflow
+ * Extends TDDPhase to include REFACTOR which follows same validation rules as GREEN
  */
-export type TestPhase = 'RED' | 'GREEN' | 'REFACTOR';
+export type TestPhase = TDDPhase | 'REFACTOR';
 
 /**
  * Code coverage metrics

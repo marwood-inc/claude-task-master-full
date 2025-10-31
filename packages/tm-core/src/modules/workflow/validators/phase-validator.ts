@@ -25,10 +25,17 @@ export interface PhaseValidationResponse {
 /**
  * Orchestrates validation logic for TDD phase transitions
  *
- * This class handles validation at different levels:
- * 1. Critical validation (empty test suite) - always enforced
- * 2. Enhanced validation (via TestResultValidator) - when configured
- * 3. Basic semantic validation - fallback when validator not available
+ * This class provides a unified validation interface that:
+ * 1. **Guards against critical errors** - Empty test suites are always rejected
+ * 2. **Enables graceful degradation** - Works with or without TestResultValidator
+ * 3. **Simplifies orchestration** - Single method with consistent response format
+ * 4. **Provides decision support** - shouldThrow flag guides error handling
+ *
+ * The class exists as a wrapper (not redundant) because it:
+ * - Adds pre-validation checks (empty test suite) before delegating
+ * - Provides fallback validation when TestResultValidator unavailable
+ * - Normalizes response format for workflow orchestration
+ * - Decouples orchestrator from validation implementation details
  *
  * @example
  * ```typescript
@@ -38,6 +45,10 @@ export interface PhaseValidationResponse {
  *   phase: 'RED',
  *   hasValidator: true
  * }, testResultValidator);
+ *
+ * if (!result.valid && result.shouldThrow) {
+ *   throw new WorkflowValidationError({ ...result, phase, testResults });
+ * }
  * ```
  */
 export class PhaseValidator {
@@ -65,7 +76,7 @@ export class PhaseValidator {
 		// If validator is configured, use enhanced validation
 		if (validator) {
 			const result = validator.validatePhase(context.testResults, {
-				phase: context.phase === 'RED' ? 'RED' : 'GREEN',
+				phase: context.phase,
 				previousTestCount: context.previousTestResults?.total
 			});
 

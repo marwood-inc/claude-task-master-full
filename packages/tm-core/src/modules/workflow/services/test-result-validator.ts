@@ -235,7 +235,8 @@ export class TestResultValidator {
 		let phaseResult: ValidationResult;
 		if (phase === 'RED') {
 			phaseResult = this.validateRedPhase(testResult);
-		} else if (phase === 'GREEN') {
+		} else if (phase === 'GREEN' || phase === 'COMMIT') {
+			// GREEN and COMMIT phases use same validation (must have passing tests, no failures)
 			phaseResult = this.validateGreenPhase(
 				testResult,
 				options?.previousTestCount

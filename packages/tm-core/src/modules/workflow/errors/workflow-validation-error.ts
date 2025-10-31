@@ -1,4 +1,8 @@
 import type { TDDPhase, TestResult } from '../types.js';
+import {
+	TaskMasterError,
+	ERROR_CODES
+} from '../../../common/errors/task-master-error.js';
 
 /**
  * Details about a validation failure
@@ -13,6 +17,9 @@ export interface ValidationErrorDetails {
 
 /**
  * Error thrown when test result validation fails during TDD phase transitions
+ *
+ * This error extends TaskMasterError to provide rich error handling capabilities
+ * including error codes, context, and serialization support.
  *
  * This error includes structured information about what went wrong and
  * how to fix it, making it easier for developers to understand and resolve
@@ -29,12 +36,26 @@ export interface ValidationErrorDetails {
  * });
  * ```
  */
-export class WorkflowValidationError extends Error {
+export class WorkflowValidationError extends TaskMasterError {
 	public readonly details: ValidationErrorDetails;
 	public readonly phase: TDDPhase;
 
 	constructor(details: ValidationErrorDetails) {
-		super(`Validation failed in ${details.phase} phase: ${details.errors[0] || 'Unknown error'}`);
+		super(
+			`Validation failed in ${details.phase} phase: ${details.errors[0] || 'Unknown error'}`,
+			ERROR_CODES.WORKFLOW_VALIDATION_ERROR,
+			{
+				operation: 'workflowValidation',
+				details: {
+					errors: details.errors,
+					warnings: details.warnings,
+					suggestions: details.suggestions,
+					testResults: details.testResults
+				},
+				userMessage: `Workflow validation failed: ${details.errors.join(', ')}`
+			}
+		);
+
 		this.details = details;
 		this.phase = details.phase;
 		this.name = 'WorkflowValidationError';
