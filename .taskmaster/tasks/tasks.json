@@ -12057,7 +12057,7 @@
         "description": "CLI commands (sync.command.ts, configure.command.ts) catch all errors generically. Improve by implementing different handling for network vs validation errors, specific exit codes for different error types, and retry prompts for transient failures.",
         "details": "",
         "testStrategy": "",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "low",
         "subtasks": [
@@ -12093,22 +12093,23 @@
               2
             ],
             "details": "Extend command integration and unit test suites to cover classified errors, ensuring exit codes match definitions, validation errors avoid retries, and transient network errors invoke retry prompts.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add Jest integration tests with mocked TaskMasterError instances to assert command exit codes and retry behavior; update snapshot coverage for user-facing messages.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T12:10:05.650Z"
           }
         ],
         "complexity": 5,
         "recommendedSubtasks": 3,
         "expansionPrompt": "Split into: 1) Designing error classification strategy using TaskMasterError taxonomy for validation vs network vs transient failures with exit code mapping, 2) Implementing command-level error handling updates in sync, configure, and status commands with retry prompts and specific messaging, and 3) Creating automated regression tests for differentiated error flows and exit codes",
-        "updatedAt": "2025-10-31T12:02:11.647Z"
+        "updatedAt": "2025-10-31T12:10:05.650Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T12:02:11.657Z",
+      "lastModified": "2025-10-31T12:10:05.662Z",
       "taskCount": 17,
-      "completedCount": 16,
+      "completedCount": 17,
       "tags": [
         "feat-github-sync"
       ]

@@ -24,7 +24,21 @@
       "mcp__oraios_serena__find_file",
       "mcp__oraios_serena__activate_project",
       "mcp__oraios_serena__get_symbols_overview",
-      "mcp__oraios_serena__find_symbol"
+      "mcp__oraios_serena__find_symbol",
+      "mcp__oraios_serena__search_for_pattern",
+      "mcp__oraios_serena__create_text_file",
+      "mcp__oraios_serena__replace_regex",
+      "Bash(task-master add-task:*)",
+      "Bash(task-master expand:*)",
+      "Bash(if [ -d \".claude/background-agents\" ])",
+      "Bash(then echo \"Directory exists\")",
+      "Bash(else echo \"Directory does not exist\")",
+      "WebFetch(domain:anthropic.mintlify.app)",
+      "Bash(task-master update-subtask:*)",
+      "mcp__oraios_serena__insert_after_symbol",
+      "Bash(for:*)",
+      "Bash(do echo \"=== Task $i ===\")",
+      "Bash(done)"
     ]
   },
   "enabledMcpjsonServers": [
