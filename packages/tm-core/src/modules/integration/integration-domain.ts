@@ -86,6 +86,9 @@ export class IntegrationDomain {
 	private configManager: ConfigManager;
 
 	// Cached stateless services (lazy initialization)
+	// These services have no mutable state and can be safely reused across operations.
+	// Caching improves performance by avoiding repeated instantiation while maintaining thread-safety
+	// in Node.js's single-threaded execution model.
 	private fieldMapper?: GitHubFieldMapper;
 	private resilienceService?: GitHubResilienceService;
 
@@ -758,6 +761,12 @@ export class IntegrationDomain {
 
 	/**
 	 * Get cached field mapper instance (stateless service)
+	 *
+	 * Uses lazy initialization to create a singleton field mapper that transforms
+	 * Task Master tasks to/from GitHub issues. Since the mapper has no mutable state,
+	 * it's safe to reuse across all GitHub operations for better performance.
+	 *
+	 * @returns Cached GitHubFieldMapper instance
 	 * @private
 	 */
 	private getFieldMapper(): GitHubFieldMapper {
@@ -769,6 +778,13 @@ export class IntegrationDomain {
 
 	/**
 	 * Get cached resilience service instance (stateless service)
+	 *
+	 * Uses lazy initialization to create a singleton resilience service that handles
+	 * retry logic, circuit breaking, and rate limiting for GitHub API calls. Since the
+	 * service maintains only operational statistics (not operation-specific state), it's
+	 * safe to reuse across all operations.
+	 *
+	 * @returns Cached GitHubResilienceService instance
 	 * @private
 	 */
 	private getResilienceService(): GitHubResilienceService {
@@ -779,8 +795,14 @@ export class IntegrationDomain {
 	}
 
 	/**
-	 * Create GitHub client with authentication
-	 * @param token - GitHub personal access token
+	 * Create GitHub client with authentication (stateful service)
+	 *
+	 * Creates a fresh GitHub API client instance for each operation. The client is stateful
+	 * because it maintains authentication tokens and rate limit information specific to
+	 * the current operation context.
+	 *
+	 * @param token - GitHub personal access token for authentication
+	 * @returns Configured GitHubClient instance with authentication
 	 * @private
 	 */
 	private createGitHubClient(token: string): GitHubClient {
@@ -792,9 +814,16 @@ export class IntegrationDomain {
 	}
 
 	/**
-	 * Create GitHub sync state service for managing persistent state
-	 * @param owner - Repository owner
+	 * Create GitHub sync state service for managing persistent state (stateful service)
+	 *
+	 * Creates a fresh state service instance that manages task-to-issue mappings, conflict
+	 * tracking, and sync history in the `.taskmaster/github-sync-state.json` file. Each
+	 * instance is scoped to a specific repository (owner/repo), so fresh instances are
+	 * created when the repository context changes.
+	 *
+	 * @param owner - Repository owner (username or organization)
 	 * @param repo - Repository name
+	 * @returns Configured GitHubSyncStateService instance for the specified repository
 	 * @private
 	 */
 	private createGitHubSyncStateService(
@@ -811,7 +840,13 @@ export class IntegrationDomain {
 	}
 
 	/**
-	 * Create GitHub config service for accessing GitHub settings
+	 * Create GitHub config service for accessing GitHub settings (lightweight wrapper)
+	 *
+	 * Creates a fresh config service instance that provides convenient access to GitHub
+	 * integration configuration. While lightweight, it's created fresh per operation to
+	 * ensure configuration reads are always up-to-date.
+	 *
+	 * @returns Configured GitHubConfigService instance
 	 * @private
 	 */
 	private createGitHubConfigService(): GitHubConfigService {
@@ -819,9 +854,15 @@ export class IntegrationDomain {
 	}
 
 	/**
-	 * Create conflict resolution service
-	 * @param stateService - State service instance
-	 * @param githubConfigService - Config service instance
+	 * Create conflict resolution service (stateful service)
+	 *
+	 * Creates a fresh conflict resolution service that analyzes and resolves sync conflicts
+	 * between Task Master tasks and GitHub issues. The service depends on state and config
+	 * services, and is created fresh to ensure it works with the current operation's context.
+	 *
+	 * @param stateService - State service instance for accessing conflict data
+	 * @param githubConfigService - Config service instance for resolution strategy settings
+	 * @returns Configured ConflictResolutionService instance
 	 * @private
 	 */
 	private createConflictResolutionService(
@@ -836,14 +877,21 @@ export class IntegrationDomain {
 	}
 
 	/**
-	 * Create GitHub sync service for orchestrating sync operations
-	 * @param githubClient - GitHub API client
-	 * @param stateService - State service instance
-	 * @param fieldMapper - Field mapper instance
-	 * @param resilienceService - Resilience service instance
-	 * @param conflictResolutionService - Conflict resolution service instance
-	 * @param owner - Repository owner
+	 * Create GitHub sync service for orchestrating sync operations (stateful service)
+	 *
+	 * Creates a fresh sync service that orchestrates the entire GitHub synchronization process.
+	 * This is the main orchestrator that coordinates all other services to perform one-way or
+	 * bidirectional sync between Task Master tasks and GitHub issues. Created fresh per
+	 * operation to ensure clean state and correct repository context.
+	 *
+	 * @param githubClient - GitHub API client for making API calls
+	 * @param stateService - State service for managing mappings and conflicts
+	 * @param fieldMapper - Field mapper for transforming tasks to/from issues
+	 * @param resilienceService - Resilience service for retry logic and circuit breaking
+	 * @param conflictResolutionService - Conflict resolution service for handling conflicts
+	 * @param owner - Repository owner (username or organization)
 	 * @param repo - Repository name
+	 * @returns Configured GitHubSyncService instance ready to orchestrate sync operations
 	 * @private
 	 */
 	private createGitHubSyncService(
