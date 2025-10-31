@@ -243,23 +243,25 @@ export class GitHubSyncStateService {
 	 * @param taskId - Task ID to delete
 	 */
 	async deleteMapping(taskId: string): Promise<StateFileOperationResult> {
-		const state = await this.loadState();
-
-		if (!state.mappings[taskId]) {
+		// Pre-check for existence to provide better error message
+		// Note: Small race window exists here, but acceptable since delete is idempotent
+		const currentState = await this.loadState();
+		if (!currentState.mappings[taskId]) {
 			return {
 				success: false,
 				error: `Mapping for task ${taskId} not found`
 			};
 		}
 
-		delete state.mappings[taskId];
+		// Use modifyState for atomic delete operation
+		return await this.modifyState((state) => {
+			delete state.mappings[taskId];
 
-		// Also delete associated change metadata
-		if (state.changeMetadata[taskId]) {
-			delete state.changeMetadata[taskId];
-		}
-
-		return await this.saveState(state);
+			// Also delete associated change metadata
+			if (state.changeMetadata[taskId]) {
+				delete state.changeMetadata[taskId];
+			}
+		});
 	}
 
 	/**
@@ -450,9 +452,9 @@ export class GitHubSyncStateService {
 	 * Mark sync as in progress
 	 */
 	async markSyncInProgress(): Promise<StateFileOperationResult> {
-		const state = await this.loadState();
-		state.syncInProgress = true;
-		return await this.saveState(state);
+		return await this.modifyState((state) => {
+			state.syncInProgress = true;
+		});
 	}
 
 	/**
@@ -462,11 +464,11 @@ export class GitHubSyncStateService {
 	async markSyncComplete(
 		error?: string
 	): Promise<StateFileOperationResult> {
-		const state = await this.loadState();
-		state.syncInProgress = false;
-		state.lastSyncAt = new Date().toISOString();
-		state.lastSyncError = error || null;
-		return await this.saveState(state);
+		return await this.modifyState((state) => {
+			state.syncInProgress = false;
+			state.lastSyncAt = new Date().toISOString();
+			state.lastSyncError = error || null;
+		});
 	}
 
 	/**
