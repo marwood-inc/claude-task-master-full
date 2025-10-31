@@ -10866,7 +10866,7 @@
   "chore-performance-optimisation": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Implement In-Memory Caching Infrastructure",
         "description": "Add LRU-based caching layer to FileStorage class to eliminate redundant file I/O operations for recently accessed task data",
         "details": "Implement a Map-based cache with TTL (time-to-live) functionality in the FileStorage class. Add cache data structures including private fields: taskCache Map, CACHE_TTL constant (5 seconds), and helper methods getCacheKey(), isCacheValid(). The cache key format should be `${tag}-${JSON.stringify(options)}` to handle different filter combinations. Implement cache population after successful file reads and cache validation before file operations. Use existing lru-cache package (v10.2.0) from dependencies for memory management. Add debug logging for cache hits/misses using existing logging infrastructure.",
@@ -10934,7 +10934,7 @@
         "updatedAt": "2025-10-31T03:12:04.096Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Implement Cache Integration in loadTasks Method",
         "description": "Modify the loadTasks() method to check cache before file reads and populate cache after successful reads",
         "details": "Update the loadTasks() method in file-storage.ts (line 115) to check cache using getCacheKey() before calling fileOps.readJson(). If cache hit and valid TTL, return cached data immediately. On cache miss, proceed with file read, parse data, apply filters, enrich with complexity data, then cache the final result before returning. Ensure cache key includes tag and options parameters for accurate cache hits across different query patterns.",
@@ -10989,7 +10989,7 @@
         "updatedAt": "2025-10-31T03:24:36.775Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Implement Cache Invalidation for Write Operations",
         "description": "Add cache invalidation to all write methods (saveTasks, updateTask, updateTaskStatus, deleteTask) to ensure data consistency",
         "details": "Add cache.clear() calls to all write operations in FileStorage: saveTasks() (line 215), updateTask() (line 363), updateTaskStatus() (line 402), deleteTask() (line 555), and tag management methods (deleteTag, renameTag, copyTag). Use conservative approach of clearing entire cache on any write operation to prioritize data consistency over performance. Add cache invalidation logging at debug level. Consider implementing more granular invalidation in future iterations if needed.",
@@ -11045,7 +11045,7 @@
         "updatedAt": "2025-10-31T03:30:50.570Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Optimize Single Task Lookup Performance",
         "description": "Refactor loadTask() method to avoid loading all tasks when fetching a single task by ID",
         "details": "Refactor the loadTask() method (line 152) to implement optimized retrieval path for regular tasks. Extract current subtask logic into private loadSubtask() method since subtasks require parent context. For regular tasks (non-dotted IDs), implement early-exit parsing: read file, parse tasks, find target task immediately without processing all tasks, enrich only the found task. Maintain backward compatibility with existing return format and behavior. Current implementation calls loadTasks() which processes all tasks unnecessarily.",
@@ -11098,7 +11098,7 @@
         "expansionPrompt": "Refactor single task lookup through careful separation of concerns: extract subtask handling logic into dedicated private method to preserve complex parent context requirements, implement early-exit parsing strategy for regular tasks to avoid processing all tasks, and update main loadTask routing logic to seamlessly choose between optimized and legacy paths."
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Extract Subtask Lookup Logic",
         "description": "Create separate loadSubtask() private method to handle dotted notation task IDs requiring parent context",
         "details": "Extract the subtask handling logic from loadTask() (lines 156-206) into a private loadSubtask() method. This method should maintain existing behavior for subtasks since they require parent task context and full task loading. Keep the complex subtask ID parsing, parent task lookup, dependency resolution, and subtask result formatting unchanged. The goal is to separate concerns so regular task lookup can be optimized while maintaining subtask functionality.",
@@ -11137,7 +11137,7 @@
         "expansionPrompt": "Cleanly separate subtask logic through methodical extraction: create private loadSubtask method by moving existing subtask handling code (lines 156-206) while preserving all complex ID parsing, parent context, and dependency resolution logic, then update main loadTask method to delegate subtask requests to the new method."
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Enhance Production Build Configuration",
         "description": "Update tsdown.base.ts with advanced minification, tree-shaking, and dead code elimination for smaller production bundles",
         "details": "Enhance packages/build-config/src/tsdown.base.ts (lines 23-37) with production optimizations. Add advanced minify configuration with compress options: drop_console: true, drop_debugger: true, pure_funcs for logger.debug/trace removal. Add mangle options: keep_classnames: false, keep_fnames: false. Configure treeshake with preset: 'recommended' and moduleSideEffects: false. Add production-specific settings: banner for CLI shebang, target: 'node18', code splitting for better caching. Maintain current external dependencies configuration.",
@@ -11174,7 +11174,7 @@
         "expansionPrompt": "Enhance build configuration through systematic optimization: configure advanced minification options including compress settings (drop_console, drop_debugger, pure_funcs), mangle options (keep_classnames, keep_fnames), and tree-shaking with recommended presets, then add production-specific settings like CLI shebang banner, Node.js target optimization, and code splitting while maintaining external dependencies configuration."
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Create Performance Benchmark Suite",
         "description": "Develop comprehensive benchmarking tools to measure and validate performance improvements across different dataset sizes",
         "details": "Create scripts/benchmark-performance.js to measure key performance metrics: file I/O operation count, latency for loadTasks() and loadTask() operations, memory usage over time, cache hit/miss ratios. Test with small (10 tasks), medium (100 tasks), and large (1000+ tasks) datasets. Measure before/after metrics for cache implementation and single task optimization. Include realistic workload simulations for CLI repeated commands and MCP tool usage patterns.",
@@ -11229,7 +11229,7 @@
         "expansionPrompt": "Build comprehensive benchmarking infrastructure: create core performance metrics collection module with file I/O counting, memory tracking, and latency measurement capabilities, implement dataset size testing framework with realistic test data generation for small/medium/large scenarios, and develop workload simulation suite mimicking actual CLI and MCP usage patterns with performance threshold validation."
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Create Comprehensive Test Suite for Cache Layer",
         "description": "Develop unit and integration tests specifically for the caching functionality to ensure correctness and performance",
         "details": "Create packages/tm-core/tests/unit/storage/file-storage-cache.test.ts with comprehensive test coverage for cache behavior: cache hit/miss scenarios, TTL expiration testing, cache invalidation on all write operations, multiple tags cached separately, cache behavior with different LoadTasksOptions. Create integration tests verifying cache works across CLI commands and MCP tools. Target 95%+ coverage on new cache code. Include memory leak tests for long-running processes.",
@@ -11273,9 +11273,10 @@
               2
             ],
             "details": "Create integration tests that execute actual CLI commands and MCP tools to verify cache behavior in real usage scenarios. Test repeated task list commands, individual task retrieval, and mixed read/write operations. Verify cache improves performance while maintaining data consistency across different access patterns.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run actual CLI and MCP operations with performance monitoring to verify cache effectiveness. Measure file I/O reduction and response time improvements.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T03:40:01.722Z"
           },
           {
             "id": 4,
@@ -11295,10 +11296,10 @@
         "complexity": 7,
         "recommendedSubtasks": 4,
         "expansionPrompt": "Develop thorough cache testing coverage: create unit tests for cache hit/miss scenarios with time mocking for TTL validation, implement unit tests for cache invalidation across all write operations ensuring no stale data, develop integration tests validating cache functionality across CLI and MCP operations with real usage patterns, and create memory leak and performance tests for long-running processes with stress testing.",
-        "updatedAt": "2025-10-31T03:34:41.789Z"
+        "updatedAt": "2025-10-31T03:40:01.722Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Create Single Task Lookup Test Suite",
         "description": "Develop unit tests for optimized single task retrieval covering both regular tasks and subtasks",
         "details": "Create packages/tm-core/tests/unit/storage/file-storage-lookup.test.ts focusing on single task retrieval performance and correctness. Test regular task lookup (non-dotted IDs), subtask lookup (dotted notation), non-existent task handling, enrichment of single task vs multiple tasks, performance comparison with loadTasks() approach. Verify backward compatibility with existing loadTask() behavior. Include tests for various task ID formats supported by the system.",
@@ -11351,7 +11352,7 @@
         "expansionPrompt": "Systematically test optimized lookup functionality: establish test infrastructure with Jest configuration, mock data fixtures, and test environment setup for single task retrieval testing, implement correctness tests covering all supported task ID formats (regular, dotted notation, edge cases) ensuring backward compatibility, and create performance comparison tests measuring latency improvements and memory usage reduction against existing loadTasks approach."
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Validate Production Build and Create Release Documentation",
         "description": "Perform comprehensive testing of production builds, document performance improvements, and prepare release artifacts",
         "details": "Run full test suite against production build to ensure no functional regressions from build optimizations. Measure and document bundle size reductions. Test CLI commands and MCP server functionality in production mode. Update CHANGELOG.md with performance improvements and technical details. Create changeset for release with quantified performance metrics. Document cache behavior for developers in technical documentation. Verify all performance targets are met: 70-90% I/O reduction, 50-80% faster single task retrieval, 20-30% smaller bundles.",
@@ -11408,14 +11409,12 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T03:34:41.797Z",
+      "lastModified": "2025-10-31T03:40:01.735Z",
       "taskCount": 10,
       "completedCount": 3,
       "tags": [
         "chore-performance-optimisation"
-      ],
-      "created": "2025-10-31T03:36:21.958Z",
-      "description": "Tasks for chore-performance-optimisation context"
+      ]
     }
   },
   "feat-github-sync": {
