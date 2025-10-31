@@ -12,7 +12,8 @@
       "Bash(task-master list:*)",
       "Bash(rm:*)",
       "mcp__oraios_serena__list_dir",
-      "Bash(nul)"
+      "Bash(nul)",
+      "mcp__oraios_serena__read_file"
     ]
   },
   "enabledMcpjsonServers": [

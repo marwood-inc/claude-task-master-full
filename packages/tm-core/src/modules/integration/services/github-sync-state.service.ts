@@ -46,19 +46,29 @@ const BACKUP_DIR_NAME = 'backups/github-sync';
 const SyncMappingSchema = z.object({
 	taskId: z.string(),
 	issueNumber: z.number(),
-	status: z.enum(['synced', 'pending', 'conflict', 'error']),
-	lastSyncedAt: z.string().nullable(),
-	syncDirection: z.enum(['to_github', 'from_github', 'bidirectional']).nullable(),
-	error: z.string().optional()
+	owner: z.string(),
+	repo: z.string(),
+	lastSyncedAt: z.string(),
+	lastSyncDirection: z.enum(['to_github', 'from_github', 'bidirectional']),
+	status: z.enum(['synced', 'pending', 'conflict', 'error'])
 });
 
 const SyncConflictSchema = z.object({
 	taskId: z.string(),
 	issueNumber: z.number(),
-	type: z.enum(['concurrent_edit', 'delete_conflict', 'field_conflict']),
-	localSnapshot: z.record(z.unknown()),
-	remoteSnapshot: z.record(z.unknown()),
+	type: z.enum([
+		'title_mismatch',
+		'description_mismatch',
+		'status_mismatch',
+		'assignee_mismatch',
+		'label_mismatch',
+		'deleted_on_github',
+		'deleted_locally'
+	]),
+	localValue: z.unknown(),
+	remoteValue: z.unknown(),
 	detectedAt: z.string(),
+	resolutionStrategy: z.enum(['prefer_local', 'prefer_remote', 'manual', 'merge']),
 	resolved: z.boolean()
 });
 
@@ -103,9 +113,9 @@ const GitHubSyncStateFileSchema = z.object({
 	version: z.string(),
 	owner: z.string(),
 	repo: z.string(),
-	mappings: z.record(SyncMappingSchema),
+	mappings: z.record(z.string(), SyncMappingSchema),
 	conflicts: z.array(SyncConflictSchema),
-	changeMetadata: z.record(ChangeMetadataSchema),
+	changeMetadata: z.record(z.string(), ChangeMetadataSchema),
 	operationHistory: z.array(SyncOperationRecordSchema),
 	maxHistorySize: z.number(),
 	lastSyncAt: z.string().nullable(),

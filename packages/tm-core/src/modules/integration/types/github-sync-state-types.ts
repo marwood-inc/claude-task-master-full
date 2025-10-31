@@ -211,3 +211,179 @@ export interface SyncStateStats {
 	/** Whether state file needs cleanup */
 	needsCleanup: boolean;
 }
+
+/**
+ * Subtask synchronization mode
+ * Determines how subtasks are represented in GitHub
+ */
+export type SubtaskSyncMode = 'checklist' | 'separate_issues';
+
+/**
+ * Subtask mapping for checklist mode
+ * Tracks subtask as checkbox item in parent issue body
+ */
+export interface SubtaskChecklistMapping {
+	/** Parent task ID */
+	parentTaskId: string;
+
+	/** Subtask ID */
+	subtaskId: string;
+
+	/** Parent GitHub issue number */
+	parentIssueNumber: number;
+
+	/** Checkbox index in parent issue body */
+	checkboxIndex: number;
+
+	/** Whether checkbox is checked */
+	checked: boolean;
+
+	/** Last synced timestamp */
+	lastSyncedAt: string;
+}
+
+/**
+ * Subtask mapping for separate-issues mode
+ * Tracks subtask as child GitHub issue
+ */
+export interface SubtaskSeparateIssueMapping {
+	/** Parent task ID */
+	parentTaskId: string;
+
+	/** Subtask ID */
+	subtaskId: string;
+
+	/** Parent GitHub issue number */
+	parentIssueNumber: number;
+
+	/** Child GitHub issue number */
+	childIssueNumber: number;
+
+	/** Last synced timestamp */
+	lastSyncedAt: string;
+}
+
+/**
+ * Task dependency mapping
+ * Maps Task Master dependencies to GitHub issue references
+ */
+export interface DependencyMapping {
+	/** Dependent task ID (depends on another task) */
+	dependentTaskId: string;
+
+	/** Dependency task ID (the task that is depended upon) */
+	dependencyTaskId: string;
+
+	/** Dependent GitHub issue number */
+	dependentIssueNumber: number;
+
+	/** Dependency GitHub issue number */
+	dependencyIssueNumber: number;
+
+	/** Whether dependency reference is in issue body */
+	inBody: boolean;
+
+	/** Body reference format (e.g., "Depends on #123") */
+	bodyReference?: string;
+
+	/** Last synced timestamp */
+	lastSyncedAt: string;
+}
+
+/**
+ * Label mapping configuration
+ * Maps Task Master statuses/priorities to GitHub labels
+ */
+export interface LabelMapping {
+	/** Task Master field type */
+	field: 'status' | 'priority' | 'complexity';
+
+	/** Task Master field value */
+	value: string;
+
+	/** Corresponding GitHub label name */
+	labelName: string;
+
+	/** GitHub label color (hex without #) */
+	labelColor?: string;
+
+	/** Whether label should be created if it doesn't exist */
+	autoCreate: boolean;
+}
+
+/**
+ * Sync options for one-way Task → GitHub sync
+ */
+export interface GitHubSyncOptions {
+	/** Whether this is a dry-run (preview changes without API calls) */
+	dryRun: boolean;
+
+	/** Subtask synchronization mode */
+	subtaskMode: SubtaskSyncMode;
+
+	/** Batch size for API operations (default: 100) */
+	batchSize: number;
+
+	/** Whether to create labels automatically */
+	autoCreateLabels: boolean;
+
+	/** Custom label mappings (overrides defaults) */
+	customLabelMappings?: LabelMapping[];
+
+	/** Whether to sync dependencies as issue references */
+	syncDependencies: boolean;
+
+	/** Whether to sync subtasks */
+	syncSubtasks: boolean;
+}
+
+/**
+ * Dry-run sync result
+ * Preview of changes that would be made
+ */
+export interface DryRunSyncResult {
+	/** Tasks that would create new issues */
+	tasksToCreate: string[];
+
+	/** Tasks that would update existing issues */
+	tasksToUpdate: string[];
+
+	/** Issues that would be affected */
+	issuesAffected: number[];
+
+	/** Labels that would be created */
+	labelsToCreate: string[];
+
+	/** Dependencies that would be added */
+	dependenciesToAdd: DependencyMapping[];
+
+	/** Subtasks that would be synced */
+	subtasksToSync: (SubtaskChecklistMapping | SubtaskSeparateIssueMapping)[];
+
+	/** Total number of API calls that would be made */
+	estimatedApiCalls: number;
+}
+
+/**
+ * Extended sync state file with Task 4 requirements
+ * Extends GitHubSyncStateFile with subtask, dependency, and label mappings
+ */
+export interface ExtendedGitHubSyncState extends GitHubSyncStateFile {
+	/** Subtask synchronization mode */
+	subtaskMode: SubtaskSyncMode;
+
+	/** Subtask checklist mappings (for checklist mode) */
+	subtaskChecklistMappings: Record<string, SubtaskChecklistMapping>;
+
+	/** Subtask separate issue mappings (for separate-issues mode) */
+	subtaskSeparateIssueMappings: Record<string, SubtaskSeparateIssueMapping>;
+
+	/** Task dependency mappings */
+	dependencyMappings: DependencyMapping[];
+
+	/** Label mappings configuration */
+	labelMappings: LabelMapping[];
+
+	/** Last sync options used */
+	lastSyncOptions: GitHubSyncOptions | null;
+}
