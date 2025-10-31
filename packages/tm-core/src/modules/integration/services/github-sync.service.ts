@@ -7,9 +7,11 @@
 import type { Task } from '../../../common/types/index.js';
 import { getLogger } from '../../../common/logger/index.js';
 import type { GitHubClient } from '../clients/github-client.js';
+import type { GitHubIssue } from '../types/github-types.js';
 import { GitHubSyncStateService } from './github-sync-state.service.js';
 import { GitHubFieldMapper } from './github-field-mapper.js';
 import { GitHubResilienceService } from './github-resilience.js';
+import { ConflictResolutionService } from './conflict-resolution.service.js';
 import type {
 	GitHubSyncOptions,
 	DryRunSyncResult,
@@ -20,6 +22,15 @@ import type {
 	LabelMapping
 } from '../types/github-sync-state-types.js';
 import type { SyncMapping } from '../types/github-types.js';
+import type {
+	ConflictInfo,
+	FieldConflict,
+	ConflictField,
+	FieldConflictType,
+	ConflictSeverity,
+	TimestampAnalysis,
+	ConflictResolutionStrategy,
+} from '../types/github-conflict-types.js';
 
 const logger = getLogger('GitHubSyncService');
 
@@ -34,6 +45,11 @@ export interface TaskSyncResult {
 	error?: string;
 	subtaskResults?: SubtaskSyncResult[];
 	dependencyResults?: DependencySyncResult[];
+	/**
+	 * Suggested updates for the task (used in pull operations)
+	 * The caller should apply these updates to the local task
+	 */
+	suggestedUpdates?: Partial<Task>;
 }
 
 /**
@@ -98,6 +114,7 @@ export class GitHubSyncService {
 	private readonly stateService: GitHubSyncStateService;
 	private readonly fieldMapper: GitHubFieldMapper;
 	private readonly resilienceService: GitHubResilienceService;
+	private readonly conflictResolutionService: ConflictResolutionService;
 	private readonly owner: string;
 	private readonly repo: string;
 
@@ -106,6 +123,7 @@ export class GitHubSyncService {
 		stateService: GitHubSyncStateService,
 		fieldMapper: GitHubFieldMapper,
 		resilienceService: GitHubResilienceService,
+		conflictResolutionService: ConflictResolutionService,
 		owner: string,
 		repo: string
 	) {
@@ -113,6 +131,7 @@ export class GitHubSyncService {
 		this.stateService = stateService;
 		this.fieldMapper = fieldMapper;
 		this.resilienceService = resilienceService;
+		this.conflictResolutionService = conflictResolutionService;
 		this.owner = owner;
 		this.repo = repo;
 
@@ -808,5 +827,729 @@ export class GitHubSyncService {
 			pendingMappings: stats.pendingMappings,
 			syncInProgress: false // Will be enhanced later
 		};
+	}
+
+	// ==================== Bidirectional Sync Operations (Subtasks 6.4 and 6.5) ====================
+
+	/**
+	 * Pull changes from GitHub issues and apply to local tasks (Subtask 6.4)
+	 *
+	 * Fetches remote GitHub issue updates and applies non-conflicting changes to local tasks.
+	 * Conflicts are detected and queued for resolution.
+	 *
+	 * @param tasks - Local tasks to sync with GitHub
+	 * @param options - Sync options
+	 * @returns Result of the pull operation
+	 */
+	async pullFromGitHub(
+		tasks: Task[],
+		options: Partial<GitHubSyncOptions> = {}
+	): Promise<GitHubSyncResult> {
+		const syncOptions = { ...DEFAULT_SYNC_OPTIONS, ...options };
+
+		logger.info('Starting pull from GitHub', {
+			taskCount: tasks.length,
+			dryRun: syncOptions.dryRun
+		});
+
+		const result: GitHubSyncResult = {
+			success: true,
+			tasksProcessed: 0,
+			tasksCreated: 0,
+			tasksUpdated: 0,
+			tasksFailed: 0,
+			subtasksProcessed: 0,
+			dependenciesProcessed: 0,
+			labelsCreated: 0,
+			apiCallsMade: 0,
+			dryRun: syncOptions.dryRun,
+			taskResults: [],
+			errors: [],
+			warnings: []
+		};
+
+		try {
+			// Mark sync as in progress
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncInProgress();
+			}
+
+			// Process each task
+			for (const task of tasks) {
+				try {
+					const mapping = await this.stateService.getMapping(task.id);
+
+					if (!mapping) {
+						// Task not mapped to any issue, skip pull
+						logger.debug('Task not mapped, skipping pull', { taskId: task.id });
+						continue;
+					}
+
+					// Fetch remote issue
+					const remoteIssue = await this.resilienceService.executeWithRetry(
+						async () => {
+							return await this.githubClient.getIssue(
+								this.owner,
+								this.repo,
+								mapping.issueNumber
+							);
+						},
+						`get-issue-${mapping.issueNumber}`
+					);
+
+					result.apiCallsMade++;
+
+					// Detect changes using GitHubSyncStateService
+					const changes = await this.stateService.detectChanges(
+						task.id,
+						task.updatedAt || new Date().toISOString(),
+						remoteIssue.updated_at
+					);
+
+					// If no remote changes, skip
+					if (!changes.hasRemoteChanges) {
+						logger.debug('No remote changes detected', { taskId: task.id });
+						continue;
+					}
+
+					// Convert issue to task format for comparison
+					const remoteTaskData = this.fieldMapper.issueToTask(remoteIssue, task);
+
+					// Detect conflicts
+					const conflicts = await this.detectConflicts(
+						task,
+						remoteTaskData,
+						changes.hasLocalChanges
+					);
+
+					if (conflicts.length > 0) {
+						// Conflicts detected - queue for resolution
+						logger.warn('Conflicts detected during pull', {
+							taskId: task.id,
+							conflictCount: conflicts.length
+						});
+
+						// Store conflicts in state
+						for (const conflict of conflicts) {
+							// Get the first field conflict for legacy storage format
+							const firstFieldConflict = conflict.fieldConflicts[0];
+							if (firstFieldConflict) {
+								await this.stateService.addConflict({
+									taskId: task.id,
+									issueNumber: mapping.issueNumber,
+									type: 'title_mismatch', // Will be enhanced with specific types
+									localValue: firstFieldConflict.localValue as string,
+									remoteValue: firstFieldConflict.remoteValue as string,
+									detectedAt: new Date().toISOString(),
+									resolutionStrategy: 'manual',
+									resolved: false
+								});
+							}
+						}
+
+						result.warnings.push(`Task ${task.id}: Conflicts detected, manual resolution required`);
+						result.taskResults.push({
+							taskId: task.id,
+							success: false,
+							action: 'skipped',
+							error: 'Conflicts detected'
+						});
+						result.tasksProcessed++;
+						continue;
+					}
+
+					// No conflicts - prepare remote changes for application
+					const suggestedUpdates: Partial<Task> = {};
+
+					// Build the updates object with only changed fields
+					if (remoteTaskData.title && remoteTaskData.title !== task.title) {
+						suggestedUpdates.title = remoteTaskData.title;
+					}
+					if (remoteTaskData.description && remoteTaskData.description !== task.description) {
+						suggestedUpdates.description = remoteTaskData.description;
+					}
+					if (remoteTaskData.status && remoteTaskData.status !== task.status) {
+						suggestedUpdates.status = remoteTaskData.status;
+					}
+					if (remoteTaskData.priority && remoteTaskData.priority !== task.priority) {
+						suggestedUpdates.priority = remoteTaskData.priority;
+					}
+
+					// Add updated timestamp
+					suggestedUpdates.updatedAt = remoteIssue.updated_at;
+
+					if (!syncOptions.dryRun) {
+						// Update mapping
+						mapping.lastSyncedAt = new Date().toISOString();
+						mapping.lastSyncDirection = 'from_github';
+						mapping.status = 'synced';
+						await this.stateService.setMapping(mapping);
+
+						// Record operation
+						await this.stateService.recordOperation({
+							taskId: task.id,
+							issueNumber: mapping.issueNumber,
+							operationType: 'update_task',
+							direction: 'from_github',
+							success: true
+						});
+
+						logger.info('Remote changes ready for application', {
+							taskId: task.id,
+							issueNumber: mapping.issueNumber,
+							updates: Object.keys(suggestedUpdates)
+						});
+					}
+
+					result.tasksUpdated++;
+					result.tasksProcessed++;
+					result.taskResults.push({
+						taskId: task.id,
+						issueNumber: mapping.issueNumber,
+						success: true,
+						action: 'updated',
+						suggestedUpdates
+					});
+
+				} catch (error: any) {
+					logger.error('Failed to pull task from GitHub', {
+						taskId: task.id,
+						error
+					});
+
+					result.tasksFailed++;
+					result.tasksProcessed++;
+					result.errors.push(`Task ${task.id}: ${error.message}`);
+					result.taskResults.push({
+						taskId: task.id,
+						success: false,
+						action: 'error',
+						error: error.message
+					});
+				}
+			}
+
+			// Mark sync as complete
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete();
+			}
+
+			result.success = result.tasksFailed === 0;
+
+			logger.info('Pull from GitHub completed', {
+				success: result.success,
+				tasksProcessed: result.tasksProcessed,
+				tasksUpdated: result.tasksUpdated,
+				tasksFailed: result.tasksFailed
+			});
+
+			return result;
+
+		} catch (error: any) {
+			const errorMessage = `Pull failed: ${error.message}`;
+			logger.error(errorMessage, { error });
+
+			result.success = false;
+			result.errors.push(errorMessage);
+
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete(errorMessage);
+			}
+
+			return result;
+		}
+	}
+
+	/**
+	 * Push local task changes to GitHub issues (Subtask 6.5)
+	 *
+	 * Detects local changes and pushes them to GitHub issues.
+	 * Only changed fields are updated. Respects conflict resolution.
+	 *
+	 * @param tasks - Local tasks to push to GitHub
+	 * @param options - Sync options
+	 * @returns Result of the push operation
+	 */
+	async pushChangesToGitHub(
+		tasks: Task[],
+		options: Partial<GitHubSyncOptions> = {}
+	): Promise<GitHubSyncResult> {
+		const syncOptions = { ...DEFAULT_SYNC_OPTIONS, ...options };
+
+		logger.info('Starting push to GitHub', {
+			taskCount: tasks.length,
+			dryRun: syncOptions.dryRun
+		});
+
+		const result: GitHubSyncResult = {
+			success: true,
+			tasksProcessed: 0,
+			tasksCreated: 0,
+			tasksUpdated: 0,
+			tasksFailed: 0,
+			subtasksProcessed: 0,
+			dependenciesProcessed: 0,
+			labelsCreated: 0,
+			apiCallsMade: 0,
+			dryRun: syncOptions.dryRun,
+			taskResults: [],
+			errors: [],
+			warnings: []
+		};
+
+		try {
+			// Mark sync as in progress
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncInProgress();
+			}
+
+			// Process each task
+			for (const task of tasks) {
+				try {
+					const mapping = await this.stateService.getMapping(task.id);
+
+					if (!mapping) {
+						// No mapping - create new issue
+						const createResult = await this.createTask(task, syncOptions);
+						result.tasksCreated += createResult.success ? 1 : 0;
+						result.tasksFailed += createResult.success ? 0 : 1;
+						result.tasksProcessed++;
+						result.taskResults.push(createResult);
+						result.apiCallsMade++;
+						continue;
+					}
+
+					// Fetch remote issue to check for conflicts
+					const remoteIssue = await this.resilienceService.executeWithRetry(
+						async () => {
+							return await this.githubClient.getIssue(
+								this.owner,
+								this.repo,
+								mapping.issueNumber
+							);
+						},
+						`get-issue-${mapping.issueNumber}`
+					);
+
+					result.apiCallsMade++;
+
+					// Detect changes
+					const changes = await this.stateService.detectChanges(
+						task.id,
+						task.updatedAt || new Date().toISOString(),
+						remoteIssue.updated_at
+					);
+
+					// If no local changes, skip
+					if (!changes.hasLocalChanges) {
+						logger.debug('No local changes to push', { taskId: task.id });
+						continue;
+					}
+
+					// Convert issue to task format for comparison
+					const remoteTaskData = this.fieldMapper.issueToTask(remoteIssue, task);
+
+					// Detect conflicts
+					const conflicts = await this.detectConflicts(
+						task,
+						remoteTaskData,
+						changes.hasRemoteChanges
+					);
+
+					if (conflicts.length > 0) {
+						// Conflicts detected - queue for resolution
+						logger.warn('Conflicts detected during push', {
+							taskId: task.id,
+							conflictCount: conflicts.length
+						});
+
+						// Store conflicts in state
+						for (const conflict of conflicts) {
+							// Get the first field conflict for legacy storage format
+							const firstFieldConflict = conflict.fieldConflicts[0];
+							if (firstFieldConflict) {
+								await this.stateService.addConflict({
+									taskId: task.id,
+									issueNumber: mapping.issueNumber,
+									type: 'title_mismatch',
+									localValue: firstFieldConflict.localValue as string,
+									remoteValue: firstFieldConflict.remoteValue as string,
+									detectedAt: new Date().toISOString(),
+									resolutionStrategy: 'manual',
+									resolved: false
+								});
+							}
+						}
+
+						result.warnings.push(`Task ${task.id}: Conflicts detected, manual resolution required`);
+						result.taskResults.push({
+							taskId: task.id,
+							success: false,
+							action: 'skipped',
+							error: 'Conflicts detected'
+						});
+						result.tasksProcessed++;
+						continue;
+					}
+
+					// No conflicts - push local changes
+					const updateResult = await this.updateTask(task, mapping, syncOptions);
+					result.tasksUpdated += updateResult.success ? 1 : 0;
+					result.tasksFailed += updateResult.success ? 0 : 1;
+					result.tasksProcessed++;
+					result.taskResults.push(updateResult);
+					result.apiCallsMade++;
+
+				} catch (error: any) {
+					logger.error('Failed to push task to GitHub', {
+						taskId: task.id,
+						error
+					});
+
+					result.tasksFailed++;
+					result.tasksProcessed++;
+					result.errors.push(`Task ${task.id}: ${error.message}`);
+					result.taskResults.push({
+						taskId: task.id,
+						success: false,
+						action: 'error',
+						error: error.message
+					});
+				}
+			}
+
+			// Mark sync as complete
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete();
+			}
+
+			result.success = result.tasksFailed === 0;
+
+			logger.info('Push to GitHub completed', {
+				success: result.success,
+				tasksProcessed: result.tasksProcessed,
+				tasksCreated: result.tasksCreated,
+				tasksUpdated: result.tasksUpdated,
+				tasksFailed: result.tasksFailed
+			});
+
+			return result;
+
+		} catch (error: any) {
+			const errorMessage = `Push failed: ${error.message}`;
+			logger.error(errorMessage, { error });
+
+			result.success = false;
+			result.errors.push(errorMessage);
+
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete(errorMessage);
+			}
+
+			return result;
+		}
+	}
+
+	/**
+	 * Bidirectional synchronization - master coordination method
+	 *
+	 * Orchestrates full bidirectional sync between local tasks and GitHub issues.
+	 * Detects changes on both sides, handles conflicts, and applies updates atomically.
+	 *
+	 * @param tasks - Local tasks to synchronize
+	 * @param options - Sync options
+	 * @returns Combined result of pull and push operations
+	 */
+	async syncWithGitHub(
+		tasks: Task[],
+		options: Partial<GitHubSyncOptions> = {}
+	): Promise<GitHubSyncResult> {
+		const syncOptions = { ...DEFAULT_SYNC_OPTIONS, ...options };
+
+		logger.info('Starting bidirectional GitHub sync', {
+			taskCount: tasks.length,
+			dryRun: syncOptions.dryRun
+		});
+
+		try {
+			// Mark sync as in progress
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncInProgress();
+			}
+
+			// Step 1: Pull remote changes
+			logger.info('Step 1/2: Pulling remote changes');
+			const pullResult = await this.pullFromGitHub(tasks, { ...syncOptions, dryRun: true });
+
+			// Step 2: Push local changes
+			logger.info('Step 2/2: Pushing local changes');
+			const pushResult = await this.pushChangesToGitHub(tasks, { ...syncOptions, dryRun: true });
+
+			// Combine results
+			const combinedResult: GitHubSyncResult = {
+				success: pullResult.success && pushResult.success,
+				tasksProcessed: pullResult.tasksProcessed + pushResult.tasksProcessed,
+				tasksCreated: pushResult.tasksCreated,
+				tasksUpdated: pullResult.tasksUpdated + pushResult.tasksUpdated,
+				tasksFailed: pullResult.tasksFailed + pushResult.tasksFailed,
+				subtasksProcessed: pullResult.subtasksProcessed + pushResult.subtasksProcessed,
+				dependenciesProcessed: pullResult.dependenciesProcessed + pushResult.dependenciesProcessed,
+				labelsCreated: pushResult.labelsCreated,
+				apiCallsMade: pullResult.apiCallsMade + pushResult.apiCallsMade,
+				dryRun: syncOptions.dryRun,
+				taskResults: [...pullResult.taskResults, ...pushResult.taskResults],
+				errors: [...pullResult.errors, ...pushResult.errors],
+				warnings: [...pullResult.warnings, ...pushResult.warnings]
+			};
+
+			// Mark sync as complete
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete();
+			}
+
+			logger.info('Bidirectional sync completed', {
+				success: combinedResult.success,
+				tasksProcessed: combinedResult.tasksProcessed,
+				tasksUpdated: combinedResult.tasksUpdated,
+				conflicts: combinedResult.warnings.length
+			});
+
+			return combinedResult;
+
+		} catch (error: any) {
+			const errorMessage = `Bidirectional sync failed: ${error.message}`;
+			logger.error(errorMessage, { error });
+
+			if (!syncOptions.dryRun) {
+				await this.stateService.markSyncComplete(errorMessage);
+			}
+
+			throw error;
+		}
+	}
+
+	/**
+	 * Detect conflicts between local and remote task data
+	 *
+	 * @private
+	 * @param localTask - Local task
+	 * @param remoteTask - Remote task data (converted from issue)
+	 * @param bothChanged - Whether both sides have changes
+	 * @returns Array of detected conflicts
+	 */
+	private async detectConflicts(
+		localTask: Task,
+		remoteTask: Partial<Task>,
+		bothChanged: boolean
+	): Promise<ConflictInfo[]> {
+		// If only one side changed, no conflict
+		if (!bothChanged) {
+			return [];
+		}
+
+		const conflicts: ConflictInfo[] = [];
+		const fieldConflicts: FieldConflict[] = [];
+
+		// Get mapping for conflict info
+		const mapping = await this.stateService.getMapping(localTask.id);
+		if (!mapping) {
+			// No mapping, can't detect conflicts
+			return [];
+		}
+
+		// Compare key fields
+		const fieldsToCompare: Array<{ field: ConflictField; localKey: keyof Task; remoteKey: keyof Task }> = [
+			{ field: 'title', localKey: 'title', remoteKey: 'title' },
+			{ field: 'description', localKey: 'description', remoteKey: 'description' },
+			{ field: 'status', localKey: 'status', remoteKey: 'status' },
+			{ field: 'priority', localKey: 'priority', remoteKey: 'priority' }
+		];
+
+		for (const { field, localKey, remoteKey } of fieldsToCompare) {
+			const localValue = localTask[localKey];
+			const remoteValue = remoteTask[remoteKey];
+
+			// Skip if both undefined
+			if (localValue === undefined && remoteValue === undefined) {
+				continue;
+			}
+
+			// Detect value mismatches
+			if (localValue !== remoteValue) {
+				const conflictType: FieldConflictType =
+					localValue === undefined ? 'deleted_locally' :
+					remoteValue === undefined ? 'deleted_remotely' :
+					'value_mismatch';
+
+				// Determine if auto-merge is possible
+				const canAutoMerge = this.canAutoMergeField(field, localValue, remoteValue);
+
+				fieldConflicts.push({
+					field,
+					localValue,
+					remoteValue,
+					baseValue: undefined, // Would come from last sync state
+					type: conflictType,
+					canAutoMerge,
+					autoMergeValue: canAutoMerge ? remoteValue : undefined
+				});
+
+				logger.debug('Field conflict detected', {
+					taskId: localTask.id,
+					field,
+					localValue,
+					remoteValue,
+					type: conflictType
+				});
+			}
+		}
+
+		// If we have field conflicts, create a ConflictInfo object
+		if (fieldConflicts.length > 0) {
+			const timestampAnalysis: TimestampAnalysis = {
+				localUpdatedAt: localTask.updatedAt || new Date().toISOString(),
+				remoteUpdatedAt: remoteTask.updatedAt || new Date().toISOString(),
+				lastSyncedAt: mapping.lastSyncedAt,
+				timeSinceLastSync: Date.now() - new Date(mapping.lastSyncedAt).getTime(),
+				recentSide: this.determineRecentSide(
+					localTask.updatedAt || new Date().toISOString(),
+					remoteTask.updatedAt || new Date().toISOString()
+				),
+				simultaneousEdit: this.isSimultaneousEdit(
+					localTask.updatedAt || new Date().toISOString(),
+					remoteTask.updatedAt || new Date().toISOString()
+				)
+			};
+
+			const severity = this.calculateConflictSeverity(fieldConflicts, timestampAnalysis);
+			const suggestedStrategy = this.determineSuggestedStrategy(fieldConflicts, timestampAnalysis, severity);
+			const canAutoResolve = fieldConflicts.every(fc => fc.canAutoMerge) && severity === 'low';
+
+			conflicts.push({
+				conflictId: `conflict_${localTask.id}_${mapping.issueNumber}_${Date.now()}`,
+				taskId: localTask.id,
+				issueNumber: mapping.issueNumber,
+				detectedAt: new Date().toISOString(),
+				severity,
+				fieldConflicts,
+				timestampAnalysis,
+				suggestedStrategy,
+				canAutoResolve
+			});
+		}
+
+		return conflicts;
+	}
+
+	/**
+	 * Determine if a field can be auto-merged
+	 * @private
+	 */
+	private canAutoMergeField(field: ConflictField, localValue: unknown, remoteValue: unknown): boolean {
+		// Simple fields can't auto-merge if they're different
+		if (field === 'title' || field === 'status' || field === 'priority') {
+			return false;
+		}
+
+		// Description can potentially be merged if one is empty
+		if (field === 'description') {
+			return !localValue || !remoteValue;
+		}
+
+		// Arrays can potentially be merged
+		if (Array.isArray(localValue) && Array.isArray(remoteValue)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Determine which side was modified more recently
+	 * @private
+	 */
+	private determineRecentSide(localTime: string, remoteTime: string): 'local' | 'remote' | 'simultaneous' {
+		const localDate = new Date(localTime).getTime();
+		const remoteDate = new Date(remoteTime).getTime();
+		const diff = Math.abs(localDate - remoteDate);
+
+		// If within 5 seconds, consider simultaneous
+		if (diff < 5000) {
+			return 'simultaneous';
+		}
+
+		return localDate > remoteDate ? 'local' : 'remote';
+	}
+
+	/**
+	 * Check if edits were simultaneous (within 30 second window)
+	 * @private
+	 */
+	private isSimultaneousEdit(localTime: string, remoteTime: string): boolean {
+		const localDate = new Date(localTime).getTime();
+		const remoteDate = new Date(remoteTime).getTime();
+		const diff = Math.abs(localDate - remoteDate);
+
+		// 30 second tolerance window
+		return diff < 30000;
+	}
+
+	/**
+	 * Calculate overall conflict severity
+	 * @private
+	 */
+	private calculateConflictSeverity(
+		fieldConflicts: FieldConflict[],
+		timestampAnalysis: TimestampAnalysis
+	): ConflictSeverity {
+		// Critical if title conflicts
+		if (fieldConflicts.some(fc => fc.field === 'title')) {
+			return 'high';
+		}
+
+		// High if status conflicts
+		if (fieldConflicts.some(fc => fc.field === 'status')) {
+			return 'high';
+		}
+
+		// Medium if simultaneous edits
+		if (timestampAnalysis.simultaneousEdit) {
+			return 'medium';
+		}
+
+		// Medium if multiple fields conflict
+		if (fieldConflicts.length > 2) {
+			return 'medium';
+		}
+
+		return 'low';
+	}
+
+	/**
+	 * Determine suggested resolution strategy
+	 * @private
+	 */
+	private determineSuggestedStrategy(
+		fieldConflicts: FieldConflict[],
+		timestampAnalysis: TimestampAnalysis,
+		severity: ConflictSeverity
+	): ConflictResolutionStrategy {
+		// High severity should be manual
+		if (severity === 'high' || severity === 'critical') {
+			return 'manual';
+		}
+
+		// If all fields can auto-merge, suggest auto-merge
+		if (fieldConflicts.every(fc => fc.canAutoMerge)) {
+			return 'auto_merge';
+		}
+
+		// If timestamps are clear, use timestamp-based
+		if (!timestampAnalysis.simultaneousEdit) {
+			return 'timestamp_based';
+		}
+
+		// Default to manual
+		return 'manual';
 	}
 }
