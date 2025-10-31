@@ -1,0 +1,43 @@
+# Task ID: 6
+# Title: Implement Two-Way Sync with Conflict Handling
+# Status: pending
+# Dependencies: 4, 5
+# Priority: medium
+# Description: Create bidirectional synchronization capability that maintains consistency between local tasks and GitHub issues
+# Details:
+Implement GitHubSyncService.syncWithGitHub() method for bidirectional sync. Detect changes on both local and remote sides using timestamp comparison. Pull remote issue changes to update local tasks, push local task changes to update remote issues. Route conflicts to GitHubConflictResolver for user resolution. Apply non-conflicting changes automatically. Maintain data integrity with atomic operations. Handle partial failures gracefully with clear error reporting.
+
+# Test Strategy:
+Bidirectional sync scenarios, conflict scenarios with same field modified on both sides, mixed scenarios with conflicts and clean changes, atomic operation tests, error handling for partial failures
+
+# Subtasks:
+## 1. Implement GitHubSyncStateService Core Functionality [pending]
+### Dependencies: None
+### Description: Create persistent tracking system for task-issue mappings with robust state management
+### Details:
+Develop core functionality for GitHubSyncStateService to manage .taskmaster/github-sync-state.json. Implement methods for creating, updating, and retrieving task-issue mappings. Ensure thread-safe atomic file operations with optimized performance for large mapping sets. Include comprehensive error handling and state file integrity checks.
+
+## 2. Design Bidirectional Change Detection Mechanism [pending]
+### Dependencies: 6.1
+### Description: Create robust algorithm for detecting changes across local tasks and GitHub issues
+### Details:
+Develop timestamp-based change detection strategy in GitHubSyncService. Implement methods to compare local task updatedAt with remote issue updated_at. Create efficient diff calculation algorithm that identifies precise changes across all task fields. Support multiple comparison strategies including last-modified timestamp and full content comparison.
+
+## 3. Implement GitHubConflictResolver Interactive System [pending]
+### Dependencies: 6.1, 6.2
+### Description: Create comprehensive conflict detection and resolution mechanism
+### Details:
+Develop GitHubConflictResolver service with advanced conflict detection for all task fields. Implement interactive resolution via CLI prompts using inquirer. Support multiple resolution strategies including last-write-wins, timestamp-based resolution, and manual user intervention. Provide clear diff visualization and undo capabilities.
+
+## 4. Develop Remote Synchronization Pull Mechanism [pending]
+### Dependencies: 6.1, 6.2
+### Description: Create robust system for pulling and applying remote GitHub issue changes to local tasks
+### Details:
+Implement remote pull mechanism in GitHubSyncService to fetch and apply GitHub issue updates to local tasks. Handle complex scenarios including new issues, updated issues, and partially synchronized tasks. Ensure data integrity with atomic update operations and comprehensive error handling.
+
+## 5. Implement Local Task Push and Synchronization Strategy [pending]
+### Dependencies: 6.1, 6.2, 6.3
+### Description: Create mechanism for pushing local task changes to GitHub issues
+### Details:
+Develop push synchronization strategy in GitHubSyncService to update GitHub issues with local task modifications. Implement intelligent update mechanism that only pushes changed fields, respects conflict resolution rules, and handles creation of new issues for unmapped tasks.
+
