@@ -97,7 +97,8 @@
               4
             ],
             "acceptanceCriteria": "- Detects changes in both task files and tasks.json\n- Determines which version is newer based on modification timestamps or content\n- Applies changes in the appropriate direction (file to JSON or JSON to file)\n- Handles edge cases like deleted files, new tasks, and renamed tasks\n- Provides options for manual conflict resolution when necessary\n- Maintains data integrity during the synchronization process\n- Includes a command to force synchronization in either direction\n- Logs all synchronization activities for troubleshooting\n\nEach of these subtasks addresses a specific component of the task file generation system, following a logical progression from template design to bidirectional synchronization. The dependencies ensure that prerequisites are completed before dependent work begins, and the acceptance criteria provide clear guidelines for verifying each subtask's completion.",
-            "details": "\n\n<info added on 2025-05-01T21:59:10.551Z>\n{\n  \"id\": 5,\n  \"title\": \"Implement Change Detection and Update Handling\",\n  \"description\": \"Create a system to detect changes in task files and tasks.json, and handle updates bidirectionally. This includes implementing file watching or comparison mechanisms, determining which version is newer, and applying changes in the appropriate direction. Ensure the system handles edge cases like deleted files, new tasks, and conflicting changes.\",\n  \"status\": \"done\",\n  \"dependencies\": [\n    1,\n    3,\n    4,\n    2\n  ],\n  \"acceptanceCriteria\": \"- Detects changes in both task files and tasks.json\\n- Determines which version is newer based on modification timestamps or content\\n- Applies changes in the appropriate direction (file to JSON or JSON to file)\\n- Handles edge cases like deleted files, new tasks, and renamed tasks\\n- Provides options for manual conflict resolution when necessary\\n- Maintains data integrity during the synchronization process\\n- Includes a command to force synchronization in either direction\\n- Logs all synchronization activities for troubleshooting\\n\\nEach of these subtasks addresses a specific component of the task file generation system, following a logical progression from template design to bidirectional synchronization. The dependencies ensure that prerequisites are completed before dependent work begins, and the acceptance criteria provide clear guidelines for verifying each subtask's completion.\",\n  \"details\": \"[2025-05-01 21:59:07] Adding another note via MCP test.\"\n}\n</info added on 2025-05-01T21:59:10.551Z>"
+            "details": "\n\n<info added on 2025-05-01T21:59:10.551Z>\n{\n  \"id\": 5,\n  \"title\": \"Implement Change Detection and Update Handling\",\n  \"description\": \"Create a system to detect changes in task files and tasks.json, and handle updates bidirectionally. This includes implementing file watching or comparison mechanisms, determining which version is newer, and applying changes in the appropriate direction. Ensure the system handles edge cases like deleted files, new tasks, and conflicting changes.\",\n  \"status\": \"done\",\n  \"dependencies\": [\n    1,\n    3,\n    4,\n    2\n  ],\n  \"acceptanceCriteria\": \"- Detects changes in both task files and tasks.json\\n- Determines which version is newer based on modification timestamps or content\\n- Applies changes in the appropriate direction (file to JSON or JSON to file)\\n- Handles edge cases like deleted files, new tasks, and renamed tasks\\n- Provides options for manual conflict resolution when necessary\\n- Maintains data integrity during the synchronization process\\n- Includes a command to force synchronization in either direction\\n- Logs all synchronization activities for troubleshooting\\n\\nEach of these subtasks addresses a specific component of the task file generation system, following a logical progression from template design to bidirectional synchronization. The dependencies ensure that prerequisites are completed before dependent work begins, and the acceptance criteria provide clear guidelines for verifying each subtask's completion.\",\n  \"details\": \"[2025-05-01 21:59:07] Adding another note via MCP test.\"\n}\n</info added on 2025-05-01T21:59:10.551Z>",
+            "updatedAt": "2025-10-31T04:30:35.189Z"
           }
         ]
       },
@@ -6349,7 +6350,9 @@
     "metadata": {
       "created": "2025-06-13T23:52:56.848Z",
       "updated": "2025-08-02T14:13:14.826Z",
-      "description": "Main tag for the taskmaster project"
+      "description": "Main tag for the taskmaster project",
+      "lastModified": "2025-10-31T04:30:35.202Z",
+      "completedCount": 57
     }
   },
   "test-tag": {
@@ -11111,7 +11114,7 @@
         "dependencies": [
           "4"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11119,9 +11122,10 @@
             "description": "Create a new private loadSubtask() method by extracting the subtask handling logic from lines 156-206 of the current loadTask() method",
             "dependencies": [],
             "details": "Extract the subtask-specific code from loadTask() method (lines 156-206) into a separate private loadSubtask() method. This includes the dotted notation ID parsing logic, parent task lookup functionality, dependency resolution with toFullSubId, and subtask result formatting. The method should accept the same parameters as loadTask() and return the same format for subtasks. Ensure all existing subtask behaviors are preserved including isSubtask flag and parentTask reference.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests verifying extracted method handles all subtask scenarios identically to current implementation: dotted notation IDs (1.2, HAM-123.2), parent context preservation, dependency resolution",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:33:01.472Z"
           },
           {
             "id": 2,
@@ -11131,14 +11135,16 @@
               1
             ],
             "details": "Update the loadTask() method to detect dotted notation task IDs and delegate to the new loadSubtask() method when appropriate. Add conditional logic to check if the task ID contains dots and call loadSubtask() for those cases. Ensure the method signature and return format remain unchanged to maintain backward compatibility. The regular task handling path should remain in loadTask() for future optimization.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Integration tests ensuring loadTask() public interface unchanged and all existing test cases pass. Verify edge cases like invalid subtask IDs and missing parent tasks still handled correctly",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:33:01.472Z"
           }
         ],
         "complexity": 4,
         "recommendedSubtasks": 2,
-        "expansionPrompt": "Cleanly separate subtask logic through methodical extraction: create private loadSubtask method by moving existing subtask handling code (lines 156-206) while preserving all complex ID parsing, parent context, and dependency resolution logic, then update main loadTask method to delegate subtask requests to the new method."
+        "expansionPrompt": "Cleanly separate subtask logic through methodical extraction: create private loadSubtask method by moving existing subtask handling code (lines 156-206) while preserving all complex ID parsing, parent context, and dependency resolution logic, then update main loadTask method to delegate subtask requests to the new method.",
+        "updatedAt": "2025-10-31T04:33:01.471Z"
       },
       {
         "id": "6",
@@ -11419,9 +11425,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:14:00.985Z",
+      "lastModified": "2025-10-31T04:33:01.477Z",
       "taskCount": 10,
-      "completedCount": 6,
+      "completedCount": 7,
       "tags": [
         "chore-performance-optimisation"
       ]
