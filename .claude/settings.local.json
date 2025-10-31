@@ -38,7 +38,15 @@
       "mcp__oraios_serena__insert_after_symbol",
       "Bash(for:*)",
       "Bash(do echo \"=== Task $i ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "SlashCommand(/pr-review-toolkit:review-pr all)",
+      "Bash(while read file)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(wc:*)",
+      "Bash(do echo \"=== Checking Task $i ===\")",
+      "Bash(python:*)",
+      "Bash(tasks.tmp)",
+      "Bash(.taskmaster/tasks/tasks.tmp)"
     ]
   },
   "enabledMcpjsonServers": [
