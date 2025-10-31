@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(task-master show:*)",
+      "Bash(task-master set-status:*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "task-master-ai",
+    "zen",
+    "oraios/serena"
+  ]
+}

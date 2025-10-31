@@ -2,8 +2,43 @@
 	"mcpServers": {
 		"task-master-ai": {
 			"type": "stdio",
-			"command": "npx",
+			"command": "cmd /c npx",
 			"args": ["-y", "task-master-ai"]
+		},
+		"zen": {
+			"type": "stdio",
+			"command": "d:\\code\\marwood-inc\\zen-mcp-server\\.zen_venv\\Scripts\\python.exe",
+			"args": ["d:\\code\\marwood-inc\\zen-mcp-server\\server.py"],
+			"env": {
+				"GEMINI_API_KEY": "AIzaSyDNiazb4_d0m_y-HIoLGVhWF3eaeW6m1a0",
+				"OPENAI_API_KEY": "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",
+				"XAI_API_KEY": "xai-YfBNOnXfObsRYIdqRMvrUWGWL060dL1W8Mu7naGmnp9mLHtSXWEuDd4TbxkA4gsNtlP1hKeSVkVvEl9W",
+				"DEFAULT_MODEL": "auto",
+				"DEFAULT_THINKING_MODE_THINKDEEP": "high",
+				"CONVERSATION_TIMEOUT_HOURS": "24",
+				"MAX_CONVERSATION_TURNS": "40",
+				"LOG_LEVEL": "DEBUG",
+				"DISABLED_TOOLS": "analyze,refactor,testgen,secaudit,docgen,tracer",
+				"ZEN_MCP_FORCE_ENV_OVERRIDE": "false",
+				"COMPOSE_PROJECT_NAME": "zen-mcp",
+				"TZ": "UTC",
+				"LOG_MAX_SIZE": "10MB"
+			}
+		},
+		"oraios/serena": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://github.com/oraios/serena",
+				"serena",
+				"start-mcp-server",
+				"serena==latest",
+				"--context",
+				"ide-assistant"
+			],
+			"gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/0658e342-7ae7-493a-b378-a324363ee322",
+			"version": "1.0.0"
 		}
 	}
 }

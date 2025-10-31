@@ -111,7 +111,8 @@
 	},
 	"optionalDependencies": {
 		"@anthropic-ai/claude-code": "^1.0.88",
-		"@biomejs/cli-linux-x64": "^1.9.4"
+		"@biomejs/cli-linux-x64": "^1.9.4",
+		"@rollup/rollup-win32-x64-msvc": "^4.52.5"
 	},
 	"engines": {
 		"node": ">=18.0.0"
