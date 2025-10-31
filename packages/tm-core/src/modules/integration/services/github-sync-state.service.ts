@@ -271,17 +271,20 @@ export class GitHubSyncStateService {
 	 * @returns Change metadata if found, null otherwise
 	 */
 	async getChangeMetadata(taskId: string): Promise<ChangeMetadata | null> {
-		throw new Error('Not implemented - will be implemented in subtask 3.3');
+		const state = await this.loadState();
+		return state.changeMetadata[taskId] || null;
 	}
 
 	/**
 	 * Update change metadata
-	 * @param metadata - Change metadata to update
+	 * @param metadata: ChangeMetadata
 	 */
 	async updateChangeMetadata(
 		metadata: ChangeMetadata
 	): Promise<StateFileOperationResult> {
-		throw new Error('Not implemented - will be implemented in subtask 3.3');
+		return await this.modifyState((state) => {
+			state.changeMetadata[metadata.taskId] = metadata;
+		});
 	}
 
 	/**
@@ -296,7 +299,41 @@ export class GitHubSyncStateService {
 		localUpdatedAt: string,
 		remoteUpdatedAt: string
 	): Promise<{ hasLocalChanges: boolean; hasRemoteChanges: boolean }> {
-		throw new Error('Not implemented - will be implemented in subtask 3.3');
+		const existingMetadata = await this.getChangeMetadata(taskId);
+
+		let hasLocalChanges = false;
+		let hasRemoteChanges = false;
+
+		if (!existingMetadata) {
+			// First time checking - assume both have changes
+			hasLocalChanges = true;
+			hasRemoteChanges = true;
+		} else {
+			// Compare timestamps to detect changes
+			const localDate = new Date(localUpdatedAt);
+			const remoteDate = new Date(remoteUpdatedAt);
+			const lastLocalDate = new Date(existingMetadata.localUpdatedAt);
+			const lastRemoteDate = new Date(existingMetadata.remoteUpdatedAt);
+
+			hasLocalChanges = localDate > lastLocalDate;
+			hasRemoteChanges = remoteDate > lastRemoteDate;
+		}
+
+		// Update metadata with new check
+		const mapping = await this.getMapping(taskId);
+		const newMetadata: ChangeMetadata = {
+			taskId,
+			issueNumber: mapping?.issueNumber || 0,
+			localUpdatedAt,
+			remoteUpdatedAt,
+			lastCheckedAt: new Date().toISOString(),
+			hasLocalChanges,
+			hasRemoteChanges
+		};
+
+		await this.updateChangeMetadata(newMetadata);
+
+		return { hasLocalChanges, hasRemoteChanges };
 	}
 
 	/**

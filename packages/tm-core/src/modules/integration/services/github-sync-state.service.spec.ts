@@ -461,6 +461,152 @@ describe('GitHubSyncStateService', () => {
 		});
 	});
 
+	describe('change detection', () => {
+		beforeEach(async () => {
+			await service.initialize();
+		});
+
+		it('should detect changes on first check', async () => {
+			// Setup a mapping first
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			const result = await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z',
+				'2024-01-01T09:00:00Z'
+			);
+
+			expect(result.hasLocalChanges).toBe(true);
+			expect(result.hasRemoteChanges).toBe(true);
+
+			const metadata = await service.getChangeMetadata('1');
+			expect(metadata).toBeDefined();
+			expect(metadata?.taskId).toBe('1');
+			expect(metadata?.localUpdatedAt).toBe('2024-01-01T10:00:00Z');
+			expect(metadata?.remoteUpdatedAt).toBe('2024-01-01T09:00:00Z');
+		});
+
+		it('should detect local changes', async () => {
+			// Setup
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// First check - establishes baseline
+			await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z',
+				'2024-01-01T09:00:00Z'
+			);
+
+			// Second check - local changed, remote didn't
+			const result = await service.detectChanges(
+				'1',
+				'2024-01-01T11:00:00Z', // Local newer
+				'2024-01-01T09:00:00Z' // Remote same
+			);
+
+			expect(result.hasLocalChanges).toBe(true);
+			expect(result.hasRemoteChanges).toBe(false);
+		});
+
+		it('should detect remote changes', async () => {
+			// Setup
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// First check
+			await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z',
+				'2024-01-01T09:00:00Z'
+			);
+
+			// Second check - remote changed, local didn't
+			const result = await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z', // Local same
+				'2024-01-01T11:00:00Z' // Remote newer
+			);
+
+			expect(result.hasLocalChanges).toBe(false);
+			expect(result.hasRemoteChanges).toBe(true);
+		});
+
+		it('should detect no changes when timestamps same', async () => {
+			// Setup
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 123,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// First check
+			await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z',
+				'2024-01-01T09:00:00Z'
+			);
+
+			// Second check - no changes
+			const result = await service.detectChanges(
+				'1',
+				'2024-01-01T10:00:00Z', // Local same
+				'2024-01-01T09:00:00Z' // Remote same
+			);
+
+			expect(result.hasLocalChanges).toBe(false);
+			expect(result.hasRemoteChanges).toBe(false);
+		});
+
+		it('should update change metadata', async () => {
+			const metadata: ChangeMetadata = {
+				taskId: '1',
+				issueNumber: 123,
+				localUpdatedAt: '2024-01-01T10:00:00Z',
+				remoteUpdatedAt: '2024-01-01T09:00:00Z',
+				lastCheckedAt: '2024-01-01T11:00:00Z',
+				hasLocalChanges: true,
+				hasRemoteChanges: false
+			};
+
+			await service.updateChangeMetadata(metadata);
+
+			const retrieved = await service.getChangeMetadata('1');
+			expect(retrieved).toEqual(metadata);
+		});
+
+		it('should return null for non-existent change metadata', async () => {
+			const metadata = await service.getChangeMetadata('999');
+			expect(metadata).toBeNull();
+		});
+	});
+
 	describe('concurrent access', () => {
 		beforeEach(async () => {
 			await service.initialize();
