@@ -10866,7 +10866,7 @@
   "feat-github-sync": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Implement GitHub API Integration Foundation",
         "description": "Establish core GitHub API communication layer with proper TypeScript types, authentication, and error handling using @octokit/rest",
         "details": "Create GitHubClient class as abstraction over @octokit/rest for task-master specific operations. Implement CRUD operations for issues, labels, milestones, projects, and assignees. Handle authentication with GitHub tokens, rate limiting with exponential backoff, and proper error handling with typed exceptions. Include comprehensive type definitions for all GitHub entities (GitHubIssue, GitHubLabel, GitHubMilestone, SyncMapping, SyncConflict, SyncState, SyncOptions, SyncResult). Use @octokit/rest@^20.0.0 and @octokit/types@^12.0.0 for latest GitHub API support.",
@@ -10945,7 +10945,7 @@
         "updatedAt": "2025-10-31T03:22:28.780Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Implement GitHub Field Mapping Service",
         "description": "Create bidirectional transformation layer between task-master data structures and GitHub Issue format with semantic preservation",
         "details": "Implement GitHubFieldMapper class with methods for taskToIssue() and issueToTask() conversions. Map task-master status values (pending/in-progress/done/blocked) to GitHub issue state + labels. Map priority levels to colored GitHub labels (low=green, high=orange, critical=red). Enrich issue descriptions by combining task description, details, and testStrategy into structured markdown. Handle subtasks in both checklist mode (markdown checklist items) and separate-issues mode (child issues with parent references). Include complexity metadata as labels and body sections.",
@@ -11013,7 +11013,7 @@
         "updatedAt": "2025-10-31T03:32:11.258Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "Implement Sync State Management",
         "description": "Create persistent tracking system for task-issue mappings and sync history with conflict detection capabilities",
         "details": "Implement GitHubSyncStateService to manage .taskmaster/github-sync-state.json file with task-to-issue mappings, sync timestamps, and conflict markers. Provide fast lookup by task ID, handle concurrent access safely with atomic file operations, store sync operation history for debugging. Include change detection by comparing local task updatedAt with remote issue updated_at timestamps. Support 1000+ mappings with acceptable performance (<100ms operations). Handle state file corruption with backup and recovery mechanisms.",
@@ -11081,7 +11081,7 @@
         "updatedAt": "2025-10-31T04:08:49.856Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Implement One-Way Sync (Task → GitHub)",
         "description": "Create synchronization service for pushing local task changes to GitHub Issues without pulling remote changes",
         "details": "Implement GitHubSyncService.syncToGitHub() method to create new issues for unmapped tasks and update existing issues for mapped tasks. Handle subtasks in both checklist mode (markdown items in parent issue body) and separate-issues mode (child issues with parent references in body). Apply status, priority, and complexity labels. Convert task dependencies to GitHub issue references (\"Depends on #123\" in body). Include dry-run mode for previewing changes without API calls. Record all mappings in sync state. Batch API operations for performance with 100 requests at a time.",
@@ -11166,7 +11166,7 @@
         "updatedAt": "2025-10-31T04:35:36.468Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Implement Conflict Detection and Resolution",
         "description": "Create comprehensive conflict detection and resolution system for bidirectional synchronization scenarios",
         "details": "Implement GitHubConflictResolver service to detect when both local tasks and remote issues have been modified since last sync. Identify conflicting fields (title, description, status, priority) and provide interactive resolution via inquirer prompts. Support auto-resolution strategies (last-write-wins-local, last-write-wins-remote, timestamp-based). Show clear diffs before applying resolutions. Never auto-resolve ambiguous conflicts - always prompt user. Include undo functionality and validation of resolution choices.",
@@ -11270,7 +11270,7 @@
         "updatedAt": "2025-10-31T05:24:44.257Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Implement Two-Way Sync with Conflict Handling",
         "description": "Create bidirectional synchronization capability that maintains consistency between local tasks and GitHub issues",
         "details": "Implement GitHubSyncService.syncWithGitHub() method for bidirectional sync. Detect changes on both local and remote sides using timestamp comparison. Pull remote issue changes to update local tasks, push local task changes to update remote issues. Route conflicts to GitHubConflictResolver for user resolution. Apply non-conflicting changes automatically. Maintain data integrity with atomic operations. Handle partial failures gracefully with clear error reporting.",
@@ -11348,6 +11348,62 @@
             "testStrategy": "Local to remote sync tests, issue creation validation, partial update scenarios, error handling and rollback testing",
             "parentId": "undefined",
             "updatedAt": "2025-10-31T06:31:30.700Z"
+          },
+          {
+            "id": 6,
+            "title": "Implement Core Sync Service Infrastructure",
+            "description": "Create the foundational syncWithGitHub() method and core infrastructure for bidirectional synchronization",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "Implement GitHubSyncService.syncWithGitHub() method skeleton with proper initialization, service dependencies injection, and basic error handling framework. Set up atomic operation context, transaction-like behavior for sync operations, and prepare infrastructure for change detection and conflict resolution integration.",
+            "status": "pending",
+            "testStrategy": "Unit tests for service initialization, dependency injection tests, basic error handling validation, atomic operation context setup tests"
+          },
+          {
+            "id": 7,
+            "title": "Implement Change Detection Mechanisms",
+            "description": "Create timestamp-based change detection for both local tasks and remote GitHub issues",
+            "dependencies": [
+              6
+            ],
+            "details": "Implement change detection logic using timestamp comparison between local task updatedAt and remote issue updated_at fields. Create methods to identify modified tasks since last sync, detect remote issue changes, and categorize changes by field type. Include optimization for bulk change detection and handle edge cases like missing timestamps.",
+            "status": "pending",
+            "testStrategy": "Timestamp comparison tests, bulk change detection performance tests, edge case handling for missing timestamps, change categorization validation tests"
+          },
+          {
+            "id": 8,
+            "title": "Integrate Conflict Resolution System",
+            "description": "Connect GitHubConflictResolver to the sync process for handling conflicting changes",
+            "dependencies": [
+              7
+            ],
+            "details": "Integrate GitHubConflictResolver service into sync workflow to handle cases where both local and remote sides have conflicting changes. Implement conflict detection routing, resolution strategy application, and merge conflict resolution results back into sync process. Ensure non-conflicting changes proceed automatically while conflicts are routed for user resolution.",
+            "status": "pending",
+            "testStrategy": "Conflict detection integration tests, resolution strategy application tests, mixed scenario tests with conflicts and clean changes, user resolution workflow tests"
+          },
+          {
+            "id": 9,
+            "title": "Implement Remote Pull Synchronization",
+            "description": "Create functionality to pull remote GitHub issue changes and update local tasks",
+            "dependencies": [
+              8
+            ],
+            "details": "Implement remote-to-local sync logic to pull GitHub issue changes and update corresponding local tasks. Use GitHubFieldMapper for data transformation, apply changes atomically, handle missing local tasks by creating them, and update sync state after successful operations. Include batch processing for multiple issues and proper error handling for individual failures.",
+            "status": "pending",
+            "testStrategy": "Remote pull operation tests, field mapping integration tests, atomic update validation, batch processing tests, missing task creation tests, individual failure handling tests"
+          },
+          {
+            "id": 10,
+            "title": "Implement Local Push Synchronization",
+            "description": "Create functionality to push local task changes to corresponding GitHub issues",
+            "dependencies": [
+              9
+            ],
+            "details": "Implement local-to-remote sync logic to push local task changes to GitHub issues. Transform task data using GitHubFieldMapper, update remote issues via GitHubClient, handle missing remote issues by creating them, and update sync state after successful operations. Include graceful handling of partial failures with detailed error reporting and maintain data integrity throughout the process.",
+            "status": "pending",
+            "testStrategy": "Local push operation tests, GitHub API integration tests, missing issue creation tests, partial failure handling tests, data integrity validation, error reporting tests"
           }
         ],
         "complexity": 9,
@@ -11356,7 +11412,7 @@
         "updatedAt": "2025-10-31T06:31:30.700Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "Implement Advanced GitHub Features",
         "description": "Add support for GitHub milestones, project boards, and assignee management for enterprise collaboration workflows",
         "details": "Extend GitHubClient to support milestone CRUD operations, GitHub Projects v1 (REST API) integration for kanban boards, and assignee management. Create milestones for task groups, assign issues to milestones, add issues to project boards and update column placement based on status changes. Sync task assignee field to GitHub issue assignees with username validation. Include feature flags to enable/disable individual features. Support both GitHub.com and GitHub Enterprise via configurable base URL.",
@@ -11365,7 +11421,7 @@
         "dependencies": [
           "4"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11373,9 +11429,10 @@
             "description": "Extend GitHubClient to support full lifecycle management of GitHub milestones",
             "dependencies": [],
             "details": "Create methods in GitHubClient for creating, reading, updating, and deleting GitHub milestones. Implement support for milestone title, description, due date, and state. Handle error scenarios and validate input parameters. Support both GitHub.com and GitHub Enterprise base URLs via configurable endpoint.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for milestone CRUD methods, error handling tests, input validation tests, GitHub Enterprise URL configuration tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T07:06:30.567Z"
           },
           {
             "id": 2,
@@ -11385,9 +11442,10 @@
               1
             ],
             "details": "Create methods to add issues to project boards, update column placement based on task status changes, and manage project board columns. Implement feature flags to enable/disable project board synchronization. Handle column transitions, project board metadata retrieval, and error scenarios with robust logging.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Project board creation tests, issue column movement tests, status change synchronization tests, feature flag toggle tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T07:12:09.473Z"
           },
           {
             "id": 3,
@@ -11398,17 +11456,19 @@
               2
             ],
             "details": "Develop username validation for GitHub assignees, sync task assignee field with GitHub issue assignees, support multiple assignee scenarios. Implement bidirectional mapping with conflict resolution strategies. Add support for GitHub username lookup and validation via API. Create feature flag for assignee synchronization.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Username validation tests, assignee mapping tests, conflict resolution tests, GitHub API username lookup tests, feature flag tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T07:12:14.810Z"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Split into milestone CRUD operations, GitHub Projects board integration, and assignee management. Each should include feature flags, validation, and support for both GitHub.com and Enterprise configurations."
+        "expansionPrompt": "Split into milestone CRUD operations, GitHub Projects board integration, and assignee management. Each should include feature flags, validation, and support for both GitHub.com and Enterprise configurations.",
+        "updatedAt": "2025-10-31T07:12:14.810Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "Implement GitHub Configuration Management",
         "description": "Create secure configuration system for GitHub credentials, repository settings, and user preferences",
         "details": "Implement GitHubConfigureCommand for interactive setup with prompts for GitHub token, repository selection, and sync preferences. Validate token and repository access via GitHub API. Support GITHUB_TOKEN environment variable for security. Save configuration to .taskmaster/config.json with github section. Include settings for subtask mode (checklist vs separate-issues), conflict resolution strategy, and feature toggles for milestones/projects/assignees. Provide clear error messages for invalid configurations.",
@@ -11465,7 +11525,7 @@
         "updatedAt": "2025-10-31T05:00:37.443Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Implement CLI Commands and User Interface",
         "description": "Create user-friendly CLI commands for GitHub sync operations with comprehensive options and clear feedback",
         "details": "Implement github-sync command with options for --mode (one-way/two-way), --dry-run, --force, --subtask-mode, --repo. Add github-status command to show sync state, conflicts, last sync timestamp, and mapped vs unmapped tasks. Include progress indicators for long sync operations, clear success/error messages, and actionable error guidance. Follow existing CLI patterns in task-master codebase. Add commands to apps/cli/src/commands/ and register in index.ts.",
@@ -11539,7 +11599,7 @@
         "updatedAt": "2025-10-31T06:43:26.689Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Extend Integration Domain Facade",
         "description": "Update the existing IntegrationDomain class to include GitHub sync methods alongside existing export functionality",
         "details": "Modify packages/tm-core/src/modules/integration/integration-domain.ts to add GitHub sync methods: syncToGitHub(), syncWithGitHub(), resolveConflict(), getGitHubSyncStatus(), and configureGitHub(). Follow existing patterns for ExportService integration. Provide clean error handling and delegate to appropriate services. Maintain backward compatibility with existing export functionality. Update constructor to initialize GitHub services alongside existing ExportService.",
@@ -11597,16 +11657,174 @@
         "recommendedSubtasks": 3,
         "expansionPrompt": "Split into method signature design, core logic implementation, and constructor/configuration updates. Ensure clean integration with existing export functionality and maintain backward compatibility.",
         "updatedAt": "2025-10-31T06:58:48.229Z"
+      },
+      {
+        "id": 11,
+        "title": "Automate Task Master Specialist Delegation",
+        "description": "Wire up an auto-invoked background agent so Task Master operations and taskmaster-tagged work are transparently handled by the Task Master specialist.",
+        "details": "- Deepen the specialist brief in `.claude/agents/task-master-specialist.md:1` so it documents background-agent behavior, standardized response templates (status summaries, next actions, command suggestions), and authoritative references to Task Master architecture; keep existing architectural guardrails intact.\n- Add a dedicated background agent descriptor (create `.claude/background-agents/task-master-specialist.json:1`) defining triggers for CLI verbs (`list|show|next|expand|update|set-status|analyze`), natural-language cues, and a `taskTags` matcher for `taskmaster`; configure delegation targets, required tools, and output channel metadata; document fallback rules.\n- Register and surface the automation by updating `.claude/settings.local.json:1` with the new background agent entry, refreshing `.taskmaster/CLAUDE.md:1` and `.claude/TM_COMMANDS_GUIDE.md:1` to explain automatic takeover, and amending `.claude/AGENT_SETUP.md:1` plus `.claude/commands/tm-specialist.md:1` so manual usage remains correct but defers to auto mode when available.\n- Implement tag-driven routing hooks: extend `packages/tm-bridge/src/update-bridge.ts:1` (or a new helper under `packages/tm-bridge/src/`) to emit delegation metadata whenever the active tag or explicit CLI flag resolves to `taskmaster`, and optionally annotate command metadata in `apps/cli/src/command-registry.ts:1` so downstream layers can flag Task Master verbs for the background agent.\n- Provide developer documentation describing the delegation lifecycle, configuration knobs, and troubleshooting (e.g., how to disable the agent temporarily, interpreting specialist responses) in `.claude/README.md:1` or a new section within `.claude/AGENT_SETUP.md:1`.\n- Ensure response formatting stays consistent with CLI expectations (colored tables, diff blocks) by reusing existing formatters in `apps/cli/src/utils/display-helpers.ts:1` or referencing their patterns inside the agent brief.",
+        "testStrategy": "- Add unit tests (Vitest) for the trigger matcher module you introduce under `packages/tm-bridge/src/` to confirm command keywords, free-text prompts, and the `taskmaster` tag all resolve to the specialist while unrelated prompts do not.\n- Write an integration-style test that simulates a CLI update flow with `tag = 'taskmaster'`, verifying the delegation hook emits the specialist payload and falls back cleanly when the tag is absent; use dependency injection or spies around the new routing helper.\n- Perform a smoke test of the background agent config by running a dry Claude session (or scripted prompt) that issues `task-master list` and `task-master update` commands to confirm automatic specialist invocation and correct response formatting; capture transcripts for regression.\n- Validate JSON/YAML assets (`.claude/background-agents/task-master-specialist.json`, updated settings) with existing schema tooling (e.g., `ajv` via npm) to avoid malformed configuration.",
+        "status": "pending",
+        "dependencies": [
+          9
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Expand Task Master specialist brief for background delegation",
+            "description": "Augment `.claude/agents/task-master-specialist.md` so the specialist brief fully covers background agent behavior and expectations.",
+            "dependencies": [],
+            "details": "Document auto-invocation rules, background-agent workflows, standardized status/next-action/command suggestion templates, and authoritative Task Master references while preserving current architectural guardrails and referencing CLI formatter patterns from `apps/cli/src/utils/display-helpers.ts`.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Create background agent descriptor and register in local settings",
+            "description": "Add a dedicated background agent configuration for the Task Master specialist and expose it through settings.",
+            "dependencies": [
+              1
+            ],
+            "details": "Introduce `.claude/background-agents/task-master-specialist.json` defining CLI verb triggers (`list|show|next|expand|update|set-status|analyze`), natural-language cues, and `taskTags` matcher `taskmaster`, including delegation targets, required tools, output channel info, and fallback logic; update `.claude/settings.local.json` to register the new background agent entry.",
+            "status": "pending",
+            "testStrategy": "Validate JSON structure with `pwsh -Command \"Get-Content path | ConvertFrom-Json\"` to ensure syntax is correct."
+          },
+          {
+            "id": 3,
+            "title": "Refresh Task Master docs to explain automatic specialist takeover",
+            "description": "Update Task Master documentation and command surfaces to call out automatic delegation and manual fallback.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Revise `.taskmaster/CLAUDE.md`, `.claude/TM_COMMANDS_GUIDE.md`, `.claude/commands/tm-specialist.md`, and extend `.claude/AGENT_SETUP.md` with a new section covering delegation lifecycle, configuration knobs, troubleshooting, and instructions for temporarily disabling the background agent while keeping manual invocation guidance accurate.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 4,
+            "title": "Implement tag-driven delegation hooks in tm-bridge and CLI metadata",
+            "description": "Add runtime routing that emits Task Master delegation metadata when taskmaster tags or verbs are detected.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create a helper under `packages/tm-bridge/src/` to resolve delegation targets from tags, CLI verbs, and natural language; update `packages/tm-bridge/src/update-bridge.ts` to call it, emit background-agent metadata through `report`, and keep CLI output aligned with `apps/cli/src/utils/display-helpers.ts`; annotate relevant command entries in `apps/cli/src/command-registry.ts` (and related command modules if needed) so downstream layers can flag Task Master verbs for auto delegation.",
+            "status": "pending",
+            "testStrategy": "Covered by new unit and integration tests introduced in Subtask 5."
+          },
+          {
+            "id": 5,
+            "title": "Add Vitest coverage for delegation trigger matcher and CLI routing",
+            "description": "Write automated tests to confirm the new delegation matcher and CLI notice behave correctly.",
+            "dependencies": [
+              4
+            ],
+            "details": "Add Vitest unit tests within `packages/tm-bridge/src/` to exercise the trigger matcher across CLI verbs, natural-language prompts, and `taskmaster` tag cases versus unrelated inputs; create an integration-style test (e.g., under `apps/cli/tests`) that simulates an update command with the taskmaster tag, verifies the delegation notice, and ensures the remote update path is invoked when expected.",
+            "status": "pending",
+            "testStrategy": "Run `pnpm --filter @tm/bridge test` and the corresponding CLI test suite to confirm coverage passes."
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Fix Type Assertion in IntegrationDomain",
+        "description": "Replace 'as any' type assertion with proper typing for subtaskMode parameter in integration-domain.ts line 187. The current implementation uses 'as any' to handle enum mismatch which defeats type safety.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Analyze CLI and core subtask mode typing",
+            "description": "Review CLI and core sync sources to understand current subtask mode enums and their usage.",
+            "dependencies": [],
+            "details": "Inspect `apps/cli/src/commands/github/sync.command.ts` and `packages/tm-core/src/modules/integration/types/github-sync-state-types.ts` to document the accepted values and confirm how they reach `IntegrationDomain.syncWithGitHub`.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Implement safe subtask mode mapping and tests",
+            "description": "Introduce a typed mapper for subtask modes and remove the `as any` assertion in IntegrationDomain.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add a mapping utility to translate CLI-submitted modes to `SubtaskSyncMode`, update `packages/tm-core/src/modules/integration/integration-domain.ts` to use it, adjust type definitions as needed, and cover the mapping with unit tests.",
+            "status": "pending",
+            "testStrategy": "Add unit tests around the mapper plus existing sync flow tests to cover each accepted mode and the fallback case."
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Address TODO Comments in IntegrationDomain",
+        "description": "Review and implement or track all TODO comments found in integration-domain.ts including: two-way sync implementation (line 202), detailed conflict retrieval (line 369), calculate unmapped tasks (line 383), and implement change detection (lines 386-387).",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Refactor GitHub Configuration Validation",
+        "description": "Extract common GitHub configuration validation logic into a private validateGitHubConfiguration() method. Currently duplicated across syncWithGitHub, resolveConflict, getGitHubSyncStatus and other methods in integration-domain.ts.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Improve Conflict Resolution Implementation",
+        "description": "Fix placeholder values and 'any' types in the resolveConflict method (integration-domain.ts lines 278-287). The issueNumber is hardcoded to 0 with comment 'Will be looked up by service'. Implement proper conflict info lookup or disable feature.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Refactor Service Initialization Duplication",
+        "description": "Service initialization pattern (creating GitHubSyncStateService, GitHubConfigService, etc.) is duplicated across multiple methods in integration-domain.ts (lines 144-179, 248-270, 340-355). Implement lazy initialization or service factory method.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Implement Specific Error Handling in CLI Commands",
+        "description": "CLI commands (sync.command.ts, configure.command.ts) catch all errors generically. Improve by implementing different handling for network vs validation errors, specific exit codes for different error types, and retry prompts for transient failures.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T06:58:48.240Z",
+      "lastModified": "2025-10-31T07:12:14.816Z",
       "taskCount": 10,
-      "completedCount": 9,
+      "completedCount": 10,
       "tags": [
         "feat-github-sync"
-      ]
+      ],
+      "created": "2025-10-31T07:20:10.545Z",
+      "description": "Tasks for feat-github-sync context",
+      "updated": "2025-10-31T07:34:35.739Z"
     }
   }
 }

@@ -1,61 +1,69 @@
 {
 	"meta": {
-		"generatedAt": "2025-10-31T04:39:10.839Z",
-		"tasksAnalyzed": 6,
-		"totalTasks": 10,
-		"analysisCount": 6,
+		"generatedAt": "2025-10-31T07:45:06.452Z",
+		"tasksAnalyzed": 7,
+		"totalTasks": 17,
+		"analysisCount": 7,
 		"thresholdScore": 5,
 		"projectName": "Taskmaster",
 		"usedResearch": true
 	},
 	"complexityAnalysis": [
 		{
-			"taskId": 5,
-			"taskTitle": "Implement Conflict Detection and Resolution",
+			"taskId": 11,
+			"taskTitle": "Automate Task Master Specialist Delegation",
 			"complexityScore": 8,
 			"recommendedSubtasks": 6,
-			"expansionPrompt": "Break down conflict detection into detection algorithms, interactive UI components, auto-resolution strategies, validation layers, service orchestration, and comprehensive logging. Each component should handle specific conflict scenarios with proper error handling and user feedback.",
-			"reasoning": "High complexity due to bidirectional sync conflict handling, interactive resolution UI, multiple resolution strategies, and the need for robust undo functionality. Involves complex state management and user interaction patterns."
+			"expansionPrompt": "Separate the work into documentation updates, background-agent configuration/schema, CLI metadata changes, tm-bridge routing logic, automated test coverage, and verification steps for settings/formatting.",
+			"reasoning": "Automation touches multi-layer artifacts—the specialist brief needs major expansion `.claude/agents/task-master-specialist.md:1`, background-agent JSON is greenfield because `.claude/background-agents/` is absent, CLI metadata must tag verbs `apps/cli/src/command-registry.ts:17`, and tm-bridge needs delegation hooks plus metadata emission `packages/tm-bridge/src/update-bridge.ts:93`; new Vitest coverage under `packages/tm-bridge/src/` and CLI smoke checks add further effort."
 		},
 		{
-			"taskId": 6,
-			"taskTitle": "Implement Two-Way Sync with Conflict Handling",
-			"complexityScore": 9,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "Divide into state service core functionality, change detection mechanisms, conflict resolver integration, remote pull implementation, and local push synchronization. Focus on atomic operations, error handling, and data consistency throughout the bidirectional sync process.",
-			"reasoning": "Very high complexity as this is the core bidirectional sync functionality. Requires coordination of multiple services, atomic operations, conflict resolution integration, and handling of partial failures while maintaining data integrity."
+			"taskId": 12,
+			"taskTitle": "Fix Type Assertion in IntegrationDomain",
+			"complexityScore": 3,
+			"recommendedSubtasks": 2,
+			"expansionPrompt": "Review the subtask mode types used by the CLI and core sync service, then implement a safe mapping plus adjust typings/tests accordingly.",
+			"reasoning": "`IntegrationDomain.syncWithGitHub` still coerces `subtaskMode` with `as any` `packages/tm-core/src/modules/integration/integration-domain.ts:187` because the CLI surfaces `'separate-issues'` while the sync layer expects `SubtaskSyncMode` `'separate_issues'` `packages/tm-core/src/modules/integration/types/github-sync-state-types.ts:238`; adding a mapper while keeping CLI option parsing compatible `apps/cli/src/commands/github/sync.command.ts:33` is a contained change."
 		},
 		{
-			"taskId": 7,
-			"taskTitle": "Implement Advanced GitHub Features",
-			"complexityScore": 6,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "Split into milestone CRUD operations, GitHub Projects board integration, and assignee management. Each should include feature flags, validation, and support for both GitHub.com and Enterprise configurations.",
-			"reasoning": "Moderate-high complexity due to multiple GitHub API integrations (milestones, projects, assignees), but these are mostly independent features with existing patterns in the codebase. Feature flags and enterprise support add some complexity."
+			"taskId": 13,
+			"taskTitle": "Address TODO Comments in IntegrationDomain",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Plan subtasks for enabling two-way sync dispatch, enriching sync status (conflicts, unmapped tasks, change counts), wiring state/service helpers, and adding regression tests for these flows.",
+			"reasoning": "The domain currently throws for two-way sync `packages/tm-core/src/modules/integration/integration-domain.ts:201` despite `GitHubSyncService.syncWithGitHub` providing pull/push orchestration `packages/tm-core/src/modules/integration/services/github-sync.service.ts:1263`; status reporting leaves TODOs for conflicts and change counts `packages/tm-core/src/modules/integration/integration-domain.ts:369`/`383`/`386` even though `GitHubSyncStateService` exposes conflict lists and change metadata `packages/tm-core/src/modules/integration/services/github-sync-state.service.ts:262`/`395`; stitching these together and validating edge cases demands significant coordination and tests."
 		},
 		{
-			"taskId": 8,
-			"taskTitle": "Implement GitHub Configuration Management",
-			"complexityScore": 5,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "Break into token validation/authentication, interactive configuration command design, and configuration storage service. Focus on security, user experience, and integration with existing configuration patterns.",
-			"reasoning": "Moderate complexity involving secure credential handling, interactive CLI design, and configuration persistence. Builds on existing patterns in the CLI and configuration systems, but requires careful security considerations."
-		},
-		{
-			"taskId": 9,
-			"taskTitle": "Implement CLI Commands and User Interface",
-			"complexityScore": 6,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Divide into command structure definition, progress tracking/feedback systems, core sync logic implementation, and CLI registration/configuration. Follow established CLI patterns while adding GitHub-specific functionality.",
-			"reasoning": "Moderate-high complexity due to multiple CLI commands with various options, progress tracking, and integration with existing CLI patterns. Requires good UX design and comprehensive option handling."
-		},
-		{
-			"taskId": 10,
-			"taskTitle": "Extend Integration Domain Facade",
+			"taskId": 14,
+			"taskTitle": "Refactor GitHub Configuration Validation",
 			"complexityScore": 4,
 			"recommendedSubtasks": 3,
-			"expansionPrompt": "Split into method signature design, core logic implementation, and constructor/configuration updates. Ensure clean integration with existing export functionality and maintain backward compatibility.",
-			"reasoning": "Lower-moderate complexity as it's primarily extending an existing facade class with new methods. The existing IntegrationDomain pattern provides a clear template, and GitHub services are already implemented."
+			"expansionPrompt": "Catalog every spot in IntegrationDomain that validates GitHub settings, design a reusable helper with optional checks (token vs repo), update the callers, and adjust unit tests.",
+			"reasoning": "The same guard clauses for enabled, owner, repo, and token appear in several entry points—`syncWithGitHub` `packages/tm-core/src/modules/integration/integration-domain.ts:113`, `resolveConflict` `:237`, and `getGitHubSyncStatus` `:321`; extracting them into a private validator while preserving tailored error messages and differing requirements (token optional in status) adds moderate refactoring effort."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "Improve Conflict Resolution Implementation",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Outline subtasks to load real conflict details from state, map CLI strategies to domain enums, pass rich ConflictInfo into the resolver, and cover the flow with tests.",
+			"reasoning": "`resolveConflict` currently fabricates a stub `conflictInfo: any` with `issueNumber: 0` `packages/tm-core/src/modules/integration/integration-domain.ts:276`, yet the resolver expects structured `ConflictInfo` objects `packages/tm-core/src/modules/integration/types/github-conflict-types.ts:241`; stitching in `GitHubSyncStateService.getConflicts` `packages/tm-core/src/modules/integration/services/github-sync-state.service.ts:262` and translating simplified strategy strings into domain-level enums requires new plumbing and validation logic."
+		},
+		{
+			"taskId": 16,
+			"taskTitle": "Refactor Service Initialization Duplication",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Identify duplicated service instantiations, design a caching or factory helper, update the methods to reuse it, and validate lifecycle behavior.",
+			"reasoning": "Creating `GitHubSyncStateService`, `GitHubConfigService`, and `ConflictResolutionService` is repeated across sync and status flows—see `packages/tm-core/src/modules/integration/integration-domain.ts:150`, `:253`, `:345`, and `:517`; consolidating these into lazy singletons must preserve per-repo options while reducing repetition, which is a moderate refactor."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Implement Specific Error Handling in CLI Commands",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break the work into error classification design (leveraging TaskMasterError codes), command-level handling updates with exit codes/retry prompts, and automated tests documenting the new behavior.",
+			"reasoning": "GitHub CLI commands fallback to a blanket catch-and-exit pattern—`sync` `apps/cli/src/commands/github/sync.command.ts:180`, `configure` `apps/cli/src/commands/github/configure.command.ts:274`, `status` `apps/cli/src/commands/github/status.command.ts:127`—while the shared handler `apps/cli/src/utils/error-handler.ts:21` ignores `TaskMasterError` codes `packages/tm-core/src/common/errors/task-master-error.ts:19`; adding differentiated handling for network vs validation paths and user prompts requires coordinated updates and regression coverage."
 		}
 	]
 }
