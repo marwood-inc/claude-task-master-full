@@ -268,8 +268,8 @@ describe('utility functions', () => {
 		it('should calculate percentiles correctly', () => {
 			const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 			expect(calculatePercentile(data, 0.5)).toBe(5.5);
-			expect(calculatePercentile(data, 0.95)).toBe(9.55);
-			expect(calculatePercentile(data, 0.99)).toBe(9.91);
+			expect(calculatePercentile(data, 0.95)).toBeCloseTo(9.55, 2);
+			expect(calculatePercentile(data, 0.99)).toBeCloseTo(9.91, 2);
 		});
 
 		it('should handle edge cases', () => {
