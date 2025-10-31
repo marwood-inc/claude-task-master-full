@@ -95,6 +95,10 @@ export type {
 	ExportTasksOptions,
 	ExportResult
 } from './modules/integration/services/export.service.js';
+export type {
+	GitHubSyncOptions,
+	GitHubSyncStatusResult
+} from './modules/integration/integration-domain.js';
 
 // Reports types
 export type {

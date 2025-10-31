@@ -112,27 +112,14 @@ ${chalk.bold('Notes:')}
 			await this.initializeCore(options.project || process.cwd());
 			spinner.succeed('Task Master initialized');
 
-			// TODO: Implement status logic in subtask 9.3
-			// This will call tmCore.integration.getGitHubSyncStatus() once implemented
-
+			// Fetch GitHub sync status
 			spinner.start('Fetching GitHub sync status...');
 
-			// Placeholder result
-			const result: GitHubStatusResult = {
-				configured: false,
-				syncState: 'unknown',
-				tasksMapped: 0,
-				tasksUnmapped: 0,
-				conflicts: [],
-				pendingChanges: {
-					localChanges: 0,
-					remoteChanges: 0
-				}
-			};
+			const result = await this.tmCore!.integration.getGitHubSyncStatus();
 
 			this.lastResult = result;
 
-			spinner.warn('Status functionality not yet implemented (Task 9.3)');
+			spinner.succeed('Status retrieved');
 
 			// Display results
 			this.displayResults(result, options);

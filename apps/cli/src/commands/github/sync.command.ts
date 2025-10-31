@@ -6,9 +6,13 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora, { type Ora } from 'ora';
 import { createTmCore, type TmCore } from '@tm/core';
 import { displayError } from '../../utils/error-handler.js';
+import {
+	GitHubSyncProgress,
+	SyncResultFormatter,
+	ErrorGuidance
+} from '../../utils/github-sync-progress.js';
 
 /**
  * Options interface for the sync command
@@ -103,8 +107,6 @@ ${chalk.bold('Notes:')}
 	 * Execute the sync command
 	 */
 	private async executeSync(options: GitHubSyncCommandOptions): Promise<void> {
-		const spinner: Ora = ora();
-
 		try {
 			// Validate options
 			if (!this.validateOptions(options)) {
@@ -112,37 +114,78 @@ ${chalk.bold('Notes:')}
 			}
 
 			// Initialize tm-core
-			spinner.start('Initializing Task Master...');
+			const progress = new GitHubSyncProgress('Initializing Task Master...');
 			await this.initializeCore(options.project || process.cwd());
-			spinner.succeed('Task Master initialized');
+			progress.succeed('Task Master initialized');
 
 			// Display sync header
 			this.displaySyncHeader(options);
 
-			// TODO: Implement sync logic in subtask 9.3
-			// This will call tmCore.integration.syncWithGitHub() once implemented
+			// Fetch tasks
+			progress.updatePhase('fetching-tasks', 'Fetching tasks...');
+			const taskList = await this.tmCore!.tasks.list();
+			const tasks = taskList.tasks;
 
-			spinner.warn('GitHub sync is not yet fully implemented (Task 9.3)');
+			progress.succeed(`Loaded ${tasks.length} tasks`);
 
-			// Placeholder result
-			const result: GitHubSyncResult = {
-				success: false,
+			if (tasks.length === 0) {
+				progress.warn('No tasks to sync');
+				console.log(
+					chalk.yellow(
+						'\nNo tasks found. Add tasks with ' +
+							chalk.cyan('tm add-task') +
+							' or import from PRD.'
+					)
+				);
+				return;
+			}
+
+			// Perform sync
+			progress.updatePhase(
+				'syncing-to-github',
+				options.dryRun ? 'Previewing sync...' : 'Syncing to GitHub...'
+			);
+
+			const coreResult = await this.tmCore!.integration.syncWithGitHub(tasks, {
 				mode: options.mode || 'one-way',
-				tasksProcessed: 0,
-				tasksCreated: 0,
-				tasksUpdated: 0,
-				tasksFailed: 0,
-				errors: ['Sync functionality not yet implemented'],
-				warnings: [],
-				dryRun: options.dryRun || false
+				dryRun: options.dryRun || false,
+				force: options.force || false,
+				subtaskMode: options.subtaskMode,
+				repo: options.repo
+			});
+
+			// Convert core result to CLI result
+			const result: GitHubSyncResult = {
+				success: coreResult.success,
+				mode: options.mode || 'one-way',
+				tasksProcessed: coreResult.tasksProcessed,
+				tasksCreated: coreResult.tasksCreated,
+				tasksUpdated: coreResult.tasksUpdated,
+				tasksFailed: coreResult.tasksFailed,
+				errors: coreResult.errors || [],
+				warnings: coreResult.warnings || [],
+				dryRun: coreResult.dryRun
 			};
 
 			this.lastResult = result;
 
-			spinner.fail('Sync incomplete - implementation pending');
+			// Mark as complete
+			if (result.success) {
+				progress.succeed(
+					result.dryRun
+						? 'Dry run completed successfully'
+						: 'Sync completed successfully'
+				);
+			} else {
+				progress.fail('Sync completed with errors');
+			}
+
+			// Display results
+			this.displayResults(result);
 		} catch (error) {
-			spinner.fail('Sync failed');
-			displayError(error);
+			// Display error with guidance
+			console.log(); // Empty line for spacing
+			ErrorGuidance.displayWithGuidance(error as Error);
 			process.exit(1);
 		}
 	}
@@ -205,6 +248,30 @@ ${chalk.bold('Notes:')}
 		}
 
 		console.log(); // Empty line
+	}
+
+	/**
+	 * Display sync results
+	 */
+	private displayResults(result: GitHubSyncResult): void {
+		// Display summary
+		SyncResultFormatter.displaySummary(result);
+
+		// Display errors
+		if (result.errors.length > 0) {
+			SyncResultFormatter.displayErrors(result.errors);
+		}
+
+		// Display warnings
+		if (result.warnings.length > 0) {
+			SyncResultFormatter.displayWarnings(result.warnings);
+		}
+
+		// Display next steps
+		SyncResultFormatter.displayNextSteps({
+			success: result.success,
+			tasksFailed: result.tasksFailed
+		});
 	}
 
 	/**
