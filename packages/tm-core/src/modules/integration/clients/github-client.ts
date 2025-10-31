@@ -6,6 +6,14 @@
 import { Octokit } from '@octokit/rest';
 import type { OctokitOptions } from '@octokit/core';
 import { getLogger } from '../../../common/logger/index.js';
+import type {
+	GitHubIssue,
+	GitHubLabel,
+	GitHubMilestone,
+	GitHubIssueUpdate,
+	GitHubLabelUpdate,
+	GitHubMilestoneUpdate
+} from '../types/index.js';
 
 export interface GitHubClientConfig {
 	/**
@@ -278,6 +286,390 @@ export class GitHubClient {
 			};
 		} catch (error) {
 			this.handleError(error, 'Failed to verify repository access');
+		}
+	}
+
+	// ==================== Issue Operations ====================
+
+	/**
+	 * Create a new GitHub issue
+	 */
+	async createIssue(
+		owner: string,
+		repo: string,
+		data: {
+			title: string;
+			body?: string;
+			labels?: string[];
+			assignees?: string[];
+			milestone?: number;
+		}
+	): Promise<GitHubIssue> {
+		try {
+			this.logger.debug('Creating issue', { owner, repo, title: data.title });
+
+			const { data: issue } = await this.octokit.rest.issues.create({
+				owner,
+				repo,
+				...data
+			});
+
+			this.logger.info('Issue created', {
+				number: issue.number,
+				title: issue.title
+			});
+
+			return issue as GitHubIssue;
+		} catch (error) {
+			this.handleError(error, 'Failed to create issue');
+		}
+	}
+
+	/**
+	 * Get a GitHub issue by number
+	 */
+	async getIssue(
+		owner: string,
+		repo: string,
+		issueNumber: number
+	): Promise<GitHubIssue> {
+		try {
+			this.logger.debug('Getting issue', { owner, repo, issueNumber });
+
+			const { data } = await this.octokit.rest.issues.get({
+				owner,
+				repo,
+				issue_number: issueNumber
+			});
+
+			return data as GitHubIssue;
+		} catch (error) {
+			this.handleError(error, `Failed to get issue #${issueNumber}`);
+		}
+	}
+
+	/**
+	 * Update a GitHub issue
+	 */
+	async updateIssue(
+		owner: string,
+		repo: string,
+		issueNumber: number,
+		data: GitHubIssueUpdate
+	): Promise<GitHubIssue> {
+		try {
+			this.logger.debug('Updating issue', { owner, repo, issueNumber });
+
+			const { data: issue } = await this.octokit.rest.issues.update({
+				owner,
+				repo,
+				issue_number: issueNumber,
+				...data
+			});
+
+			this.logger.info('Issue updated', {
+				number: issue.number,
+				title: issue.title
+			});
+
+			return issue as GitHubIssue;
+		} catch (error) {
+			this.handleError(error, `Failed to update issue #${issueNumber}`);
+		}
+	}
+
+	/**
+	 * List issues in a repository
+	 */
+	async listIssues(
+		owner: string,
+		repo: string,
+		options?: {
+			state?: 'open' | 'closed' | 'all';
+			labels?: string;
+			sort?: 'created' | 'updated' | 'comments';
+			direction?: 'asc' | 'desc';
+			since?: string;
+			per_page?: number;
+			page?: number;
+		}
+	): Promise<GitHubIssue[]> {
+		try {
+			this.logger.debug('Listing issues', { owner, repo, options });
+
+			const { data } = await this.octokit.rest.issues.listForRepo({
+				owner,
+				repo,
+				...options
+			});
+
+			return data as GitHubIssue[];
+		} catch (error) {
+			this.handleError(error, 'Failed to list issues');
+		}
+	}
+
+	// ==================== Label Operations ====================
+
+	/**
+	 * Create a new label
+	 */
+	async createLabel(
+		owner: string,
+		repo: string,
+		data: {
+			name: string;
+			color: string;
+			description?: string;
+		}
+	): Promise<GitHubLabel> {
+		try {
+			this.logger.debug('Creating label', { owner, repo, name: data.name });
+
+			const { data: label } = await this.octokit.rest.issues.createLabel({
+				owner,
+				repo,
+				...data
+			});
+
+			this.logger.info('Label created', { name: label.name });
+
+			return label as GitHubLabel;
+		} catch (error) {
+			this.handleError(error, 'Failed to create label');
+		}
+	}
+
+	/**
+	 * Get a label by name
+	 */
+	async getLabel(
+		owner: string,
+		repo: string,
+		name: string
+	): Promise<GitHubLabel> {
+		try {
+			this.logger.debug('Getting label', { owner, repo, name });
+
+			const { data } = await this.octokit.rest.issues.getLabel({
+				owner,
+				repo,
+				name
+			});
+
+			return data as GitHubLabel;
+		} catch (error) {
+			this.handleError(error, `Failed to get label "${name}"`);
+		}
+	}
+
+	/**
+	 * Update a label
+	 */
+	async updateLabel(
+		owner: string,
+		repo: string,
+		name: string,
+		data: GitHubLabelUpdate
+	): Promise<GitHubLabel> {
+		try {
+			this.logger.debug('Updating label', { owner, repo, name });
+
+			const { data: label } = await this.octokit.rest.issues.updateLabel({
+				owner,
+				repo,
+				name,
+				...data
+			});
+
+			this.logger.info('Label updated', { name: label.name });
+
+			return label as GitHubLabel;
+		} catch (error) {
+			this.handleError(error, `Failed to update label "${name}"`);
+		}
+	}
+
+	/**
+	 * Delete a label
+	 */
+	async deleteLabel(owner: string, repo: string, name: string): Promise<void> {
+		try {
+			this.logger.debug('Deleting label', { owner, repo, name });
+
+			await this.octokit.rest.issues.deleteLabel({
+				owner,
+				repo,
+				name
+			});
+
+			this.logger.info('Label deleted', { name });
+		} catch (error) {
+			this.handleError(error, `Failed to delete label "${name}"`);
+		}
+	}
+
+	/**
+	 * List all labels in a repository
+	 */
+	async listLabels(
+		owner: string,
+		repo: string,
+		options?: {
+			per_page?: number;
+			page?: number;
+		}
+	): Promise<GitHubLabel[]> {
+		try {
+			this.logger.debug('Listing labels', { owner, repo });
+
+			const { data } = await this.octokit.rest.issues.listLabelsForRepo({
+				owner,
+				repo,
+				...options
+			});
+
+			return data as GitHubLabel[];
+		} catch (error) {
+			this.handleError(error, 'Failed to list labels');
+		}
+	}
+
+	// ==================== Milestone Operations ====================
+
+	/**
+	 * Create a new milestone
+	 */
+	async createMilestone(
+		owner: string,
+		repo: string,
+		data: {
+			title: string;
+			state?: 'open' | 'closed';
+			description?: string;
+			due_on?: string;
+		}
+	): Promise<GitHubMilestone> {
+		try {
+			this.logger.debug('Creating milestone', { owner, repo, title: data.title });
+
+			const { data: milestone } = await this.octokit.rest.issues.createMilestone(
+				{
+					owner,
+					repo,
+					...data
+				}
+			);
+
+			this.logger.info('Milestone created', { title: milestone.title });
+
+			return milestone as GitHubMilestone;
+		} catch (error) {
+			this.handleError(error, 'Failed to create milestone');
+		}
+	}
+
+	/**
+	 * Get a milestone by number
+	 */
+	async getMilestone(
+		owner: string,
+		repo: string,
+		milestoneNumber: number
+	): Promise<GitHubMilestone> {
+		try {
+			this.logger.debug('Getting milestone', { owner, repo, milestoneNumber });
+
+			const { data } = await this.octokit.rest.issues.getMilestone({
+				owner,
+				repo,
+				milestone_number: milestoneNumber
+			});
+
+			return data as GitHubMilestone;
+		} catch (error) {
+			this.handleError(error, `Failed to get milestone #${milestoneNumber}`);
+		}
+	}
+
+	/**
+	 * Update a milestone
+	 */
+	async updateMilestone(
+		owner: string,
+		repo: string,
+		milestoneNumber: number,
+		data: GitHubMilestoneUpdate
+	): Promise<GitHubMilestone> {
+		try {
+			this.logger.debug('Updating milestone', { owner, repo, milestoneNumber });
+
+			const { data: milestone } = await this.octokit.rest.issues.updateMilestone(
+				{
+					owner,
+					repo,
+					milestone_number: milestoneNumber,
+					...data
+				}
+			);
+
+			this.logger.info('Milestone updated', { title: milestone.title });
+
+			return milestone as GitHubMilestone;
+		} catch (error) {
+			this.handleError(error, `Failed to update milestone #${milestoneNumber}`);
+		}
+	}
+
+	/**
+	 * Delete a milestone
+	 */
+	async deleteMilestone(
+		owner: string,
+		repo: string,
+		milestoneNumber: number
+	): Promise<void> {
+		try {
+			this.logger.debug('Deleting milestone', { owner, repo, milestoneNumber });
+
+			await this.octokit.rest.issues.deleteMilestone({
+				owner,
+				repo,
+				milestone_number: milestoneNumber
+			});
+
+			this.logger.info('Milestone deleted', { milestoneNumber });
+		} catch (error) {
+			this.handleError(error, `Failed to delete milestone #${milestoneNumber}`);
+		}
+	}
+
+	/**
+	 * List all milestones in a repository
+	 */
+	async listMilestones(
+		owner: string,
+		repo: string,
+		options?: {
+			state?: 'open' | 'closed' | 'all';
+			sort?: 'due_on' | 'completeness';
+			direction?: 'asc' | 'desc';
+			per_page?: number;
+			page?: number;
+		}
+	): Promise<GitHubMilestone[]> {
+		try {
+			this.logger.debug('Listing milestones', { owner, repo });
+
+			const { data } = await this.octokit.rest.issues.listMilestones({
+				owner,
+				repo,
+				...options
+			});
+
+			return data as GitHubMilestone[];
+		} catch (error) {
+			this.handleError(error, 'Failed to list milestones');
 		}
 	}
 }

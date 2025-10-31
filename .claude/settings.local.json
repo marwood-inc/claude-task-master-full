@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(task-master show:*)",
-      "Bash(task-master set-status:*)"
+      "Bash(task-master set-status:*)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enabledMcpjsonServers": [
