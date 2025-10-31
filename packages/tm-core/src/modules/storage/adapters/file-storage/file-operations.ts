@@ -4,13 +4,43 @@
 
 import fs from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { ResourceMutex } from '../../../../common/utils/mutex.js';
 import type { FileStorageData } from './format-handler.js';
 
 /**
- * Handles atomic file operations with locking mechanism
+ * Configuration options for FileOperations
+ */
+export interface FileOperationsOptions {
+	/**
+	 * Timeout for acquiring file locks in milliseconds
+	 * @default 30000 (30 seconds)
+	 */
+	mutexTimeout?: number;
+
+	/**
+	 * Optional logger for debug-level logging
+	 */
+	logger?: {
+		debug: (message: string, meta?: any) => void;
+		warn: (message: string, meta?: any) => void;
+		error: (message: string, meta?: any) => void;
+	};
+}
+
+/**
+ * Handles atomic file operations with mutex-based locking
  */
 export class FileOperations {
-	private fileLocks: Map<string, Promise<void>> = new Map();
+	private readonly mutex: ResourceMutex;
+	private readonly logger?: FileOperationsOptions['logger'];
+
+	constructor(options?: FileOperationsOptions) {
+		// Initialize mutex with configurable timeout (default 30s like GitHubSyncStateService)
+		this.mutex = new ResourceMutex({
+			timeout: options?.mutexTimeout ?? 30000
+		});
+		this.logger = options?.logger;
+	}
 
 	/**
 	 * Read and parse JSON file
@@ -31,27 +61,25 @@ export class FileOperations {
 	}
 
 	/**
-	 * Write JSON file with atomic operation and locking
+	 * Write JSON file with mutex-protected atomic operation
 	 */
 	async writeJson(
 		filePath: string,
 		data: FileStorageData | any
 	): Promise<void> {
-		// Use file locking to prevent concurrent writes
-		const lockKey = filePath;
-		const existingLock = this.fileLocks.get(lockKey);
-
-		if (existingLock) {
-			await existingLock;
-		}
-
-		const lockPromise = this.performAtomicWrite(filePath, data);
-		this.fileLocks.set(lockKey, lockPromise);
+		this.logger?.debug('Acquiring mutex for writeJson', { filePath });
+		const release = await this.mutex.acquire(filePath);
 
 		try {
-			await lockPromise;
+			this.logger?.debug('Mutex acquired, performing write', { filePath });
+			await this.performAtomicWrite(filePath, data);
+			this.logger?.debug('Write completed successfully', { filePath });
+		} catch (error: any) {
+			this.logger?.error('Write failed', { filePath, error: error.message });
+			throw error;
 		} finally {
-			this.fileLocks.delete(lockKey);
+			release();
+			this.logger?.debug('Mutex released', { filePath });
 		}
 	}
 
@@ -107,15 +135,27 @@ export class FileOperations {
 	}
 
 	/**
-	 * Create directory recursively
+	 * Create directory recursively with mutex protection
 	 */
 	async ensureDir(dirPath: string): Promise<void> {
+		this.logger?.debug('Acquiring mutex for ensureDir', { dirPath });
+		const release = await this.mutex.acquire(dirPath);
+
 		try {
+			this.logger?.debug('Mutex acquired, creating directory', { dirPath });
 			await fs.mkdir(dirPath, { recursive: true });
+			this.logger?.debug('Directory created successfully', { dirPath });
 		} catch (error: any) {
+			this.logger?.error('Directory creation failed', {
+				dirPath,
+				error: error.message
+			});
 			throw new Error(
 				`Failed to create directory ${dirPath}: ${error.message}`
 			);
+		} finally {
+			release();
+			this.logger?.debug('Mutex released', { dirPath });
 		}
 	}
 
@@ -162,10 +202,13 @@ export class FileOperations {
 	 * Clean up all pending file operations
 	 */
 	async cleanup(): Promise<void> {
-		const locks = Array.from(this.fileLocks.values());
-		if (locks.length > 0) {
-			await Promise.all(locks);
+		const stats = this.mutex.getStats();
+		if (stats.lockedResources > 0 || stats.totalWaiters > 0) {
+			this.logger?.warn('Cleanup called with active operations', {
+				lockedResources: stats.lockedResources,
+				waiters: stats.totalWaiters
+			});
 		}
-		this.fileLocks.clear();
+		this.logger?.debug('FileOperations cleanup completed');
 	}
 }

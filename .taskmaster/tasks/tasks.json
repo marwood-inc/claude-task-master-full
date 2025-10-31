@@ -7599,7 +7599,7 @@
         "description": "Replace the current Map<string, Promise<void>> file locking mechanism with a proper mutex/semaphore pattern using acquire/release mechanism to prevent data corruption in concurrent operations.",
         "details": "The current file locking implementation in GitHubSyncStateService at line 150 uses a simple Map<string, Promise<void>> which has several race condition vulnerabilities: 1) Multiple concurrent operations can create new promises before existing ones are stored, 2) The promise-based approach doesn't provide proper acquire/release semantics, 3) Lock cleanup timing can allow overlapping operations. Implement a proper Mutex class with acquire() and release() methods that: - Maintains a queue of pending operations per file path, - Provides atomic lock acquisition with proper error handling, - Implements timeout mechanisms to prevent deadlocks, - Ensures locks are always released even on exceptions, - Supports reentrant locking for the same operation context. The mutex should be used in saveState(), modifyState(), and saveStateWithoutBackup() methods (lines 794-826, 899-941, 1005-1039). Consider creating a shared utility class since the same pattern exists in file-operations.ts. Include proper TypeScript types for the mutex interface and ensure backward compatibility with existing error handling patterns.",
         "testStrategy": "Create comprehensive unit tests covering: 1) Concurrent write scenarios with multiple simultaneous file operations, 2) Exception handling during locked operations to ensure locks are properly released, 3) Timeout scenarios to verify deadlock prevention, 4) Sequential operation ordering to ensure FIFO queue behavior, 5) Stress testing with rapid succession of file operations, 6) Integration tests with actual file I/O to verify atomic operations, 7) Mock scenarios testing lock acquisition/release timing, 8) Backward compatibility tests ensuring existing GitHubSyncStateService functionality remains intact. Use Jest with async/await patterns and proper cleanup in afterEach hooks.",
-        "status": "done",
+        "status": "in-progress",
         "dependencies": [],
         "priority": "medium",
         "subtasks": [
@@ -7635,9 +7635,10 @@
               1
             ],
             "details": "Refactor file-operations.ts to import mutex module, initialize per-path locks, ensure compatibility with adapter call patterns, and align configuration with service usage.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Extend adapter unit tests to exercise concurrent writes and confirm order preservation and proper cleanup.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T22:58:29.953Z"
           },
           {
             "id": 4,
@@ -7648,10 +7649,10 @@
               3
             ],
             "details": "Author stress tests for skipped concurrency specs, simulate overlapping operations, assert deterministic sequencing, validate locks release on exceptions, and verify timeout handling paths.",
-            "status": "done",
+            "status": "pending",
             "testStrategy": "Use jest parallel test helpers or manual Promise coordination to run simultaneous operations and assert resulting state and logged errors.",
             "parentId": "undefined",
-            "updatedAt": "2025-10-31T14:27:47.134Z"
+            "updatedAt": "2025-10-31T21:42:47.344Z"
           },
           {
             "id": 5,
@@ -7662,16 +7663,16 @@
               3
             ],
             "details": "Audit log messages around lock acquisition failures, ensure timeout errors map to existing patterns, update documentation if needed, and confirm configuration knobs remain unchanged.",
-            "status": "done",
+            "status": "pending",
             "testStrategy": null,
             "parentId": "undefined",
-            "updatedAt": "2025-10-31T14:30:36.619Z"
+            "updatedAt": "2025-10-31T21:42:56.730Z"
           }
         ],
         "complexity": 8,
         "recommendedSubtasks": 5,
         "expansionPrompt": "Outline subtasks that cover designing a reusable async mutex utility with timeouts/reentrancy, refactoring both `GitHubSyncStateService` and the file-storage adapter to adopt it, adding targeted concurrency tests (unit + integration), and validating logging/backward-compatibility.",
-        "updatedAt": "2025-10-31T14:36:15.633Z"
+        "updatedAt": "2025-10-31T22:58:29.953Z"
       },
       {
         "id": "19",
@@ -7904,9 +7905,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T14:36:15.639Z",
+      "lastModified": "2025-10-31T22:58:29.989Z",
       "taskCount": 22,
-      "completedCount": 18,
+      "completedCount": 17,
       "tags": [
         "feat-github-sync"
       ]
