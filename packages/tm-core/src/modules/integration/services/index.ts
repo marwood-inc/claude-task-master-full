@@ -10,6 +10,9 @@ export type {
 	RateLimitStatus
 } from './github-auth.service.js';
 
+export { GitHubConfigService } from './github-config.service.js';
+export type { GitHubConfigValidation } from './github-config.service.js';
+
 export { GitHubFieldMapper } from './github-field-mapper.js';
 export type { FieldMappingConfig } from './github-field-mapper.js';
 

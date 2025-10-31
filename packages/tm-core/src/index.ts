@@ -131,6 +131,8 @@ export type {
 	PermissionCheckResult,
 	RateLimitStatus
 } from './modules/integration/services/github-auth.service.js';
+export { GitHubConfigService } from './modules/integration/services/github-config.service.js';
+export type { GitHubConfigValidation } from './modules/integration/services/github-config.service.js';
 
 // Config - Advanced
 export { ConfigManager } from './modules/config/managers/config-manager.js';

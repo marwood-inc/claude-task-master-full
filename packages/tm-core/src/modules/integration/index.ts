@@ -40,6 +40,8 @@ export type {
 	PermissionCheckResult,
 	RateLimitStatus
 } from './services/github-auth.service.js';
+export { GitHubConfigService } from './services/github-config.service.js';
+export type { GitHubConfigValidation } from './services/github-config.service.js';
 export { GitHubSyncStateService } from './services/github-sync-state.service.js';
 export { GitHubFieldMapper } from './services/github-field-mapper.js';
 
