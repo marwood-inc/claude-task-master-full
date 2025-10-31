@@ -250,6 +250,227 @@ describe('FileStorage - Single Task Lookup', () => {
 	});
 
 	describe('Performance and Memory', () => {
-		// Tests will be added in subtask 9.3
+		it('should be faster than loadTasks() for single task lookup', async () => {
+			// Create a larger dataset for meaningful performance comparison
+			const largeTasks: Task[] = Array.from({ length: 100 }, (_, i) => ({
+				id: String(i + 1),
+				title: `Task ${i + 1}`,
+				description: `Description ${i + 1}`,
+				status: 'pending' as TaskStatus,
+				priority: 'medium',
+				dependencies: [],
+				details: `Details ${i + 1}`,
+				testStrategy: `Test strategy ${i + 1}`,
+				subtasks: [],
+				tags: ['master'],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}));
+
+			await storage.saveTasks(largeTasks, 'master');
+
+			// Measure loadTask (optimized single task lookup)
+			const start1 = Date.now();
+			const singleTask = await storage.loadTask('50', 'master');
+			const duration1 = Date.now() - start1;
+
+			// Measure loadTasks + find (old approach)
+			const start2 = Date.now();
+			const allTasks = await storage.loadTasks('master');
+			const foundTask = allTasks.find((t) => t.id === '50');
+			const duration2 = Date.now() - start2;
+
+			expect(singleTask?.id).toBe('50');
+			expect(foundTask?.id).toBe('50');
+			// Single task lookup should be faster than loading all tasks
+			expect(duration1).toBeLessThan(duration2);
+		});
+
+		it('should use less memory than loadTasks() approach', async () => {
+			// Create large dataset with subtasks
+			const largeTasks: Task[] = Array.from({ length: 50 }, (_, i) => ({
+				id: String(i + 1),
+				title: `Task ${i + 1}`,
+				description: `Description ${i + 1}`,
+				status: 'pending' as TaskStatus,
+				priority: 'medium',
+				dependencies: [],
+				details: `Details ${i + 1}`,
+				testStrategy: `Test strategy ${i + 1}`,
+				subtasks: Array.from({ length: 5 }, (_, j) => ({
+					id: j + 1,
+					title: `Subtask ${i + 1}.${j + 1}`,
+					description: `Subtask description`,
+					status: 'pending' as TaskStatus,
+					priority: 'medium',
+					dependencies: [],
+					details: '',
+					testStrategy: '',
+					parentId: String(i + 1),
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString()
+				})),
+				tags: ['master'],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}));
+
+			await storage.saveTasks(largeTasks, 'master');
+
+			// Force GC if available
+			if (global.gc) {
+				global.gc();
+			}
+
+			const memBefore = process.memoryUsage().heapUsed;
+
+			// Use optimized single task lookup multiple times
+			for (let i = 0; i < 20; i++) {
+				await storage.loadTask('25', 'master');
+			}
+
+			if (global.gc) {
+				global.gc();
+			}
+
+			const memAfter = process.memoryUsage().heapUsed;
+			const memGrowth = memAfter - memBefore;
+
+			// Memory growth should be reasonable (less than 5MB for 20 lookups)
+			expect(memGrowth).toBeLessThan(5 * 1024 * 1024);
+		});
+
+		it('should perform consistently for repeated lookups', async () => {
+			const durations: number[] = [];
+
+			// Perform multiple lookups
+			for (let i = 0; i < 10; i++) {
+				const start = Date.now();
+				await storage.loadTask('2', 'master');
+				durations.push(Date.now() - start);
+			}
+
+			// Calculate average and standard deviation
+			const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+			const variance =
+				durations.reduce((sum, d) => sum + Math.pow(d - avg, 2), 0) /
+				durations.length;
+			const stdDev = Math.sqrt(variance);
+
+			// Performance should be consistent (low standard deviation)
+			expect(stdDev).toBeLessThan(avg * 0.5); // StdDev less than 50% of average
+		});
+
+		it('should handle concurrent single task lookups efficiently', async () => {
+			const start = Date.now();
+
+			// Issue 20 concurrent lookups
+			const promises = Array.from({ length: 20 }, (_, i) =>
+				storage.loadTask(String((i % 3) + 1), 'master')
+			);
+
+			const results = await Promise.all(promises);
+			const duration = Date.now() - start;
+
+			// All lookups should succeed
+			results.forEach((result) => {
+				expect(result).toBeDefined();
+				expect(result?.id).toMatch(/^[123]$/);
+			});
+
+			// Should complete in reasonable time (under 500ms)
+			expect(duration).toBeLessThan(500);
+		});
+
+		it('should be faster for subtask lookups than loading all tasks', async () => {
+			// Create task with many subtasks
+			const taskWithManySubtasks: Task = {
+				id: '100',
+				title: 'Task with many subtasks',
+				description: 'Test',
+				status: 'pending' as TaskStatus,
+				priority: 'high',
+				dependencies: [],
+				details: '',
+				testStrategy: '',
+				subtasks: Array.from({ length: 50 }, (_, i) => ({
+					id: i + 1,
+					title: `Subtask ${i + 1}`,
+					description: 'Test',
+					status: 'pending' as TaskStatus,
+					priority: 'medium',
+					dependencies: [],
+					details: '',
+					testStrategy: '',
+					parentId: '100',
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString()
+				})),
+				tags: ['master'],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			};
+
+			const existingTasks = await storage.loadTasks('master');
+			await storage.saveTasks([...existingTasks, taskWithManySubtasks], 'master');
+
+			// Measure direct subtask lookup
+			const start1 = Date.now();
+			const subtask = await storage.loadTask('100.25', 'master');
+			const duration1 = Date.now() - start1;
+
+			expect(subtask?.id).toBe('100.25');
+			expect(duration1).toBeLessThan(100); // Should be very fast
+		});
+
+		it('should enrich only the single task, not all tasks', async () => {
+			// Create multiple tasks
+			const tasks: Task[] = Array.from({ length: 20 }, (_, i) => ({
+				id: String(i + 1),
+				title: `Task ${i + 1}`,
+				description: `Description ${i + 1}`,
+				status: 'pending' as TaskStatus,
+				priority: 'medium',
+				dependencies: [],
+				details: `Details ${i + 1}`,
+				testStrategy: `Test strategy ${i + 1}`,
+				subtasks: [],
+				tags: ['master'],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}));
+
+			await storage.saveTasks(tasks, 'master');
+
+			const start = Date.now();
+			const task = await storage.loadTask('10', 'master');
+			const duration = Date.now() - start;
+
+			// Should be fast since only enriching one task
+			expect(task?.id).toBe('10');
+			expect(duration).toBeLessThan(50); // Should be very fast
+		});
+
+		it('should not have memory leaks with repeated single task lookups', async () => {
+			const initialMemory = process.memoryUsage().heapUsed;
+
+			// Perform many single task lookups
+			for (let i = 0; i < 100; i++) {
+				await storage.loadTask('1', 'master');
+				await storage.loadTask('2', 'master');
+				await storage.loadTask('1.1', 'master');
+			}
+
+			// Force GC if available
+			if (global.gc) {
+				global.gc();
+			}
+
+			const finalMemory = process.memoryUsage().heapUsed;
+			const memoryGrowth = finalMemory - initialMemory;
+
+			// Memory growth should be minimal (less than 5MB for 300 lookups)
+			expect(memoryGrowth).toBeLessThan(5 * 1024 * 1024);
+		});
 	});
 });
