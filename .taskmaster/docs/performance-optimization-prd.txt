@@ -1,0 +1,683 @@
+<context>
+# Overview
+
+Task Master AI is experiencing performance bottlenecks in its core storage layer and build system that impact user experience across CLI, MCP, and extension interfaces. This initiative addresses three critical performance areas:
+
+1. **File I/O Redundancy**: Every task read operation loads and parses the entire tasks.json file, even for single-task queries or repeated requests
+2. **Inefficient Single-Task Lookups**: Retrieving one task requires loading all tasks into memory, causing O(n) performance where n = total task count
+3. **Suboptimal Production Builds**: Missing advanced minification and tree-shaking results in larger bundles and slower cold starts
+
+**Problem Statement**: Users experience slow response times (200ms+ for MCP requests), high memory usage, and large installation sizes. The core FileStorage class performs redundant file operations, and the build system doesn't leverage modern optimization techniques.
+
+**Target Users**:
+- CLI users executing frequent task operations
+- Claude Code/MCP clients making repeated API calls
+- VS Code extension users with real-time task updates
+- Developers running tests and development builds
+
+**Value Proposition**: By implementing intelligent caching, optimized lookups, and advanced build configurations, we can achieve:
+- 70-90% reduction in file I/O operations for read-heavy workloads
+- 50-80% faster single task retrieval in large projects (500+ tasks)
+- 20-30% smaller production bundles with faster startup times
+- Improved developer experience with faster test runs
+
+# Core Features
+
+## Feature 1: In-Memory Caching Layer
+
+**What it does**: Implements an LRU-style cache with TTL (time-to-live) for task data, eliminating redundant file reads for recently accessed data.
+
+**Why it's important**: The current architecture reads tasks.json on every operation. For MCP workflows where multiple tools may query the same data within seconds, this creates unnecessary I/O overhead. Caching reduces disk operations by 70-90% for typical workflows.
+
+**How it works at a high level**:
+- FileStorage maintains a Map-based cache storing parsed task data with timestamps
+- Before file reads, check cache and return data if within TTL (5 seconds default)
+- All write operations invalidate the cache to ensure data consistency
+- Cache keys include tag and filter parameters for accurate cache hits
+
+## Feature 2: Optimized Single Task Lookup
+
+**What it does**: Refactors the `loadTask()` method to avoid loading all tasks when fetching a single task by ID.
+
+**Why it's important**: Current implementation calls `loadTasks()` which parses all tasks even when searching for task "1" in a 500-task file. This creates O(n) performance with unnecessary memory allocation.
+
+**How it works at a high level**:
+- Separate code paths for regular tasks vs. subtasks
+- For regular tasks: load and parse only until target task is found (early exit)
+- For subtasks: maintain existing logic (requires parent context)
+- Enrich only the single returned task, not the entire task list
+
+## Feature 3: Production Build Optimizations
+
+**What it does**: Enhances tsdown build configuration with advanced minification, tree-shaking, and dead code elimination.
+
+**Why it's important**: Current builds include debug logging, unnecessary whitespace, and unused exports. Production bundles should be optimized for size and startup performance.
+
+**How it works at a high level**:
+- Configure minifier to drop console.log, debugger statements, and debug-level logger calls
+- Enable aggressive tree-shaking with `preset: 'recommended'`
+- Add mangle options to shorten variable names in production
+- Enable code splitting for better caching in production deployments
+
+# User Experience
+
+## User Personas
+
+**Persona 1: CLI Power User**
+- Runs `task-master list`, `show`, `next` commands frequently throughout the day
+- Expects sub-100ms response times for cached operations
+- Benefits from caching layer reducing latency by 80%+
+
+**Persona 2: MCP/Claude Code User**
+- Uses Task Master via MCP tools in Claude Code sessions
+- Makes 10-50 task queries per session, often repeated
+- Benefits from reduced cold-start times and cached responses
+
+**Persona 3: Extension User**
+- Has VS Code extension polling for task updates
+- Needs real-time updates without performance degradation
+- Benefits from optimized single-task lookups during status changes
+
+**Persona 4: Developer/Contributor**
+- Runs builds and tests locally during development
+- Needs fast iteration cycles
+- Benefits from faster production builds and smaller bundle analysis
+
+## Key User Flows
+
+### Flow 1: Repeated Task List Queries (CLI/MCP)
+1. User runs `task-master list` or MCP `get_tasks` tool
+2. First request: Cache miss → Read file, parse, cache result (200ms)
+3. Subsequent requests within 5s: Cache hit → Return cached data (20ms)
+4. **Improvement**: 90% latency reduction for repeated reads
+
+### Flow 2: Single Task Retrieval
+1. User runs `task-master show 42` or MCP `get_task` tool
+2. Current: Load all 500 tasks, find task 42, enrich all (150ms)
+3. Optimized: Load and parse until task 42 found, enrich only it (30ms)
+4. **Improvement**: 80% latency reduction for single task queries
+
+### Flow 3: Task Status Updates
+1. User updates task status via CLI or MCP
+2. Write operation executes and invalidates cache
+3. Next read operation rebuilds cache with fresh data
+4. **Improvement**: Consistency maintained, subsequent reads benefit from cache
+
+## UI/UX Considerations
+
+- **Transparency**: Optimizations should be invisible to users - no API changes
+- **Consistency**: Cache invalidation must be bulletproof - stale data is unacceptable
+- **Configurability**: Cache TTL could be configurable in future (default 5s is safe)
+- **Debugging**: Log cache hits/misses at debug level for troubleshooting
+- **Error Handling**: Cache failures should gracefully fall back to file reads
+</context>
+
+<PRD>
+# Technical Architecture
+
+## System Components
+
+### Component 1: FileStorage Cache Layer
+
+**Location**: `packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts`
+
+**Implementation Details**:
+```typescript
+// Add to FileStorage class
+private taskCache: Map<string, { data: Task[], timestamp: number }> = new Map();
+private readonly CACHE_TTL = 5000; // 5 seconds
+
+private getCacheKey(tag?: string, options?: LoadTasksOptions): string {
+  return `${tag || 'master'}-${JSON.stringify(options)}`;
+}
+
+private isCacheValid(timestamp: number): boolean {
+  return Date.now() - timestamp < this.CACHE_TTL;
+}
+```
+
+**Integration Points**:
+- `loadTasks()`: Check cache before file read, populate cache after read
+- `saveTasks()`: Invalidate entire cache after write
+- `updateTask()`: Invalidate cache after update
+- `updateTaskStatus()`: Invalidate cache after status change
+- `deleteTask()`: Invalidate cache after deletion
+
+### Component 2: Optimized Task Lookup
+
+**Location**: `packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts`
+
+**Implementation Details**:
+```typescript
+async loadTask(taskId: string, tag?: string): Promise<Task | null> {
+  // Handle subtasks separately (need parent context)
+  if (taskId.includes('.')) {
+    return this.loadSubtask(taskId, tag);
+  }
+
+  // For regular tasks: optimized single-task retrieval
+  const filePath = this.pathResolver.getTasksPath();
+  const rawData = await this.fileOps.readJson(filePath);
+  const tasks = this.formatHandler.extractTasks(rawData, tag || 'master');
+
+  // Early exit - find target task
+  const task = tasks.find((t) => String(t.id) === String(taskId));
+  if (!task) return null;
+
+  // Enrich only this task
+  const enriched = await this.enrichTasksWithComplexity([task], tag || 'master');
+  return enriched[0] || null;
+}
+
+private async loadSubtask(taskId: string, tag?: string): Promise<Task | null> {
+  // Keep existing subtask logic unchanged
+  const tasks = await this.loadTasks(tag);
+  // ... existing implementation
+}
+```
+
+### Component 3: Build Configuration Enhancements
+
+**Location**: `packages/build-config/src/tsdown.base.ts`
+
+**Implementation Details**:
+```typescript
+export const baseConfig: Partial<UserConfig> = {
+  sourcemap: isDevelopment,
+  format: 'esm',
+  platform: 'node',
+  dts: isDevelopment,
+
+  minify: isProduction ? {
+    compress: {
+      drop_console: true,
+      drop_debugger: true,
+      pure_funcs: ['logger.debug', 'logger.trace']
+    },
+    mangle: {
+      keep_classnames: false,
+      keep_fnames: false
+    }
+  } : false,
+
+  treeshake: isProduction ? {
+    preset: 'recommended',
+    moduleSideEffects: false
+  } : false,
+
+  ...(isProduction && {
+    banner: '#!/usr/bin/env node\n',
+    target: 'node18',
+    splitting: true
+  }),
+
+  external: [/^[^@./]/, /^@(?!tm\/)/]
+};
+```
+
+## Data Models
+
+**No new data models required** - optimizations are transparent to existing interfaces.
+
+**Cache Data Structure**:
+```typescript
+interface CacheEntry {
+  data: Task[];
+  timestamp: number;
+}
+
+interface LoadTasksOptions {
+  status?: TaskStatus;
+  excludeSubtasks?: boolean;
+}
+```
+
+## APIs and Integrations
+
+**No API changes** - all modifications are internal optimizations. Public interfaces remain unchanged:
+- `FileStorage.loadTasks(tag?, options?)` - signature unchanged
+- `FileStorage.loadTask(taskId, tag?)` - signature unchanged
+- Build output locations and formats - unchanged
+
+**Affected Integration Points**:
+- `packages/tm-core/src/modules/storage/services/storage-factory.ts` - creates FileStorage instances
+- `apps/cli/src/commands/*.command.ts` - consumes FileStorage via TasksDomain
+- `apps/mcp/src/tools/tasks/*.tool.ts` - consumes FileStorage via TasksDomain
+- `apps/extension/src/utils/task-master-api/` - future extension usage
+
+## Infrastructure Requirements
+
+**Development**:
+- No new dependencies required
+- Vitest for new unit tests (already in devDependencies)
+- Existing lru-cache package in root (if we want to use it instead of Map)
+
+**Production**:
+- No runtime dependency changes
+- Slightly increased memory usage for cache (negligible: <1MB for 1000 tasks)
+- Reduced disk I/O (positive infrastructure impact)
+
+**Build**:
+- tsdown version 0.15.2+ (already in use)
+- No new build tools required
+
+# Development Roadmap
+
+## Phase 1: In-Memory Caching Layer (Highest Impact)
+
+**Scope**: Implement cache infrastructure in FileStorage class
+
+**Tasks**:
+1. Add cache data structures (Map, TTL constant, helper methods)
+2. Modify `loadTasks()` to check cache before file read
+3. Populate cache after successful file reads
+4. Implement cache invalidation in all write methods:
+   - `saveTasks()`
+   - `updateTask()`
+   - `updateTaskStatus()`
+   - `deleteTask()`
+5. Add debug logging for cache hits/misses
+6. Create comprehensive unit tests for cache behavior
+7. Measure performance improvement with benchmarks
+
+**Deliverables**:
+- Modified `file-storage.ts` with caching (~100 lines added)
+- Test file `tests/unit/storage/file-storage-cache.spec.ts` (~200 lines)
+- Benchmark results showing I/O reduction
+
+**Definition of Done**:
+- All existing tests pass
+- New tests achieve 95%+ coverage of cache code
+- Benchmark shows 70%+ reduction in file reads
+- No stale data issues in test scenarios
+
+## Phase 2: Optimized Single Task Lookup (High Impact, Low Effort)
+
+**Scope**: Refactor loadTask() for efficient single-task retrieval
+
+**Tasks**:
+1. Extract subtask lookup logic into private `loadSubtask()` method
+2. Implement optimized path for regular task lookup:
+   - Load and parse tasks
+   - Find target task (early exit)
+   - Enrich only the found task
+3. Maintain backward compatibility (return format unchanged)
+4. Add unit tests for both code paths
+5. Benchmark single-task retrieval performance
+
+**Deliverables**:
+- Refactored `loadTask()` method in `file-storage.ts`
+- New private `loadSubtask()` method
+- Test file `tests/unit/storage/file-storage-lookup.spec.ts` (~150 lines)
+- Performance comparison data
+
+**Definition of Done**:
+- Subtask lookup behavior unchanged
+- Regular task lookup 50%+ faster for large datasets
+- All existing tests pass
+- Memory usage not increased
+
+## Phase 3: Production Build Optimizations (Medium Impact)
+
+**Scope**: Enhance build configuration for smaller, faster production bundles
+
+**Tasks**:
+1. Update `packages/build-config/src/tsdown.base.ts`:
+   - Add advanced minification settings
+   - Configure tree-shaking options
+   - Add production-specific settings
+2. Verify `package.json` scripts set NODE_ENV correctly
+3. Optional: Add build analysis script
+4. Build production bundle and measure size reduction
+5. Test production bundle functionality
+6. Document build configuration changes
+
+**Deliverables**:
+- Enhanced `tsdown.base.ts` configuration
+- Optional `scripts/analyze-bundle.js` for size analysis
+- Build size comparison report
+- Updated build documentation
+
+**Definition of Done**:
+- Production bundle 20%+ smaller
+- All CLI commands work in production build
+- MCP server works in production build
+- No functional regressions
+
+## Phase 4: Testing, Documentation, and Release
+
+**Scope**: Comprehensive testing, documentation updates, and release preparation
+
+**Tasks**:
+1. Run full test suite across all packages
+2. Performance regression testing:
+   - Create `scripts/benchmark-performance.js`
+   - Test with small (10 tasks), medium (100 tasks), large (1000 tasks) datasets
+   - Document before/after metrics
+3. Integration testing with CLI commands
+4. Integration testing with MCP tools
+5. Update documentation:
+   - CHANGELOG.md with performance improvements
+   - Add performance notes if significant
+   - Document cache behavior for developers
+6. Create changeset with performance metrics
+7. Code review and PR creation
+
+**Deliverables**:
+- Comprehensive benchmark suite
+- Performance metrics document
+- Updated CHANGELOG.md
+- Changeset for release
+- Pull request with all changes
+
+**Definition of Done**:
+- All tests passing (unit, integration)
+- Performance benchmarks documented
+- No breaking changes
+- PR approved and ready to merge
+
+# Logical Dependency Chain
+
+## Foundation Layer (Must Build First)
+
+1. **Phase 1: Caching Infrastructure**
+   - Required first because it provides foundation for all read optimizations
+   - Must validate cache invalidation works before proceeding
+   - Establishes performance measurement baseline
+
+## Incremental Enhancement Layer
+
+2. **Phase 2: Single Task Optimization**
+   - Can proceed independently after Phase 1
+   - Benefits from caching layer (optimized lookups get cached)
+   - Lower risk - isolated change to one method
+
+3. **Phase 3: Build Optimizations**
+   - Can proceed in parallel with Phase 2
+   - Independent of runtime code changes
+   - Affects only production builds
+
+## Validation Layer (Final)
+
+4. **Phase 4: Testing and Release**
+   - Requires all previous phases complete
+   - Validates combined effect of all optimizations
+   - Prepares for production deployment
+
+## Quick Win Path (MVP)
+
+For fastest visible improvement:
+1. Implement Phase 1 (caching) - 70-90% improvement for repeated reads
+2. Deploy and measure impact
+3. Then add Phase 2 and 3 as enhancements
+
+## Pacing Strategy
+
+Each phase is atomic and can be:
+- Developed independently
+- Tested in isolation
+- Committed separately
+- Rolled back if issues arise
+
+**Iteration Cycle**: 1-2 days per phase for experienced developer
+
+# Risks and Mitigations
+
+## Technical Challenges
+
+### Risk 1: Cache Invalidation Bugs (HIGH)
+
+**Description**: Stale data could be served if cache invalidation logic has gaps.
+
+**Impact**: Users see outdated task information, leading to incorrect status updates or missed tasks.
+
+**Mitigation**:
+- Comprehensive test coverage for all write operations
+- Conservative TTL (5 seconds) ensures quick cache expiration
+- Clear cache on ANY write operation (even if inefficient, prioritizes correctness)
+- Add integration tests that verify cache invalidation
+- Consider cache-control headers for future API storage
+
+**Monitoring**: Add debug logging for cache hits/misses to detect anomalies
+
+### Risk 2: Memory Leaks (MEDIUM)
+
+**Description**: Cache could grow unbounded if not properly managed.
+
+**Impact**: Increased memory usage over time, potential OOM errors in long-running processes.
+
+**Mitigation**:
+- Use Map (not object) for proper memory management
+- Short TTL (5s) limits cache growth
+- Consider implementing LRU eviction if needed (use existing lru-cache package)
+- Clear cache on all writes naturally limits size
+- Monitor memory usage in tests
+
+**Future Enhancement**: Implement size-based eviction if memory issues arise
+
+### Risk 3: Broken Subtask Logic (MEDIUM)
+
+**Description**: Refactoring loadTask() could break subtask retrieval requiring parent context.
+
+**Impact**: Subtask queries fail or return incorrect data.
+
+**Mitigation**:
+- Keep subtask logic unchanged in separate method
+- Extensive test coverage for subtask scenarios
+- Test all subtask ID formats (1.2, HAM-123.2)
+- Verify parent context is maintained
+
+**Testing**: Add specific test cases for nested subtasks and dependencies
+
+### Risk 4: Build Configuration Errors (MEDIUM)
+
+**Description**: Aggressive minification could break runtime behavior (e.g., class name reflection).
+
+**Impact**: Production builds fail or behave differently than development.
+
+**Mitigation**:
+- Test production build thoroughly before release
+- Keep mangle.keep_classnames if reflection is used anywhere
+- Incremental changes - add one optimization at a time
+- Compare development vs production behavior in tests
+- Document any runtime assumptions about code shape
+
+**Validation**: Run full test suite against production build
+
+## MVP Scope Definition
+
+**Must Have (Phase 1)**:
+- Caching layer with basic invalidation
+- Cache TTL of 5 seconds
+- Cache on loadTasks() only (not loadTask() initially)
+
+**Should Have (Phase 2)**:
+- Optimized single task lookup
+- Separated subtask logic
+- Performance benchmarks
+
+**Could Have (Phase 3)**:
+- Advanced build optimizations
+- Bundle size analysis
+- LRU eviction policy
+
+**Won't Have (Future)**:
+- Configurable cache TTL
+- Cache warming strategies
+- Per-user cache isolation
+- Distributed caching
+
+## Resource Constraints
+
+**Time**: Estimated 3-5 days total for full implementation
+- Phase 1: 1-2 days
+- Phase 2: 0.5-1 day
+- Phase 3: 0.5-1 day
+- Phase 4: 1-2 days (testing, docs, review)
+
+**Knowledge Required**:
+- TypeScript/Node.js proficiency
+- Understanding of caching strategies
+- Familiarity with tsdown/esbuild
+- Unit testing with Vitest
+
+**Dependencies**:
+- No external reviewers required
+- No API changes requiring stakeholder approval
+- Can proceed independently
+
+# Appendix
+
+## Research Findings
+
+### Performance Profiling Results
+
+**Current Bottlenecks** (from codebase analysis):
+1. FileStorage.loadTasks() reads file on every call (packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts:115)
+2. FileStorage.loadTask() calls loadTasks() internally (line 153)
+3. MCP tools create new TmCore instances per request (apps/mcp/src/tools/tasks/get-tasks.tool.ts:55)
+4. No existing caching mechanism found in codebase
+5. Build config missing advanced optimizations (packages/build-config/src/tsdown.base.ts:23-37)
+
+**Estimated Impact**:
+- File I/O constitutes ~80% of loadTasks() latency
+- JSON parsing constitutes ~15% of latency
+- Task enrichment constitutes ~5% of latency
+
+### Industry Best Practices
+
+**Caching Strategies**:
+- TTL-based caching standard for file-backed data
+- 5-second TTL balances freshness vs. performance
+- Write-through invalidation ensures consistency
+
+**Build Optimizations**:
+- Drop console.log in production (standard practice)
+- Tree-shaking with preset 'recommended' (terser defaults)
+- Code splitting for better caching (HTTP/2 optimization)
+
+## Technical Specifications
+
+### Cache Implementation Details
+
+**Cache Key Format**: `${tag}-${JSON.stringify(options)}`
+
+**Example Cache Keys**:
+- `master-{}` - All master tasks
+- `master-{"status":["pending"]}` - Pending master tasks
+- `feature-branch-{"excludeSubtasks":true}` - Feature branch without subtasks
+
+**Cache Size Estimation**:
+- Average task: ~500 bytes
+- 1000 tasks: ~500KB
+- With 10 cache entries: ~5MB max memory overhead
+
+### Performance Benchmarks (Estimated)
+
+**Before Optimization**:
+```
+loadTasks() - 1000 tasks: ~200ms (file read: 160ms, parse: 30ms, enrich: 10ms)
+loadTask() - single task: ~150ms (loads all 1000 tasks)
+MCP get_tasks repeated: 200ms per call
+Production bundle: ~2.5MB
+```
+
+**After Optimization**:
+```
+loadTasks() - cached: ~20ms (90% reduction)
+loadTask() - single task: ~30ms (80% reduction)
+MCP get_tasks cached: ~25ms (87% reduction)
+Production bundle: ~1.8MB (28% reduction)
+```
+
+### Test Strategy
+
+**Unit Tests** (packages/tm-core/tests/unit/storage/):
+1. `file-storage-cache.spec.ts`:
+   - Test cache hit/miss scenarios
+   - Test TTL expiration
+   - Test invalidation on write
+   - Test multiple tags cached separately
+   - Test cache with different options
+
+2. `file-storage-lookup.spec.ts`:
+   - Test single task retrieval (regular tasks)
+   - Test subtask retrieval (dotted notation)
+   - Test non-existent task handling
+   - Test enrichment of single task
+   - Compare performance with loadTasks()
+
+**Integration Tests** (apps/cli/tests/, apps/mcp/tests/):
+1. CLI command tests with caching
+2. MCP tool tests with repeated calls
+3. Cache invalidation across commands
+4. Production build functional tests
+
+**Performance Tests** (scripts/benchmark-performance.js):
+1. Measure file I/O operation count
+2. Measure latency for various dataset sizes
+3. Measure memory usage over time
+4. Compare before/after metrics
+
+### File Structure
+
+**New Files Created**:
+```
+packages/tm-core/tests/unit/storage/file-storage-cache.spec.ts
+packages/tm-core/tests/unit/storage/file-storage-lookup.spec.ts
+scripts/benchmark-performance.js
+.taskmaster/docs/performance-optimization-prd.txt (this file)
+```
+
+**Modified Files**:
+```
+packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts
+packages/build-config/src/tsdown.base.ts
+package.json (build scripts, optional)
+CHANGELOG.md
+```
+
+### Commit Strategy
+
+**Commit 1**: `feat(storage): add in-memory caching layer`
+- Cache infrastructure
+- loadTasks() cache integration
+- Write operation invalidation
+- Unit tests
+
+**Commit 2**: `perf(storage): optimize single task lookup`
+- Refactored loadTask()
+- Separate loadSubtask() method
+- Unit tests
+
+**Commit 3**: `build: enhance production optimizations`
+- Updated tsdown.base.ts
+- Build script improvements
+- Bundle size analysis
+
+**Commit 4**: `docs: document performance improvements`
+- CHANGELOG.md updates
+- Performance benchmark results
+- Changeset for release
+
+### Success Metrics
+
+**Performance KPIs**:
+- [ ] File I/O operations reduced by 70%+
+- [ ] Single task lookup latency reduced by 50%+
+- [ ] Production bundle size reduced by 20%+
+- [ ] No regression in test execution time
+
+**Quality KPIs**:
+- [ ] 100% of existing tests passing
+- [ ] 80%+ coverage on new cache code
+- [ ] Zero stale data bugs in testing
+- [ ] TypeScript compilation with no errors
+
+**User Impact KPIs**:
+- [ ] CLI commands feel noticeably faster
+- [ ] MCP response times under 50ms for cached data
+- [ ] No functional behavior changes (transparent)
+- [ ] Installation size reduction measurable
+
+</PRD>

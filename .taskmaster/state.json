@@ -1,9 +1,7 @@
 {
-	"currentTag": "master",
-	"lastSwitched": "2025-10-27T09:28:03.574Z",
-	"branchTagMapping": {
-		"v017-adds": "v017-adds",
-		"next": "next"
-	},
-	"migrationNoticeShown": true
+  "currentTag": "feat-github-sync",
+  "migrationCompleted": false,
+  "migrationNoticeShown": true,
+  "lastSwitched": "2025-10-31T04:30:23.534Z",
+  "branchTagMapping": {}
 }

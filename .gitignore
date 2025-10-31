@@ -100,3 +100,4 @@ apps/extension/vsix-build/
 
 # TaskMaster Workflow State (now stored in ~/.taskmaster/sessions/)
 # No longer needed in .gitignore as state is stored globally
+.claude/settings.local.json
