@@ -4,6 +4,7 @@
  */
 
 import type { SyncMapping, SyncConflict } from './github-types.js';
+import type { ConflictInfo, ConflictSeverity } from './github-conflict-types.js';
 
 /**
  * Individual sync operation record for audit trail
@@ -76,6 +77,21 @@ export interface ChangeMetadata {
 }
 
 /**
+ * Enhanced sync conflict with field-level conflict details
+ * Extends the basic SyncConflict with comprehensive conflict information
+ */
+export interface EnhancedSyncConflict extends SyncConflict {
+	/** Enhanced conflict information with field-level details */
+	conflictInfo: ConflictInfo;
+
+	/** Conflict severity */
+	severity: ConflictSeverity;
+
+	/** Whether this conflict can be auto-resolved */
+	canAutoResolve: boolean;
+}
+
+/**
  * Backup metadata for state file recovery
  */
 export interface StateBackupMetadata {
@@ -111,6 +127,9 @@ export interface GitHubSyncStateFile {
 
 	/** All unresolved conflicts */
 	conflicts: SyncConflict[];
+
+	/** Enhanced conflicts with field-level details */
+	enhancedConflicts?: EnhancedSyncConflict[];
 
 	/** Change detection metadata for all mappings */
 	changeMetadata: Record<string, ChangeMetadata>;

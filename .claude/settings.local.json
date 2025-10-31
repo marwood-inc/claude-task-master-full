@@ -13,7 +13,14 @@
       "Bash(rm:*)",
       "mcp__oraios_serena__list_dir",
       "Bash(nul)",
-      "mcp__oraios_serena__read_file"
+      "mcp__oraios_serena__read_file",
+      "Bash(task-master analyze-complexity:*)",
+      "Bash(task-master complexity-report)",
+      "Bash(if [ -d \"apps/cli/src/commands/github\" ])",
+      "Bash(then echo \"GitHub folder exists\")",
+      "Bash(else echo \"GitHub folder does not exist\")",
+      "Bash(fi)",
+      "Bash(node:*)"
     ]
   },
   "enabledMcpjsonServers": [

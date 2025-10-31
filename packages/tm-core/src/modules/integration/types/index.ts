@@ -18,3 +18,30 @@ export type {
 	GitHubLabelUpdate,
 	GitHubMilestoneUpdate
 } from './github-types.js';
+
+export type {
+	ConflictField,
+	FieldConflictType,
+	ConflictSeverity,
+	ConflictResolutionStrategy,
+	FieldConflict,
+	TimestampAnalysis,
+	ConflictResolution,
+	ConflictInfo,
+	ConflictDetectionResult
+} from './github-conflict-types.js';
+
+export type {
+	ConflictAnalysis,
+	DiffDisplayType,
+	FieldDiffDisplay,
+	DiffLine,
+	ResolutionResult,
+	BatchResolutionOptions,
+	BatchResolutionResult,
+	ConflictError,
+	ValidationResult,
+	PreviewResult,
+	ResolutionHistory,
+	ConflictState
+} from './conflict-resolution-types.js';

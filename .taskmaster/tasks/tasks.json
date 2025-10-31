@@ -11177,7 +11177,7 @@
           "2",
           "3"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -11185,9 +11185,10 @@
             "description": "Define comprehensive conflict detection mechanisms for multiple field types in task-issue synchronization",
             "dependencies": [],
             "details": "Create a detailed specification for detecting conflicts across title, description, status, and priority fields. Develop an algorithm to compare local task and remote GitHub issue timestamps, identifying discrepancies and potential conflicts. Design a robust detection system that can handle complex synchronization scenarios and multiple field changes.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create unit tests to verify conflict detection across different field types, test edge cases with simultaneous modifications, validate timestamp comparison logic",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T05:10:03.328Z"
           },
           {
             "id": 2,
@@ -11257,7 +11258,11 @@
             "testStrategy": "Verify log content comprehensiveness, test log generation across various conflict scenarios, validate log readability and usefulness",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down conflict detection into detection algorithms, interactive UI components, auto-resolution strategies, validation layers, service orchestration, and comprehensive logging. Each component should handle specific conflict scenarios with proper error handling and user feedback.",
+        "updatedAt": "2025-10-31T05:10:03.328Z"
       },
       {
         "id": "6",
@@ -11334,7 +11339,10 @@
             "testStrategy": "Local to remote sync tests, issue creation validation, partial update scenarios, error handling and rollback testing",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 9,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Divide into state service core functionality, change detection mechanisms, conflict resolver integration, remote pull implementation, and local push synchronization. Focus on atomic operations, error handling, and data consistency throughout the bidirectional sync process."
       },
       {
         "id": "7",
@@ -11383,7 +11391,10 @@
             "testStrategy": "Username validation tests, assignee mapping tests, conflict resolution tests, GitHub API username lookup tests, feature flag tests",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Split into milestone CRUD operations, GitHub Projects board integration, and assignee management. Each should include feature flags, validation, and support for both GitHub.com and Enterprise configurations."
       },
       {
         "id": "8",
@@ -11396,7 +11407,7 @@
           "1",
           "3"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -11404,9 +11415,10 @@
             "description": "Create robust authentication system for GitHub API token validation and secure storage",
             "dependencies": [],
             "details": "Develop secure token validation mechanism using GitHub API. Implement checks for token permissions, validity, and rate limit status. Support environment variable GITHUB_TOKEN for configuration. Create secure storage mechanism in .taskmaster/config.json with encryption and access controls.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for token validation, API permission checks, environment variable handling, and configuration storage security",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:57:07.284Z"
           },
           {
             "id": 2,
@@ -11416,9 +11428,10 @@
               1
             ],
             "details": "Implement interactive CLI command using inquirer for GitHub configuration. Include prompts for GitHub token, repository selection, sync preferences, subtask mode (checklist vs separate issues), conflict resolution strategy, and feature toggles. Provide clear error messages and validation for each configuration step.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Command execution tests, input validation tests, error handling tests, configuration persistence tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:57:36.928Z"
           },
           {
             "id": 3,
@@ -11429,11 +11442,16 @@
               2
             ],
             "details": "Implement GitHubConfigService to handle secure storage, retrieval, and management of GitHub configuration in .taskmaster/config.json. Support reading/writing configuration, managing feature toggles, handling different sync modes, and providing configuration validation and access methods.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Configuration file read/write tests, feature toggle management tests, configuration validation tests, access control tests",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T05:00:37.443Z"
           }
-        ]
+        ],
+        "complexity": 5,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Break into token validation/authentication, interactive configuration command design, and configuration storage service. Focus on security, user experience, and integration with existing configuration patterns.",
+        "updatedAt": "2025-10-31T05:00:37.443Z"
       },
       {
         "id": "9",
@@ -11499,7 +11517,10 @@
             "testStrategy": "Command registration tests, CLI integration tests, help text validation, end-to-end command execution tests",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Divide into command structure definition, progress tracking/feedback systems, core sync logic implementation, and CLI registration/configuration. Follow established CLI patterns while adding GitHub-specific functionality."
       },
       {
         "id": "10",
@@ -11552,14 +11573,17 @@
             "testStrategy": "Constructor initialization tests, configuration validation tests, dependency injection compatibility checks",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 4,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Split into method signature design, core logic implementation, and constructor/configuration updates. Ensure clean integration with existing export functionality and maintain backward compatibility."
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:35:36.474Z",
+      "lastModified": "2025-10-31T05:10:03.337Z",
       "taskCount": 10,
-      "completedCount": 4,
+      "completedCount": 5,
       "tags": [
         "feat-github-sync"
       ]

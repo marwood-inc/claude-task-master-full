@@ -2,9 +2,9 @@
 title: Research Session
 query: "invesigate"
 date: 31/10/2025
-time: 03:52:47
-timestamp: 2025-10-31T03:52:47.485Z
-exchanges: 2
+time: 04:46:15
+timestamp: 2025-10-31T04:46:15.663Z
+exchanges: 1
 ---
 
 # Research Session
@@ -15,53 +15,32 @@ exchanges: 2
 
 **Response:**
 
-**GitHub API Foundation**  
-Solidify Task 1’s completed work by validating that the `GitHubClient` covers pagination, media previews, and preview headers for beta endpoints you might need (projects, assignees). Confirm retries use `octokit.retry` or a custom exponential backoff wrapper; tests should simulate `403` rate limits to ensure `Retry-After` is honored. If the client already serializes errors, standardize on a `GitHubError` shape (status, code, docsUrl) so downstream layers — especially the upcoming `IntegrationDomain` facade — can branch on structured failures instead of string parsing.
+**Current Integration Assets**  
+The core GitHub plumbing is already substantial, giving Task 10 and Task 6 a solid base to build on. `GitHubClient` wraps Octokit with typed error handling and rate-limit awareness, so higher-level services can rely on consistent API semantics (*packages/tm-core/src/modules/integration/clients/github-client.ts:76*). On top of that, the one-way sync pipeline (`GitHubSyncService`) manages batching, label provisioning, and dry-run logic, so extending it to two-way flows mostly requires augmenting existing hooks rather than greenfield work (*packages/tm-core/src/modules/integration/services/github-sync.service.ts:96*).
 
-**Field Mapping Nuances**  
-For Task 2’s mapper, double-check label handling for priorities and status. Labels are case-sensitive and GitHub returns them sorted arbitrarily, so the mapper should normalize (lowercase) when matching. Also verify Markdown assembly: ensure descriptions use fenced sections (e.g., ```md`) only when necessary, because GitHub strips some HTML. Add tests for tasks lacking optional fields to confirm defaults (e.g., missing `testStrategy` should not emit “undefined” text). Finally, consider caching remote label IDs to avoid redundant create/list cycles during sync.
+- Reusable task→issue transformations (status, priority, subtasks) already live in `GitHubFieldMapper`, so CLI and domain layers should invoke it instead of duplicating mapping logic (*packages/tm-core/src/modules/integration/services/github-field-mapper.ts:70*).  
+- `GitHubSyncStateService` persists sync markers, mapping tables, and conflict scaffolding, which will be the anchor for future bidirectional reconciliation (*packages/tm-core/src/modules/integration/services/github-sync-state.service.ts:140*).  
+- Centralized options/types (`GitHubSyncOptions`, `SyncMapping`, etc.) give the remaining tasks a contract to code against rather than inventing new shapes (*packages/tm-core/src/modules/integration/types/github-sync-state-types.ts:317*).  
 
-**Two-Way Sync & Conflict Strategy**  
-Task 6 needs a deterministic merge policy. Investigate using ISO timestamps or ETags from GitHub issues to detect remote freshness. When conflicts occur, capture both snapshots (local vs. remote) and hand them to `GitHubConflictResolver`; tests should cover concurrent edits on title, body, labels, and assignees. To prevent partial updates, stage outbound mutations and commit them only after all validations pass; if a write fails mid-flight, log the checkpoint so `syncWithGitHub()` can resume idempotently. Consider encapsulating sync runs in a lightweight “transaction” object that accumulates actions and only applies them once verification succeeds.
+**Gaps Blocking Pending Tasks**  
+Despite the strong lower layers, the Integration Domain facade is still export-only, so Task 10 must extend its constructor and inject the GitHub services that already exist. Right now `IntegrationDomain` only wires `ExportService`, so new entry points like `syncToGitHub()` or `syncWithGitHub()` will need to instantiate `GitHubClient`, `GitHubSyncService`, and companions while keeping auth/config flows consistent (*packages/tm-core/src/modules/integration/integration-domain.ts:17*). Until that façade is expanded, Task 9’s CLI commands have nothing public to call.
 
-**Configuration Management Workflow**  
-Task 8’s configure command can lean on `@octokit/rest` to validate credentials by hitting `GET /user` and `GET /repos/:owner/:repo`. Store tokens using the OS keychain when available, falling back to the config file with `0600` permissions; at minimum, warn if the file is world-readable. For multi-repo support, allow named profiles in `.taskmaster/config.json` (e.g., `"github": { "profiles": { "work": {...} } }`) so teams can switch contexts quickly. Integration tests should mock filesystem writes, and a smoke test should cover environment-variable override precedence (`GITHUB_TOKEN` > config > prompt).
+- No CLI glue has been added yet, so there are no `github-sync` or `github-status` command files under `apps/cli/src/commands`; Task 9 must scaffold them and tap into the Integration Domain once Task 10 exposes the methods.  
+- Configuration management (Task 8) is still absent: there’s no persisted `.taskmaster/config.json` github block or token validation flow, meaning services are currently constructed with hard-coded or test credentials only.  
+- Two-way sync entry points (`syncWithGitHub`, conflict resolvers) are missing, even though the state service already tracks potential conflicts; Task 6 must add remote→local diff logic and conflict detection routines around those storage APIs.  
 
-**CLI User Experience**  
-Task 9’s commands should mirror existing CLI ergonomics: use `yargs` command modules, share option builders, and pipe progress updates through a spinner or log lines that toggle with `--no-progress` for CI. `github-sync` needs clear exit codes (0 success, 2 conflicts, 1 other errors) so automation can react. For `github-status`, present a concise table (total synced, pending, conflicts, lastSync) and optionally emit JSON with `--json` for scripting. Include examples in the help text demonstrating one-way vs two-way sync, and add unit tests that snapshot the help output to guard against regressions.
+**Investigation Priorities**  
+To unblock upcoming implementation work, focus discovery on how the existing services expect to be constructed and invoked. First, map every required dependency for `GitHubSyncService` (client, state, mapper, resilience) so `IntegrationDomain` can lazily assemble them with config-driven parameters; this ensures CLI commands don’t reimplement wiring. Next, catalog the state service’s file structure (identifiers for task/issue mappings, timestamps) to inform the coming two-way diff algorithm and CLI status reporting. Finally, explore how existing Auth/Config managers provide secrets so the GitHub configure command can reuse prompt and persistence utilities rather than invent new ones.
 
----
+- Derive a construction blueprint for the GitHub stack (client → mapper → state → sync service) to codify inside `IntegrationDomain` when adding `configureGitHub()`, `syncToGitHub()`, and status helpers.  
+- Document the JSON schema written by `GitHubSyncStateService` so Task 9 can render meaningful summaries (e.g., last sync time, conflict counts).  
+- Cross-check `GitHubSyncOptions` defaults with CLI requirements to ensure argument parsing aligns with available feature flags (subtask mode, dry-run, dependencies).  
 
-## Follow-up 1
-
-**Question:** Research task 3.4 and update with any helpful implementation details
-
-**Response:**
-
-**Focus Areas**  
-- Subtask 3.4 targets the unimplemented `createBackup()` and `recoverFromBackup()` methods plus placeholder recovery hooks in `loadState()` and `performAtomicWrite()` within `packages/tm-core/src/modules/integration/services/github-sync-state.service.ts:441-606`.  
-- Current behavior leaves TODO errors and only logs that backups “should be created”; the JSON validation stub also needs to evolve before Task 4 (one-way sync) can safely rely on the state layer.
-
-**Backup Strategy**  
-- Store backups under `.taskmaster/backups/github-sync/` with filenames like `github-sync-state-<timestamp>-<uuid>.json` so multiple repos on the same workspace never collide; reuse the existing `randomUUID()` import for id suffixes.  
-- Wrap `fs.copyFile` in a dedicated helper that writes metadata to `state.lastBackup` (path, createdAt, mapping count, version) before returning from `createBackup()`.  
-- Enforce retention (e.g., keep the last N backups or purge files older than 30 days) to stay aligned with the `maxHistoryAgeDays` option and avoid uncontrolled directory growth.  
-- Have `performAtomicWrite()` set a `backupCreated` flag in the `StateFileOperationResult` when `createBackup()` succeeds so downstream callers and logs can quickly confirm the safety net was refreshed.
-
-**Recovery Workflow**  
-- `recoverFromBackup()` should accept an optional explicit path; otherwise resolve the latest valid backup by sorting metadata timestamps and validating each candidate with `validateStateFile`.  
-- On recovery, copy (not rename) the backup into place, then immediately reload and revalidate to ensure the restored file matches the schema; log warnings when fallback succeeds so CLI surfaces actionable guidance.  
-- During `loadState()`, catch `SyntaxError` or validation failures, attempt auto-recovery when `autoRecoverFromBackup` is true, and bubble a structured `StateFileOperationResult` with `recoveryPerformed: true` plus any warnings if the recovery data is older than the previous `lastBackup`.  
-- If both the primary file and backups fail validation, regenerate via `createEmptyState()` while logging a high-severity warning that downstream sync services should prompt the user to re-run `syncWithGitHub()` to rebuild mappings.
-
-**Validation & Diagnostics**  
-- Replace the placeholder validation with a `zod` schema that mirrors `GitHubSyncStateFile` (the project already uses `zod`, so add it near other imports) and assert consistent repo owner/repo values, ISO timestamps, and array/object shapes; emit granular error messages to aid debugging.  
-- Extend `StateFileOperationResult` warnings to include corruption details (e.g., “state file truncated” vs “schema mismatch”) and integrate with the existing logging utility (`getLogger('GitHubSyncStateService')`) to surface issues through CLI commands that depend on state inspection.  
-- Augment the test suite (`packages/tm-core/src/modules/integration/services/github-sync-state.service.spec.ts`) with corruption fixtures: one JSON file with trailing garbage, one with missing keys, plus a flow that proves auto-recovery restores from the latest backup and updates `lastBackup`.  
-- These improvements give Task 4 and the future two-way sync work (Tasks 6 & 10) a dependable persistence layer, keeping failure handling deterministic during long-running GitHub syncs.
+**Risks & Validation Needs**  
+The biggest risk is divergence between configuration data and service expectations: without a clearly defined config loader, CLI commands may bootstrap the GitHub client inconsistently. Another concern is two-way sync complexity—state service utilities exist, but the conflict resolver contract is undefined, so Task 6 should prototype conflict cases early. Testing-wise, existing specs focus on one-way flows; new work must add integration-style tests that exercise the domain façade and CLI commands end-to-end, reusing the mocked Octokit setup already present in service tests.
 
 
 ---
 
 *Generated by Task Master Research Command*  
-*Timestamp: 2025-10-31T03:52:47.485Z*
+*Timestamp: 2025-10-31T04:46:15.663Z*
