@@ -85,6 +85,10 @@ export class IntegrationDomain {
 	private exportService: ExportService;
 	private configManager: ConfigManager;
 
+	// Cached stateless services (lazy initialization)
+	private fieldMapper?: GitHubFieldMapper;
+	private resilienceService?: GitHubResilienceService;
+
 	constructor(configManager: ConfigManager) {
 		this.configManager = configManager;
 
@@ -129,34 +133,17 @@ export class IntegrationDomain {
 			repo = repoOverride;
 		}
 
-		// Initialize GitHub services with correct constructor signatures
-		const githubClient = new GitHubClient({
-			auth: token
-		});
-
-		const projectPath = this.configManager.getProjectRoot();
-		const stateService = new GitHubSyncStateService(
-			projectPath,
-			owner,
-			repo,
-			{
-				createBackup: true,
-				validateSchema: true,
-				autoRecoverFromBackup: true,
-				maxHistoryAgeDays: 30
-			}
-		);
-
-		const fieldMapper = new GitHubFieldMapper();
-		const resilienceService = new GitHubResilienceService();
-		const githubConfigService = new GitHubConfigService(this.configManager);
-		const conflictResolutionService = new ConflictResolutionService(
-			this.configManager,
+		// Initialize GitHub services using shared helpers
+		const githubClient = this.createGitHubClient(token);
+		const stateService = this.createGitHubSyncStateService(owner, repo);
+		const fieldMapper = this.getFieldMapper();
+		const resilienceService = this.getResilienceService();
+		const githubConfigService = this.createGitHubConfigService();
+		const conflictResolutionService = this.createConflictResolutionService(
 			stateService,
 			githubConfigService
 		);
-
-		const syncService = new GitHubSyncService(
+		const syncService = this.createGitHubSyncService(
 			githubClient,
 			stateService,
 			fieldMapper,
@@ -219,19 +206,8 @@ export class IntegrationDomain {
 		// Validate configuration
 		const { owner, repo } = this.validateGitHubConfig();
 
-		// Initialize services
-		const projectPath = this.configManager.getProjectRoot();
-		const stateService = new GitHubSyncStateService(
-			projectPath,
-			owner,
-			repo,
-			{
-				createBackup: true,
-				validateSchema: true,
-				autoRecoverFromBackup: true,
-				maxHistoryAgeDays: 30
-			}
-		);
+		// Initialize services using shared helpers
+		const stateService = this.createGitHubSyncStateService(owner, repo);
 
 		// Lookup conflicts for this task from state
 		const allConflicts = await stateService.getConflicts();
@@ -295,10 +271,9 @@ export class IntegrationDomain {
 			}
 		}
 
-		// Initialize conflict resolution service
-		const githubConfigService = new GitHubConfigService(this.configManager);
-		const conflictResolutionService = new ConflictResolutionService(
-			this.configManager,
+		// Initialize conflict resolution service using shared helpers
+		const githubConfigService = this.createGitHubConfigService();
+		const conflictResolutionService = this.createConflictResolutionService(
 			stateService,
 			githubConfigService
 		);
@@ -487,20 +462,8 @@ export class IntegrationDomain {
 		// Validate required settings (will throw if invalid)
 		const { owner, repo } = this.validateGitHubConfig();
 
-		// Initialize state service with correct constructor signature
-		const projectPath = this.configManager.getProjectRoot();
-
-		const stateService = new GitHubSyncStateService(
-			projectPath,
-			owner,
-			repo,
-			{
-				createBackup: true,
-				validateSchema: true,
-				autoRecoverFromBackup: true,
-				maxHistoryAgeDays: 30
-			}
-		);
+		// Initialize state service using shared helper
+		const stateService = this.createGitHubSyncStateService(owner, repo);
 
 		// Get synchronization statistics
 		const stats = await stateService.getStats();
@@ -789,6 +752,118 @@ export class IntegrationDomain {
 				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
 			);
 		}
+	}
+
+	// ========== Service Initialization Helpers ==========
+
+	/**
+	 * Get cached field mapper instance (stateless service)
+	 * @private
+	 */
+	private getFieldMapper(): GitHubFieldMapper {
+		if (!this.fieldMapper) {
+			this.fieldMapper = new GitHubFieldMapper();
+		}
+		return this.fieldMapper;
+	}
+
+	/**
+	 * Get cached resilience service instance (stateless service)
+	 * @private
+	 */
+	private getResilienceService(): GitHubResilienceService {
+		if (!this.resilienceService) {
+			this.resilienceService = new GitHubResilienceService();
+		}
+		return this.resilienceService;
+	}
+
+	/**
+	 * Create GitHub client with authentication
+	 * @param token - GitHub personal access token
+	 * @private
+	 */
+	private createGitHubClient(token: string): GitHubClient {
+		const config = this.configManager.getConfig();
+		return new GitHubClient({
+			auth: token,
+			baseUrl: config.github?.baseUrl
+		});
+	}
+
+	/**
+	 * Create GitHub sync state service for managing persistent state
+	 * @param owner - Repository owner
+	 * @param repo - Repository name
+	 * @private
+	 */
+	private createGitHubSyncStateService(
+		owner: string,
+		repo: string
+	): GitHubSyncStateService {
+		const projectPath = this.configManager.getProjectRoot();
+		return new GitHubSyncStateService(projectPath, owner, repo, {
+			createBackup: true,
+			validateSchema: true,
+			autoRecoverFromBackup: true,
+			maxHistoryAgeDays: 30
+		});
+	}
+
+	/**
+	 * Create GitHub config service for accessing GitHub settings
+	 * @private
+	 */
+	private createGitHubConfigService(): GitHubConfigService {
+		return new GitHubConfigService(this.configManager);
+	}
+
+	/**
+	 * Create conflict resolution service
+	 * @param stateService - State service instance
+	 * @param githubConfigService - Config service instance
+	 * @private
+	 */
+	private createConflictResolutionService(
+		stateService: GitHubSyncStateService,
+		githubConfigService: GitHubConfigService
+	): ConflictResolutionService {
+		return new ConflictResolutionService(
+			this.configManager,
+			stateService,
+			githubConfigService
+		);
+	}
+
+	/**
+	 * Create GitHub sync service for orchestrating sync operations
+	 * @param githubClient - GitHub API client
+	 * @param stateService - State service instance
+	 * @param fieldMapper - Field mapper instance
+	 * @param resilienceService - Resilience service instance
+	 * @param conflictResolutionService - Conflict resolution service instance
+	 * @param owner - Repository owner
+	 * @param repo - Repository name
+	 * @private
+	 */
+	private createGitHubSyncService(
+		githubClient: GitHubClient,
+		stateService: GitHubSyncStateService,
+		fieldMapper: GitHubFieldMapper,
+		resilienceService: GitHubResilienceService,
+		conflictResolutionService: ConflictResolutionService,
+		owner: string,
+		repo: string
+	): GitHubSyncService {
+		return new GitHubSyncService(
+			githubClient,
+			stateService,
+			fieldMapper,
+			resilienceService,
+			conflictResolutionService,
+			owner,
+			repo
+		);
 	}
 
 	// ========== Project Board Management Operations ==========
