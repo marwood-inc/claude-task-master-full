@@ -32,6 +32,16 @@ export type {
 	SyncStateStats
 } from './types/github-sync-state-types.js';
 
+// GitHub change detection types
+export type {
+	ChangeDetectionStrategy,
+	FieldChange,
+	ChangeDetectionResult,
+	BatchChangeDetectionResult,
+	ChangeDetectionOptions,
+	FieldMapping
+} from './types/github-change-detection-types.js';
+
 // Services
 export { GitHubAuthService } from './services/github-auth.service.js';
 export type {
@@ -44,6 +54,7 @@ export { GitHubConfigService } from './services/github-config.service.js';
 export type { GitHubConfigValidation } from './services/github-config.service.js';
 export { GitHubSyncStateService } from './services/github-sync-state.service.js';
 export { GitHubFieldMapper } from './services/github-field-mapper.js';
+export { GitHubChangeDetectionService } from './services/github-change-detection.service.js';
 
 // Clients
 export { GitHubClient } from './clients/github-client.js';
