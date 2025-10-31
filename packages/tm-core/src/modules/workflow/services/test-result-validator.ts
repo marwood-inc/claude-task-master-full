@@ -78,23 +78,31 @@ export class TestResultValidator {
 		}
 
 		const errors: string[] = [];
+		const warnings: string[] = [];
 		const suggestions: string[] = [];
 
-		// RED phase must have failures
-		if (testResult.failed === 0) {
-			errors.push('RED phase must have at least one failing test');
-			suggestions.push('Write failing tests first to follow TDD workflow');
-		}
-
-		// Must have at least one test
+		// Must have at least one test (critical error)
 		if (testResult.total === 0) {
 			errors.push('Cannot validate empty test suite');
 			suggestions.push('Add at least one test to begin TDD cycle');
+			return {
+				valid: false,
+				errors,
+				warnings,
+				suggestions
+			};
+		}
+
+		// RED phase should have failures (warning if not, allows "feature already implemented")
+		if (testResult.failed === 0) {
+			warnings.push('No failing tests found in RED phase');
+			suggestions.push('Write failing tests first to follow TDD workflow');
 		}
 
 		return {
 			valid: errors.length === 0,
 			errors,
+			warnings,
 			suggestions
 		};
 	}

@@ -138,7 +138,7 @@ describe('TestResultValidator - RED Phase Validation', () => {
 		expect(result.errors).toEqual([]);
 	});
 
-	it('should fail validation when RED phase has zero failures', () => {
+	it('should emit warning when RED phase has zero failures (feature already implemented)', () => {
 		const redResult: TestResult = {
 			total: 10,
 			passed: 10,
@@ -148,10 +148,8 @@ describe('TestResultValidator - RED Phase Validation', () => {
 		};
 
 		const result = validator.validateRedPhase(redResult);
-		expect(result.valid).toBe(false);
-		expect(result.errors).toContain(
-			'RED phase must have at least one failing test'
-		);
+		expect(result.valid).toBe(true);
+		expect(result.warnings).toContain('No failing tests found in RED phase');
 		expect(result.suggestions).toContain(
 			'Write failing tests first to follow TDD workflow'
 		);

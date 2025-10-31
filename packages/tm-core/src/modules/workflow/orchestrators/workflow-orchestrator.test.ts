@@ -500,26 +500,34 @@ describe('WorkflowOrchestrator - State Machine Structure', () => {
 			}).toThrow('Test results required');
 		});
 
-		it('should validate RED phase test results have failures', () => {
+		it('should allow RED phase with all passing tests and emit warning', () => {
 			orchestrator.transition({ type: 'PREFLIGHT_COMPLETE' });
 			orchestrator.transition({
 				type: 'BRANCH_CREATED',
 				branchName: 'feature/test'
 			});
 
-			// Provide passing test results (should fail RED phase validation)
-			expect(() => {
-				orchestrator.transition({
-					type: 'RED_PHASE_COMPLETE',
-					testResults: {
-						total: 5,
-						passed: 5,
-						failed: 0,
-						skipped: 0,
-						phase: 'RED'
-					}
-				});
-			}).toThrow('RED phase must have at least one failing test');
+			const warnings: unknown[] = [];
+			orchestrator.on('validation:warning', (data) => warnings.push(data));
+
+			// Provide passing test results (should emit warning but allow transition)
+			orchestrator.transition({
+				type: 'RED_PHASE_COMPLETE',
+				testResults: {
+					total: 5,
+					passed: 5,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				}
+			});
+
+			// Should have emitted validation warning
+			expect(warnings.length).toBeGreaterThan(0);
+
+			// Subtask should be auto-completed (feature already implemented)
+			const state = orchestrator.getState();
+			expect(state.context.subtasks[0].status).toBe('completed');
 		});
 
 		it('should allow RED to GREEN transition with valid failing tests', () => {
@@ -1396,7 +1404,7 @@ describe('WorkflowOrchestrator - State Machine Structure', () => {
 			expect(orchestrator.hasTestResultValidator()).toBe(true);
 		});
 
-		it('should use TestResultValidator to validate RED phase', () => {
+		it('should use TestResultValidator to validate RED phase with warning', () => {
 			orchestrator.transition({ type: 'PREFLIGHT_COMPLETE' });
 			orchestrator.transition({
 				type: 'BRANCH_CREATED',
@@ -1405,19 +1413,23 @@ describe('WorkflowOrchestrator - State Machine Structure', () => {
 
 			orchestrator.setTestResultValidator(testValidator);
 
-			// Should reject passing tests in RED phase
-			expect(() => {
-				orchestrator.transition({
-					type: 'RED_PHASE_COMPLETE',
-					testResults: {
-						total: 5,
-						passed: 5,
-						failed: 0,
-						skipped: 0,
-						phase: 'RED'
-					}
-				});
-			}).toThrow('RED phase must have at least one failing test');
+			const warnings: unknown[] = [];
+			orchestrator.on('validation:warning', (data) => warnings.push(data));
+
+			// Should emit warning for passing tests in RED phase but allow transition
+			orchestrator.transition({
+				type: 'RED_PHASE_COMPLETE',
+				testResults: {
+					total: 5,
+					passed: 5,
+					failed: 0,
+					skipped: 0,
+					phase: 'RED'
+				}
+			});
+
+			// Should have emitted validation warning
+			expect(warnings.length).toBeGreaterThan(0);
 		});
 
 		it('should use TestResultValidator to validate GREEN phase', () => {

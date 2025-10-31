@@ -12,6 +12,8 @@ import type {
 	WorkflowError
 } from '../types.js';
 import type { TestResultValidator } from '../services/test-result-validator.js';
+import { WorkflowValidationError } from '../errors/workflow-validation-error.js';
+import { PhaseValidator } from '../validators/phase-validator.js';
 
 /**
  * Lightweight state machine for TDD workflow orchestration
@@ -32,6 +34,7 @@ export class WorkflowOrchestrator {
 	>;
 	private aborted: boolean = false;
 	private testResultValidator?: TestResultValidator;
+	private readonly phaseValidator: PhaseValidator;
 	private gitOperationHook?: (operation: string, data?: unknown) => void;
 	private executeHook?: (command: string, context: WorkflowContext) => void;
 
@@ -41,6 +44,7 @@ export class WorkflowOrchestrator {
 		this.transitions = this.defineTransitions();
 		this.eventListeners = new Map();
 		this.phaseGuards = new Map();
+		this.phaseValidator = new PhaseValidator();
 	}
 
 	/**
@@ -165,6 +169,9 @@ export class WorkflowOrchestrator {
 					throw new Error('Test results required for RED phase transition');
 				}
 
+				// Validate test results against RED phase semantics
+				this.validateTestResults(event.testResults, 'RED');
+
 				// Store test results in context
 				this.context.lastTestResults = event.testResults;
 
@@ -224,10 +231,9 @@ export class WorkflowOrchestrator {
 					throw new Error('Test results required for GREEN phase transition');
 				}
 
-				// Validate GREEN phase has no failures
-				if (event.testResults.failed !== 0) {
-					throw new Error('GREEN phase must have zero failures');
-				}
+				// Validate test results against GREEN phase semantics with regression detection
+				const previousTestCount = this.context.lastTestResults?.total;
+				this.validateTestResults(event.testResults, 'GREEN', previousTestCount);
 
 				// Store test results in context
 				this.context.lastTestResults = event.testResults;
@@ -287,6 +293,71 @@ export class WorkflowOrchestrator {
 
 			default:
 				throw new Error(`Invalid transition: ${event.type} in SUBTASK_LOOP`);
+		}
+	}
+
+	/**
+	 * Validate test results for a TDD phase transition
+	 * Throws WorkflowValidationError if validation fails
+	 *
+	 * @param testResults - Test results to validate
+	 * @param phase - TDD phase ('RED' or 'GREEN')
+	 * @param previousTestCount - Previous test count for regression detection (GREEN phase only)
+	 */
+	private validateTestResults(
+		testResults: { total: number; passed: number; failed: number; skipped: number; phase: 'RED' | 'GREEN' },
+		phase: TDDPhase,
+		previousTestCount?: number
+	): void {
+		// Use PhaseValidator to perform validation
+		const result = this.phaseValidator.validatePhase(
+			{
+				testResults,
+				previousTestResults: previousTestCount !== undefined
+					? { total: previousTestCount, passed: 0, failed: 0, skipped: 0, phase: 'RED' }
+					: undefined,
+				phase,
+				hasValidator: this.testResultValidator !== undefined
+			},
+			this.testResultValidator
+		);
+
+		// Always emit validation event for observability
+		this.emit('validation:test-results', {
+			phase,
+			valid: result.valid,
+			errors: result.errors,
+			warnings: result.warnings,
+			suggestions: result.suggestions,
+			testResults
+		});
+
+		// If validation failed, emit dedicated event before throwing
+		if (!result.valid) {
+			this.emit('validation:failed', {
+				phase,
+				errors: result.errors,
+				warnings: result.warnings,
+				suggestions: result.suggestions,
+				testResults
+			});
+
+			throw new WorkflowValidationError({
+				errors: result.errors,
+				warnings: result.warnings,
+				suggestions: result.suggestions,
+				phase,
+				testResults
+			});
+		}
+
+		// Emit warnings even if valid (non-blocking informational)
+		if (result.warnings && result.warnings.length > 0) {
+			this.emit('validation:warning', {
+				phase,
+				warnings: result.warnings,
+				suggestions: result.suggestions
+			});
 		}
 	}
 

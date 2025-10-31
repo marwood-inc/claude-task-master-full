@@ -12472,7 +12472,7 @@
           "1",
           "2"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -12480,9 +12480,10 @@
             "description": "Replace manual count-based validation in handleTDDPhaseTransition with TestResultValidator calls to provide configurable validation logic",
             "dependencies": [],
             "details": "Modify handleTDDPhaseTransition method in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.ts:152 to use TestResultValidator instead of manual test count checks. Import and instantiate TestResultValidator, replace existing validation logic with validator.validate() calls, and ensure proper error handling for validation failures.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests to verify TestResultValidator integration replaces manual validation logic correctly and maintains existing phase transition behavior",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T11:44:43.438Z"
           },
           {
             "id": 2,
@@ -12492,9 +12493,10 @@
               1
             ],
             "details": "Define state transition rules when TestResultValidator detects validation errors during RED/GREEN phase transitions. Specify which validation errors should block phase transitions, which should emit warnings, and how workflow events should be triggered. Update workflow state machine to handle validation-driven state changes.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Integration tests to verify workflow state responds correctly to different validation error scenarios and maintains proper state consistency",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T11:44:50.985Z"
           },
           {
             "id": 3,
@@ -12505,9 +12507,10 @@
               2
             ],
             "details": "Update test cases in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts:1408 and related tests to expect validator-driven errors instead of manual validation. Mock TestResultValidator appropriately, verify error scenarios trigger expected workflow behavior, and ensure tests validate the integration between validator and orchestrator.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run workflow orchestrator test suite to verify all tests pass with updated validator integration and proper error handling expectations",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T11:44:58.496Z"
           },
           {
             "id": 4,
@@ -12519,14 +12522,16 @@
               3
             ],
             "details": "Execute full workflow test suite including packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts to verify TestResultValidator integration doesn't break existing functionality. Test RED → GREEN → REFACTOR phase transitions with various test result scenarios including failures, passes, timeouts, and syntax errors.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Full workflow test suite execution with focus on phase transition scenarios and validation of proper test failure detection and state management",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T11:45:07.884Z"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "Integrate `TestResultValidator` calls into RED/GREEN handling within `handleTDDPhaseTransition`, define how validation errors change workflow state/events, update orchestrator tests that expect validator enforcement, and rerun the workflow suite."
+        "expansionPrompt": "Integrate `TestResultValidator` calls into RED/GREEN handling within `handleTDDPhaseTransition`, define how validation errors change workflow state/events, update orchestrator tests that expect validator enforcement, and rerun the workflow suite.",
+        "updatedAt": "2025-10-31T11:45:07.884Z"
       },
       {
         "id": "8",
@@ -12817,9 +12822,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T11:02:04.905Z",
+      "lastModified": "2025-10-31T11:45:07.896Z",
       "taskCount": 10,
-      "completedCount": 6,
+      "completedCount": 7,
       "tags": [
         "chore-performance-optimisation-test-fixes"
       ]

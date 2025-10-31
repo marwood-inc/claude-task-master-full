@@ -147,4 +147,7 @@ export type WorkflowEventType =
 	| 'error:occurred'
 	| 'state:persisted'
 	| 'progress:updated'
-	| 'adapter:configured';
+	| 'adapter:configured'
+	| 'validation:test-results'
+	| 'validation:failed'
+	| 'validation:warning';
