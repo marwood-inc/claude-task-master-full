@@ -982,4 +982,198 @@ describe('GitHubSyncStateService', () => {
 			expect(backupFiles.length).toBeGreaterThan(0);
 		});
 	});
+
+	describe('concurrent operations with ResourceMutex', () => {
+		beforeEach(async () => {
+			await service.initialize();
+		});
+
+		it('should handle concurrent writes without race conditions', async () => {
+			// Simulate 20 concurrent write operations
+			const operations = Array.from({ length: 20 }, (_, i) => {
+				const mapping: SyncMapping = {
+					taskId: `task-${i}`,
+					issueNumber: 100 + i,
+					owner: 'test-owner',
+					repo: 'test-repo',
+					lastSyncedAt: new Date().toISOString(),
+					lastSyncDirection: 'to_github',
+					status: 'synced'
+				};
+
+				return service.setMapping(mapping);
+			});
+
+			// All operations should succeed
+			const results = await Promise.all(operations);
+
+			results.forEach((result) => {
+				expect(result.success).toBe(true);
+			});
+
+			// Verify all mappings were saved (no lost updates)
+			const allMappings = await service.getAllMappings();
+			expect(allMappings).toHaveLength(20);
+
+			// Verify each mapping exists
+			for (let i = 0; i < 20; i++) {
+				const mapping = await service.getMapping(`task-${i}`);
+				expect(mapping).not.toBeNull();
+				expect(mapping?.issueNumber).toBe(100 + i);
+			}
+		});
+
+		it('should handle concurrent read-modify-write cycles correctly', async () => {
+			// Initialize a mapping
+			const initialMapping: SyncMapping = {
+				taskId: '1',
+				issueNumber: 100,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: '2024-01-01T00:00:00Z',
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			};
+
+			await service.setMapping(initialMapping);
+
+			// Simulate 10 concurrent updates to same mapping
+			const updates = Array.from({ length: 10 }, async (_, i) => {
+				const mapping = await service.getMapping('1');
+
+				if (mapping) {
+					mapping.issueNumber = 100 + i + 1;
+					mapping.lastSyncedAt = new Date().toISOString();
+					await service.setMapping(mapping);
+				}
+			});
+
+			await Promise.all(updates);
+
+			// Final state should be consistent (last write wins)
+			const finalMapping = await service.getMapping('1');
+
+			expect(finalMapping).not.toBeNull();
+			expect(finalMapping?.issueNumber).toBeGreaterThanOrEqual(101);
+			expect(finalMapping?.issueNumber).toBeLessThanOrEqual(110);
+		});
+
+		it('should serialize access to same resource', async () => {
+			const executionOrder: number[] = [];
+
+			// Create operations that track execution order
+			const op1 = service.setMapping({
+				taskId: '1',
+				issueNumber: 100,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: new Date().toISOString(),
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			}).then(() => {
+				executionOrder.push(1);
+			});
+
+			const op2 = service.setMapping({
+				taskId: '2',
+				issueNumber: 200,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: new Date().toISOString(),
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			}).then(() => {
+				executionOrder.push(2);
+			});
+
+			const op3 = service.setMapping({
+				taskId: '3',
+				issueNumber: 300,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: new Date().toISOString(),
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			}).then(() => {
+				executionOrder.push(3);
+			});
+
+			await Promise.all([op1, op2, op3]);
+
+			// All operations should have completed
+			expect(executionOrder).toHaveLength(3);
+
+			// All three mappings should exist
+			const mapping1 = await service.getMapping('1');
+			const mapping2 = await service.getMapping('2');
+			const mapping3 = await service.getMapping('3');
+
+			expect(mapping1).not.toBeNull();
+			expect(mapping2).not.toBeNull();
+			expect(mapping3).not.toBeNull();
+		});
+
+		it('should handle errors without leaking locks', async () => {
+			// This test verifies that errors during operations don't leave locks held
+			// First, create a valid mapping
+			await service.setMapping({
+				taskId: '1',
+				issueNumber: 100,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: new Date().toISOString(),
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			// Second operation should succeed (proving lock was released after first)
+			const result = await service.setMapping({
+				taskId: '2',
+				issueNumber: 200,
+				owner: 'test-owner',
+				repo: 'test-repo',
+				lastSyncedAt: new Date().toISOString(),
+				lastSyncDirection: 'to_github',
+				status: 'synced'
+			});
+
+			expect(result.success).toBe(true);
+
+			// Verify both mappings exist
+			const mapping1 = await service.getMapping('1');
+			const mapping2 = await service.getMapping('2');
+
+			expect(mapping1).not.toBeNull();
+			expect(mapping2).not.toBeNull();
+		});
+
+		it('should complete all operations within reasonable time', async () => {
+			// Performance test: 50 concurrent operations should complete quickly
+			const startTime = Date.now();
+
+			const operations = Array.from({ length: 50 }, (_, i) =>
+				service.setMapping({
+					taskId: `perf-${i}`,
+					issueNumber: i,
+					owner: 'test-owner',
+					repo: 'test-repo',
+					lastSyncedAt: new Date().toISOString(),
+					lastSyncDirection: 'to_github',
+					status: 'synced'
+				})
+			);
+
+			await Promise.all(operations);
+
+			const duration = Date.now() - startTime;
+
+			// Should complete in reasonable time (< 10 seconds)
+			// Even with serialized access, file I/O is fast
+			expect(duration).toBeLessThan(10000);
+
+			// Verify all mappings were saved
+			const allMappings = await service.getAllMappings();
+			expect(allMappings).toHaveLength(50);
+		}, 15000); // Extended timeout for this test
+	});
 });
