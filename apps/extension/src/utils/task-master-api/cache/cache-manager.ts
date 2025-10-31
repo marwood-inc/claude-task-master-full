@@ -5,6 +5,7 @@
 
 import type { ExtensionLogger } from '../../logger';
 import type { CacheAnalytics, CacheConfig, CacheEntry } from '../types';
+import { CACHE_MISS, type CacheResult } from '@tm/core/common/cache';
 
 export class CacheManager {
 	private cache = new Map<string, CacheEntry>();
@@ -30,8 +31,9 @@ export class CacheManager {
 
 	/**
 	 * Get data from cache if not expired
+	 * Returns CACHE_MISS sentinel if not found or expired
 	 */
-	get(key: string): any {
+	get(key: string): CacheResult<any> {
 		const startTime = Date.now();
 		const cached = this.cache.get(key);
 
@@ -66,7 +68,7 @@ export class CacheManager {
 		}
 
 		this.logger.debug(`Cache miss for ${key}`);
-		return null;
+		return CACHE_MISS;
 	}
 
 	/**

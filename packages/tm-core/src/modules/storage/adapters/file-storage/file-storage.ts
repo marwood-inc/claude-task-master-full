@@ -19,6 +19,10 @@ import { FileOperations } from './file-operations.js';
 import { PathResolver } from './path-resolver.js';
 import { ComplexityReportManager } from '../../../reports/managers/complexity-report-manager.js';
 import { getLogger } from '../../../../common/logger/factory.js';
+import {
+	CacheNamespace,
+	CacheKeyBuilder
+} from '../../../../common/cache/index.js';
 
 /**
  * Cache entry structure
@@ -130,10 +134,11 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
-	 * Generate a cache key for a given tag and options combination
+	 * Generate a cache key for a given tag and options combination using namespace system
 	 */
 	private getCacheKey(tag: string, options?: LoadTasksOptions): string {
-		return `${tag}-${JSON.stringify(options || {})}`;
+		const optionsHash = JSON.stringify(options || {});
+		return CacheKeyBuilder.build(CacheNamespace.Storage, tag, optionsHash);
 	}
 
 	/**
@@ -211,7 +216,7 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
-	 * Load a single regular task by ID with early-exit parsing
+	 * Load a single regular task by ID with early-exit parsing and caching
 	 * Optimized to avoid processing all tasks when fetching a single task
 	 * @private
 	 */
@@ -221,6 +226,22 @@ export class FileStorage implements IStorage {
 	): Promise<Task | null> {
 		const filePath = this.pathResolver.getTasksPath();
 		const resolvedTag = tag || 'master';
+
+		// Generate cache key for single task
+		const cacheKey = CacheKeyBuilder.build(
+			CacheNamespace.Task,
+			taskId,
+			resolvedTag
+		);
+
+		// Check cache first
+		const cachedEntry = this.taskCache.get(cacheKey);
+		if (cachedEntry && this.isCacheValid(cachedEntry)) {
+			this.logger.debug(`Single task cache hit: ${cacheKey}`);
+			return cachedEntry.tasks[0] || null;
+		}
+
+		this.logger.debug(`Single task cache miss: ${cacheKey}`);
 
 		try {
 			// Read and parse the raw data
@@ -233,6 +254,11 @@ export class FileStorage implements IStorage {
 			);
 
 			if (!targetTask) {
+				// Cache the null result to avoid repeated lookups
+				this.taskCache.set(cacheKey, {
+					tasks: [],
+					timestamp: Date.now()
+				});
 				return null;
 			}
 
@@ -242,9 +268,20 @@ export class FileStorage implements IStorage {
 				resolvedTag
 			);
 
+			// Cache the result
+			this.taskCache.set(cacheKey, {
+				tasks: enrichedTasks,
+				timestamp: Date.now()
+			});
+
 			return enrichedTasks[0] || null;
 		} catch (error: any) {
 			if (error.code === 'ENOENT') {
+				// Cache the ENOENT result to avoid repeated file system checks
+				this.taskCache.set(cacheKey, {
+					tasks: [],
+					timestamp: Date.now()
+				});
 				return null; // File doesn't exist
 			}
 			throw new Error(`Failed to load task: ${error.message}`);

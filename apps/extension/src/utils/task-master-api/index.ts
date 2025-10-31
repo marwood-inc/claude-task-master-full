@@ -9,6 +9,7 @@ import type { MCPClientManager } from '../mcpClient';
 import { CacheManager } from './cache/cache-manager';
 import { MCPClient } from './mcp-client';
 import { TaskTransformer } from './transformers/task-transformer';
+import { isCacheMiss } from '@tm/core/common/cache';
 import type {
 	AddSubtaskOptions,
 	CacheConfig,
@@ -116,7 +117,7 @@ export class TaskMasterApi {
 		try {
 			// Check cache first
 			const cached = this.cache.get(cacheKey);
-			if (cached) {
+			if (!isCacheMiss(cached)) {
 				return {
 					success: true,
 					data: cached,
