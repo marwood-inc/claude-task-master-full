@@ -7,7 +7,11 @@
       "mcp__oraios_serena__read_file",
       "mcp__oraios_serena__activate_project",
       "mcp__oraios_serena__find_file",
-      "mcp__oraios_serena__search_for_pattern"
+      "mcp__oraios_serena__search_for_pattern",
+      "mcp__oraios_serena__find_symbol",
+      "Bash(task-master list:*)",
+      "mcp__oraios_serena__execute_shell_command",
+      "Bash(task-master update-subtask:*)"
     ],
     "deny": [],
     "ask": []
