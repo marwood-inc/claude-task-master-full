@@ -11113,9 +11113,10 @@
               1
             ],
             "details": "Create syncToGitHub() method in GitHubSyncService that handles creating new issues for unmapped tasks, updating existing mapped issues, supporting both checklist and separate-issues subtask modes. Implement batch processing with GitHub API, with support for 100 requests per batch and dry-run mode.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests with mocked GitHub client, integration tests with test repository, batch processing validation",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:31:55.251Z"
           },
           {
             "id": 3,
@@ -11159,7 +11160,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-10-31T04:20:33.688Z"
+        "updatedAt": "2025-10-31T04:31:55.251Z"
       },
       {
         "id": "5",
@@ -11553,7 +11554,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:20:33.697Z",
+      "lastModified": "2025-10-31T04:31:55.261Z",
       "taskCount": 10,
       "completedCount": 3,
       "tags": [

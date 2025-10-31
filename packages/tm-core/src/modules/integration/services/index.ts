@@ -10,3 +10,18 @@ export {
 	createResilienceService
 } from './github-resilience.js';
 export type { ResilienceConfig, RetryStats } from './github-resilience.js';
+
+export { GitHubSyncService } from './github-sync.service.js';
+export type {
+	TaskSyncResult,
+	SubtaskSyncResult,
+	DependencySyncResult,
+	GitHubSyncResult
+} from './github-sync.service.js';
+
+export { GitHubSyncStateService } from './github-sync-state.service.js';
+export type {
+	StateFileOptions,
+	StateFileOperationResult,
+	SyncStateStats
+} from '../types/github-sync-state-types.js';
