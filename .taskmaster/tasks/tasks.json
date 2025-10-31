@@ -11126,9 +11126,10 @@
               1
             ],
             "details": "Develop GitHubFieldMapper class with methods for converting task attributes to GitHub issue properties. Handle status mapping, priority labeling, description enrichment, and subtask representation in both checklist and separate-issues modes.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Round-trip conversion tests, semantic equivalence validation, edge case handling for null/missing fields",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T04:34:03.075Z"
           },
           {
             "id": 4,
@@ -11160,7 +11161,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2025-10-31T04:31:55.251Z"
+        "updatedAt": "2025-10-31T04:34:03.075Z"
       },
       {
         "id": "5",
@@ -11554,7 +11555,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T04:31:55.261Z",
+      "lastModified": "2025-10-31T04:34:03.083Z",
       "taskCount": 10,
       "completedCount": 3,
       "tags": [
