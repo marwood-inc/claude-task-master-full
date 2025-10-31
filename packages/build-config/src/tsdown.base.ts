@@ -26,31 +26,9 @@ export const baseConfig: Partial<UserConfig> = {
 	platform: 'node',
 	dts: isDevelopment,
 	// Advanced minification for production
-	minify: isProduction
-		? {
-				compress: {
-					drop_console: true, // Remove console.* calls
-					drop_debugger: true, // Remove debugger statements
-					pure_funcs: [
-						'console.debug',
-						'console.trace',
-						'logger.debug',
-						'logger.trace'
-					] // Remove these function calls
-				},
-				mangle: {
-					keep_classnames: false, // Mangle class names for smaller bundles
-					keep_fnames: false // Mangle function names for smaller bundles
-				}
-		  }
-		: false,
+	minify: isProduction,
 	// Advanced tree-shaking for production
-	treeshake: isProduction
-		? {
-				preset: 'recommended',
-				moduleSideEffects: false // Assume no side effects in modules
-		  }
-		: false,
+	treeshake: isProduction,
 	// Production-specific optimizations
 	...(isProduction && {
 		target: 'node18', // Target Node.js 18+ for optimal performance
