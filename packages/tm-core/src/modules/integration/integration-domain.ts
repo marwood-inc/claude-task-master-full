@@ -541,4 +541,265 @@ export class IntegrationDomain {
 			client
 		};
 	}
+
+	// ========== Project Board Management Operations ==========
+
+	/**
+	 * List projects in the configured repository
+	 * @param options List options
+	 * @returns Array of projects
+	 */
+	async listProjects(options?: {
+		state?: 'open' | 'closed' | 'all';
+	}): Promise<any[]> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if projects feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncProjects) {
+			throw new Error(
+				'Projects sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.listRepoProjects(owner, repo, options);
+	}
+
+	/**
+	 * Add an issue to a project board
+	 * @param projectId Project ID
+	 * @param issueNumber Issue number
+	 * @param columnId Column ID to add the card to
+	 * @returns Created project card
+	 */
+	async addIssueToProject(
+		projectId: number,
+		issueNumber: number,
+		columnId: number
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if projects feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncProjects) {
+			throw new Error(
+				'Projects sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		// Validate project exists (projectId used for validation)
+		await client.getProject(projectId);
+
+		// Get the issue to find its ID
+		const issue = await client.getIssue(owner, repo, issueNumber);
+
+		// Create a card for the issue
+		return client.createProjectCard(columnId, issue.id, 'Issue');
+	}
+
+	/**
+	 * Move an issue card to a different column
+	 * @param cardId Card ID
+	 * @param columnId Target column ID
+	 * @param position Position in the column ('top', 'bottom')
+	 * @returns Updated card
+	 */
+	async moveIssueCard(
+		cardId: number,
+		columnId: number,
+		position: 'top' | 'bottom' = 'bottom'
+	): Promise<any> {
+		const { client } = await this.getGitHubClientAndRepo();
+
+		// Check if projects feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncProjects) {
+			throw new Error(
+				'Projects sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.moveProjectCard(cardId, position, columnId);
+	}
+
+	/**
+	 * Get project columns
+	 * @param projectId Project ID
+	 * @returns Array of columns
+	 */
+	async getProjectColumns(projectId: number): Promise<any[]> {
+		const { client } = await this.getGitHubClientAndRepo();
+
+		// Check if projects feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncProjects) {
+			throw new Error(
+				'Projects sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.listProjectColumns(projectId);
+	}
+
+	/**
+	 * Find column ID by name
+	 * @param projectId Project ID
+	 * @param columnName Column name to find
+	 * @returns Column ID or null if not found
+	 */
+	async findColumnByName(
+		projectId: number,
+		columnName: string
+	): Promise<number | null> {
+		const columns = await this.getProjectColumns(projectId);
+
+		const column = columns.find(
+			(col) => col.name.toLowerCase() === columnName.toLowerCase()
+		);
+
+		return column ? column.id : null;
+	}
+
+	// ========== Assignee Management Operations ==========
+
+	/**
+	 * Validate if a GitHub username exists
+	 * @param username GitHub username
+	 * @returns True if username exists
+	 */
+	async validateGitHubUsername(username: string): Promise<boolean> {
+		const { client } = await this.getGitHubClientAndRepo();
+
+		// Check if assignees feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncAssignees) {
+			throw new Error(
+				'Assignee sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.validateUsername(username);
+	}
+
+	/**
+	 * Sync assignees to a GitHub issue
+	 * @param issueNumber Issue number
+	 * @param assignees Array of GitHub usernames
+	 * @returns Updated issue
+	 */
+	async syncIssueAssignees(
+		issueNumber: number,
+		assignees: string[]
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if assignees feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncAssignees) {
+			throw new Error(
+				'Assignee sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		// Validate all usernames first
+		const validationResults = await Promise.all(
+			assignees.map(async (username) => ({
+				username,
+				valid: await client.validateUsername(username)
+			}))
+		);
+
+		const invalidUsernames = validationResults
+			.filter((result) => !result.valid)
+			.map((result) => result.username);
+
+		if (invalidUsernames.length > 0) {
+			throw new Error(
+				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
+			);
+		}
+
+		// Get current issue to determine which assignees to add/remove
+		const issue = await client.getIssue(owner, repo, issueNumber);
+		const currentAssignees = issue.assignees.map((a: any) => a.login);
+
+		// Determine changes
+		const toAdd = assignees.filter((a) => !currentAssignees.includes(a));
+		const toRemove = currentAssignees.filter((a: string) => !assignees.includes(a));
+
+		// Apply changes
+		if (toRemove.length > 0) {
+			await client.removeAssignees(owner, repo, issueNumber, toRemove);
+		}
+
+		if (toAdd.length > 0) {
+			return client.addAssignees(owner, repo, issueNumber, toAdd);
+		}
+
+		return issue;
+	}
+
+	/**
+	 * Add assignees to a GitHub issue
+	 * @param issueNumber Issue number
+	 * @param assignees Array of GitHub usernames to add
+	 * @returns Updated issue
+	 */
+	async addIssueAssignees(
+		issueNumber: number,
+		assignees: string[]
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if assignees feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncAssignees) {
+			throw new Error(
+				'Assignee sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		// Validate all usernames first
+		const validationResults = await Promise.all(
+			assignees.map(async (username) => ({
+				username,
+				valid: await client.validateUsername(username)
+			}))
+		);
+
+		const invalidUsernames = validationResults
+			.filter((result) => !result.valid)
+			.map((result) => result.username);
+
+		if (invalidUsernames.length > 0) {
+			throw new Error(
+				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
+			);
+		}
+
+		return client.addAssignees(owner, repo, issueNumber, assignees);
+	}
+
+	/**
+	 * Remove assignees from a GitHub issue
+	 * @param issueNumber Issue number
+	 * @param assignees Array of GitHub usernames to remove
+	 * @returns Updated issue
+	 */
+	async removeIssueAssignees(
+		issueNumber: number,
+		assignees: string[]
+	): Promise<any> {
+		const { owner, repo, client } = await this.getGitHubClientAndRepo();
+
+		// Check if assignees feature is enabled
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.syncAssignees) {
+			throw new Error(
+				'Assignee sync is disabled. Enable it in GitHub settings.'
+			);
+		}
+
+		return client.removeAssignees(owner, repo, issueNumber, assignees);
+	}
 }

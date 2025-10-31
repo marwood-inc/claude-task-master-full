@@ -314,10 +314,10 @@ export interface SyncResult {
 }
 
 /**
- * GitHub Project type
- * Represents a GitHub Project (v2)
+ * GitHub Project type (v2)
+ * Represents a GitHub Project v2
  */
-export interface GitHubProject {
+export interface GitHubProjectV2 {
 	/** Project ID */
 	id: string;
 
@@ -342,6 +342,96 @@ export interface GitHubProject {
 	/** Last update timestamp */
 	updatedAt: string;
 }
+
+/**
+ * GitHub Project type (v1/classic)
+ * Represents a GitHub Project (classic board)
+ */
+export interface GitHubProjectClassic {
+	/** Project ID */
+	id: number;
+
+	/** Project number */
+	number: number;
+
+	/** Project name */
+	name: string;
+
+	/** Project body/description */
+	body: string | null;
+
+	/** Project state (open, closed) */
+	state: 'open' | 'closed';
+
+	/** HTML URL to the project */
+	html_url: string;
+
+	/** Creator */
+	creator: GitHubUser;
+
+	/** Creation timestamp */
+	created_at: string;
+
+	/** Last update timestamp */
+	updated_at: string;
+}
+
+/**
+ * GitHub Project Column type
+ * Represents a column in a GitHub Project (classic)
+ */
+export interface GitHubProjectColumn {
+	/** Column ID */
+	id: number;
+
+	/** Column name */
+	name: string;
+
+	/** Project URL */
+	project_url: string;
+
+	/** Creation timestamp */
+	created_at: string;
+
+	/** Last update timestamp */
+	updated_at: string;
+}
+
+/**
+ * GitHub Project Card type
+ * Represents a card in a GitHub Project column
+ */
+export interface GitHubProjectCard {
+	/** Card ID */
+	id: number;
+
+	/** Note content (for note cards) */
+	note: string | null;
+
+	/** Issue/PR URL (for content cards) */
+	content_url: string | null;
+
+	/** Project URL */
+	project_url: string;
+
+	/** Column URL */
+	column_url: string;
+
+	/** Column ID */
+	column_id: number;
+
+	/** Creator */
+	creator: GitHubUser;
+
+	/** Creation timestamp */
+	created_at: string;
+
+	/** Last update timestamp */
+	updated_at: string;
+}
+
+/** Backward compatibility alias */
+export type GitHubProject = GitHubProjectV2;
 
 /**
  * GitHub Comment type

@@ -704,4 +704,357 @@ export class GitHubClient {
 			this.handleError(error, 'Failed to list milestones');
 		}
 	}
+
+	// ==================== Project Board Operations (Classic Projects v1) ====================
+
+	/**
+	 * List repository projects (classic)
+	 */
+	async listRepoProjects(
+		owner: string,
+		repo: string,
+		options?: {
+			state?: 'open' | 'closed' | 'all';
+			per_page?: number;
+			page?: number;
+		}
+	): Promise<any[]> {
+		try {
+			this.logger.debug('Listing repository projects', { owner, repo });
+
+			const { data } = await this.octokit.rest.projects.listForRepo({
+				owner,
+				repo,
+				state: options?.state,
+				per_page: options?.per_page,
+				page: options?.page
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, 'Failed to list repository projects');
+		}
+	}
+
+	/**
+	 * Get a project by ID
+	 */
+	async getProject(projectId: number): Promise<any> {
+		try {
+			this.logger.debug('Getting project', { projectId });
+
+			const { data } = await this.octokit.rest.projects.get({
+				project_id: projectId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to get project #${projectId}`);
+		}
+	}
+
+	/**
+	 * List columns in a project
+	 */
+	async listProjectColumns(projectId: number): Promise<any[]> {
+		try {
+			this.logger.debug('Listing project columns', { projectId });
+
+			const { data } = await this.octokit.rest.projects.listColumns({
+				project_id: projectId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to list columns for project #${projectId}`);
+		}
+	}
+
+	/**
+	 * Get a column by ID
+	 */
+	async getProjectColumn(columnId: number): Promise<any> {
+		try {
+			this.logger.debug('Getting project column', { columnId });
+
+			const { data } = await this.octokit.rest.projects.getColumn({
+				column_id: columnId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to get column #${columnId}`);
+		}
+	}
+
+	/**
+	 * List cards in a project column
+	 */
+	async listProjectColumnCards(
+		columnId: number,
+		options?: {
+			archived_state?: 'all' | 'archived' | 'not_archived';
+			per_page?: number;
+			page?: number;
+		}
+	): Promise<any[]> {
+		try {
+			this.logger.debug('Listing column cards', { columnId });
+
+			const { data } = await this.octokit.rest.projects.listCards({
+				column_id: columnId,
+				archived_state: options?.archived_state,
+				per_page: options?.per_page,
+				page: options?.page
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to list cards for column #${columnId}`);
+		}
+	}
+
+	/**
+	 * Create a project card for an issue
+	 */
+	async createProjectCard(
+		columnId: number,
+		contentId: number,
+		contentType: 'Issue' | 'PullRequest'
+	): Promise<any> {
+		try {
+			this.logger.debug('Creating project card', {
+				columnId,
+				contentId,
+				contentType
+			});
+
+			const { data } = await this.octokit.rest.projects.createCard({
+				column_id: columnId,
+				content_id: contentId,
+				content_type: contentType
+			});
+
+			this.logger.info('Project card created', {
+				cardId: data.id,
+				columnId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(
+				error,
+				`Failed to create card for ${contentType} #${contentId}`
+			);
+		}
+	}
+
+	/**
+	 * Move a project card to a different column
+	 */
+	async moveProjectCard(
+		cardId: number,
+		position: 'top' | 'bottom' | `after:${number}`,
+		columnId?: number
+	): Promise<any> {
+		try {
+			this.logger.debug('Moving project card', { cardId, position, columnId });
+
+			const moveParams: {
+				card_id: number;
+				position: string;
+				column_id?: number;
+			} = {
+				card_id: cardId,
+				position
+			};
+
+			if (columnId !== undefined) {
+				moveParams.column_id = columnId;
+			}
+
+			const { data } = await this.octokit.rest.projects.moveCard(moveParams);
+
+			this.logger.info('Project card moved', {
+				cardId,
+				newColumnId: columnId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to move card #${cardId}`);
+		}
+	}
+
+	/**
+	 * Delete a project card
+	 */
+	async deleteProjectCard(cardId: number): Promise<void> {
+		try {
+			this.logger.debug('Deleting project card', { cardId });
+
+			await this.octokit.rest.projects.deleteCard({
+				card_id: cardId
+			});
+
+			this.logger.info('Project card deleted', { cardId });
+		} catch (error) {
+			this.handleError(error, `Failed to delete card #${cardId}`);
+		}
+	}
+
+	/**
+	 * Get a project card by ID
+	 */
+	async getProjectCard(cardId: number): Promise<any> {
+		try {
+			this.logger.debug('Getting project card', { cardId });
+
+			const { data } = await this.octokit.rest.projects.getCard({
+				card_id: cardId
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(error, `Failed to get card #${cardId}`);
+		}
+	}
+
+	/**
+	 * Find project card for an issue
+	 * Helper method to find if an issue already has a card in a project
+	 */
+	async findProjectCardForIssue(
+		projectId: number,
+		issueId: number
+	): Promise<any | null> {
+		try {
+			this.logger.debug('Finding project card for issue', { projectId, issueId });
+
+			// Get all columns in the project
+			const columns = await this.listProjectColumns(projectId);
+
+			// Search each column for a card with this issue
+			for (const column of columns) {
+				const cards = await this.listProjectColumnCards(column.id);
+
+				for (const card of cards) {
+					// Check if this card is for our issue
+					if (card.content_url && card.content_url.includes(`/issues/${issueId}`)) {
+						return card;
+					}
+				}
+			}
+
+			return null;
+		} catch (error) {
+			this.logger.warn('Failed to find project card for issue', error);
+			return null;
+		}
+	}
+
+	// ==================== Assignee Operations ====================
+
+	/**
+	 * Validate username exists
+	 * Checks if a username is valid and exists on GitHub
+	 */
+	async validateUsername(username: string): Promise<boolean> {
+		try {
+			this.logger.debug('Validating username', { username });
+
+			await this.octokit.rest.users.getByUsername({
+				username
+			});
+
+			return true;
+		} catch (error) {
+			if (error && typeof error === 'object' && 'status' in error) {
+				const octokitError = error as { status: number };
+				if (octokitError.status === 404) {
+					this.logger.debug('Username not found', { username });
+					return false;
+				}
+			}
+
+			// Re-throw other errors
+			this.handleError(error, `Failed to validate username "${username}"`);
+		}
+	}
+
+	/**
+	 * Add assignees to an issue
+	 */
+	async addAssignees(
+		owner: string,
+		repo: string,
+		issueNumber: number,
+		assignees: string[]
+	): Promise<any> {
+		try {
+			this.logger.debug('Adding assignees to issue', {
+				owner,
+				repo,
+				issueNumber,
+				assignees
+			});
+
+			const { data } = await this.octokit.rest.issues.addAssignees({
+				owner,
+				repo,
+				issue_number: issueNumber,
+				assignees
+			});
+
+			this.logger.info('Assignees added', {
+				issueNumber,
+				assignees
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(
+				error,
+				`Failed to add assignees to issue #${issueNumber}`
+			);
+		}
+	}
+
+	/**
+	 * Remove assignees from an issue
+	 */
+	async removeAssignees(
+		owner: string,
+		repo: string,
+		issueNumber: number,
+		assignees: string[]
+	): Promise<any> {
+		try {
+			this.logger.debug('Removing assignees from issue', {
+				owner,
+				repo,
+				issueNumber,
+				assignees
+			});
+
+			const { data } = await this.octokit.rest.issues.removeAssignees({
+				owner,
+				repo,
+				issue_number: issueNumber,
+				assignees
+			});
+
+			this.logger.info('Assignees removed', {
+				issueNumber,
+				assignees
+			});
+
+			return data;
+		} catch (error) {
+			this.handleError(
+				error,
+				`Failed to remove assignees from issue #${issueNumber}`
+			);
+		}
+	}
 }
