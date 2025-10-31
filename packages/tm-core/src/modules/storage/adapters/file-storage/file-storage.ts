@@ -211,67 +211,118 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
-	 * Load a single task by ID from the tasks.json file
-	 * Handles both regular tasks and subtasks (with dotted notation like "1.2")
+	 * Load a single regular task by ID with early-exit parsing
+	 * Optimized to avoid processing all tasks when fetching a single task
+	 * @private
 	 */
-	async loadTask(taskId: string, tag?: string): Promise<Task | null> {
-		const tasks = await this.loadTasks(tag);
+	private async loadSingleTask(
+		taskId: string,
+		tag?: string
+	): Promise<Task | null> {
+		const filePath = this.pathResolver.getTasksPath();
+		const resolvedTag = tag || 'master';
 
-		// Check if this is a subtask (contains a dot)
-		if (taskId.includes('.')) {
-			const [parentId, subtaskId] = taskId.split('.');
-			const parentTask = tasks.find((t) => String(t.id) === parentId);
+		try {
+			// Read and parse the raw data
+			const rawData = await this.fileOps.readJson(filePath);
+			const tasks = this.formatHandler.extractTasks(rawData, resolvedTag);
 
-			if (!parentTask || !parentTask.subtasks) {
-				return null;
-			}
-
-			const subtask = parentTask.subtasks.find(
-				(st) => String(st.id) === subtaskId
+			// Find the target task immediately without processing all tasks
+			const targetTask = tasks.find(
+				(task) => String(task.id) === String(taskId)
 			);
-			if (!subtask) {
+
+			if (!targetTask) {
 				return null;
 			}
 
-			const toFullSubId = (maybeDotId: string | number): string => {
-				const depId = String(maybeDotId);
-				return depId.includes('.') ? depId : `${parentTask.id}.${depId}`;
-			};
-			const resolvedDependencies =
-				subtask.dependencies?.map((dep) => toFullSubId(dep)) ?? [];
+			// Enrich only the found task with complexity data
+			const enrichedTasks = await this.enrichTasksWithComplexity(
+				[targetTask],
+				resolvedTag
+			);
 
-			// Return a Task-like object for the subtask with the full dotted ID
-			// Following the same pattern as findTaskById in utils.js
-			const subtaskResult = {
-				...subtask,
-				id: taskId, // Use the full dotted ID
-				title: subtask.title || `Subtask ${subtaskId}`,
-				description: subtask.description || '',
-				status: subtask.status || 'pending',
-				priority: subtask.priority || parentTask.priority || 'medium',
-				dependencies: resolvedDependencies,
-				details: subtask.details || '',
-				testStrategy: subtask.testStrategy || '',
-				subtasks: [],
-				tags: parentTask.tags || [],
-				assignee: subtask.assignee || parentTask.assignee,
-				complexity: subtask.complexity || parentTask.complexity,
-				createdAt: subtask.createdAt || parentTask.createdAt,
-				updatedAt: subtask.updatedAt || parentTask.updatedAt,
-				// Add reference to parent task for context (like utils.js does)
-				parentTask: {
-					id: parentTask.id,
-					title: parentTask.title,
-					status: parentTask.status
-				},
-				isSubtask: true
-			};
+			return enrichedTasks[0] || null;
+		} catch (error: any) {
+			if (error.code === 'ENOENT') {
+				return null; // File doesn't exist
+			}
+			throw new Error(`Failed to load task: ${error.message}`);
+		}
+	}
 
-			return subtaskResult;
+	/**
+	 * Load a subtask by ID from the tasks array
+	 * Handles subtasks with dotted notation (like "1.2")
+	 * @private
+	 */
+	private loadSubtask(taskId: string, tasks: Task[]): Task | null {
+		const [parentId, subtaskId] = taskId.split('.');
+		const parentTask = tasks.find((t) => String(t.id) === parentId);
+
+		if (!parentTask || !parentTask.subtasks) {
+			return null;
 		}
 
-		// Handle regular task lookup
-		return tasks.find((task) => String(task.id) === String(taskId)) || null;
+		const subtask = parentTask.subtasks.find(
+			(st) => String(st.id) === subtaskId
+		);
+		if (!subtask) {
+			return null;
+		}
+
+		const toFullSubId = (maybeDotId: string | number): string => {
+			const depId = String(maybeDotId);
+			return depId.includes('.') ? depId : `${parentTask.id}.${depId}`;
+		};
+		const resolvedDependencies =
+			subtask.dependencies?.map((dep) => toFullSubId(dep)) ?? [];
+
+		// Return a Task-like object for the subtask with the full dotted ID
+		// Following the same pattern as findTaskById in utils.js
+		const subtaskResult = {
+			...subtask,
+			id: taskId, // Use the full dotted ID
+			title: subtask.title || `Subtask ${subtaskId}`,
+			description: subtask.description || '',
+			status: subtask.status || 'pending',
+			priority: subtask.priority || parentTask.priority || 'medium',
+			dependencies: resolvedDependencies,
+			details: subtask.details || '',
+			testStrategy: subtask.testStrategy || '',
+			subtasks: [],
+			tags: parentTask.tags || [],
+			assignee: subtask.assignee || parentTask.assignee,
+			complexity: subtask.complexity || parentTask.complexity,
+			createdAt: subtask.createdAt || parentTask.createdAt,
+			updatedAt: subtask.updatedAt || parentTask.updatedAt,
+			// Add reference to parent task for context (like utils.js does)
+			parentTask: {
+				id: parentTask.id,
+				title: parentTask.title,
+				status: parentTask.status
+			},
+			isSubtask: true
+		};
+
+		return subtaskResult;
+	}
+
+	/**
+	 * Load a single task by ID from the tasks.json file
+	 * Handles both regular tasks and subtasks (with dotted notation like "1.2")
+	 * Optimized to avoid loading all tasks for regular task lookups
+	 */
+	async loadTask(taskId: string, tag?: string): Promise<Task | null> {
+		// Check if this is a subtask (contains a dot)
+		if (taskId.includes('.')) {
+			// Subtasks require parent context, so we need to load all tasks
+			const tasks = await this.loadTasks(tag);
+			return this.loadSubtask(taskId, tasks);
+		}
+
+		// For regular tasks, use the optimized single-task loader
+		return this.loadSingleTask(taskId, tag);
 	}
 
 	/**

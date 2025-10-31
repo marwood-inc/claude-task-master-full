@@ -11,7 +11,15 @@
       "mcp__oraios_serena__find_symbol",
       "Bash(task-master list:*)",
       "mcp__oraios_serena__execute_shell_command",
-      "Bash(task-master update-subtask:*)"
+      "Bash(task-master update-subtask:*)",
+      "mcp__oraios_serena__replace_regex",
+      "mcp__oraios_serena__insert_after_symbol",
+      "Bash(set NODE_ENV=production)",
+      "Bash(pnpm run build:*)",
+      "Bash(node dist/task-master.js:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm run build:core:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []
