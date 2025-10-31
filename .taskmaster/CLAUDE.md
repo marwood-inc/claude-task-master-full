@@ -35,6 +35,39 @@ task-master validate-dependencies                            # Check for depende
 task-master generate                                         # Update task markdown files (usually auto-called)
 ```
 
+## Claude Code Subagent Integration
+
+### Task Master Specialist Subagent
+
+Task Master AI includes a specialized subagent for handling task management operations.
+
+**Automatic Delegation**: Claude Code will automatically delegate to the task-master-specialist subagent when you:
+- Run task-master CLI commands (`list`, `show`, `next`, `set-status`, etc.)
+- Request task information ("show me task 5", "what's the next task", "list pending tasks")
+- Perform task analysis or planning operations
+
+**Manual Invocation**: You can explicitly invoke the specialist:
+```bash
+# Examples of explicit invocation
+Use the task-master-specialist subagent to analyze the current task status
+Use the task-master-specialist to review my implementation approach for task 7
+```
+
+**Agent Location**: `.claude/agents/task-master-specialist.md`
+
+**What the specialist provides**:
+- Deep understanding of Task Master architecture and patterns
+- Enforcement of business logic separation (tm-core vs CLI/MCP)
+- Guidance on test placement and structure
+- Task workflow coordination and dependency management
+- Proactive next-action suggestions
+
+**When to use explicitly**:
+- Complex task planning across multiple tasks
+- Architecture review of Task Master-related code
+- Troubleshooting task dependencies or status issues
+- Guidance on Task Master best practices
+
 ## Key Files & Project Structure
 
 ### Core Files

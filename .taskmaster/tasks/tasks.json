@@ -11885,7 +11885,7 @@
         "description": "Extract common GitHub configuration validation logic into a private validateGitHubConfiguration() method. Currently duplicated across syncWithGitHub, resolveConflict, getGitHubSyncStatus and other methods in integration-domain.ts.",
         "details": "",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": [
@@ -11926,7 +11926,8 @@
         ],
         "complexity": 5,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Break into: 1) Inventorying all GitHub validation usage patterns across IntegrationDomain methods to identify duplication, 2) Implementing a reusable private validateGitHubConfiguration helper with configurable token checks and migrating all callers, and 3) Updating unit tests to cover the shared validator and maintaining existing behavior"
+        "expansionPrompt": "Break into: 1) Inventorying all GitHub validation usage patterns across IntegrationDomain methods to identify duplication, 2) Implementing a reusable private validateGitHubConfiguration helper with configurable token checks and migrating all callers, and 3) Updating unit tests to cover the shared validator and maintaining existing behavior",
+        "updatedAt": "2025-10-31T10:10:07.357Z"
       },
       {
         "id": "15",
@@ -12093,9 +12094,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T09:39:51.642Z",
+      "lastModified": "2025-10-31T10:10:07.367Z",
       "taskCount": 17,
-      "completedCount": 13,
+      "completedCount": 14,
       "tags": [
         "feat-github-sync"
       ]

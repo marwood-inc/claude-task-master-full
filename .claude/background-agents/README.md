@@ -1,68 +1,54 @@
-# Background Agents Configuration
+# Historical Note: Background Agents (Task 11)
 
-This directory contains configuration specifications for automatic background agent delegation in Task Master AI.
+⚠️ **This directory was created based on a misunderstanding of how Claude Code subagents work.**
 
-## Status
+## What We Learned
 
-⚠️ **Implementation Pending**: The background agent delegation feature is currently specified but not yet implemented in Claude Code. The configuration files in this directory serve as specifications for the desired behavior.
+Task 11 attempted to create "background agents" with JSON descriptors and custom delegation infrastructure. However, Claude Code actually uses:
 
-## Task Master Specialist Background Agent
+- **Markdown files with YAML frontmatter** in `.claude/agents/` (not JSON descriptors)
+- **Built-in automatic delegation** (no custom infrastructure needed)
+- **Simple configuration**: Just `name`, `description`, `tools`, and `model` fields
 
-The `task-master-specialist.json` file defines how the Task Master specialist agent should be automatically invoked when:
+The good news: **Automatic delegation already works!** Claude Code has built-in proactive delegation based on task descriptions and subagent capabilities.
 
-1. **CLI Commands**: User runs Task Master commands (`task-master list`, `show`, `next`, etc.)
-2. **Natural Language**: User mentions Task Master operations in prompts
-3. **Task Tags**: Work is tagged with `taskmaster` in git or project metadata
+## Current Status
 
-## Configuration Files
+✅ **The task-master-specialist subagent is correctly configured** in `.claude/agents/task-master-specialist.md`
 
-- **task-master-specialist.json**: Complete specification for Task Master specialist background delegation
-  - Trigger conditions (CLI patterns, natural language keywords, task tags)
-  - Delegation targets and priorities
-  - Required tools and permissions
-  - Output formatting templates
-  - Fallback rules and error handling
-  - Integration points with git config, Task Master config, and CLI bridge
+The specialist should automatically handle Task Master operations when you:
+- Run task-master CLI commands (`list`, `show`, `next`, etc.)
+- Request task information ("show me task 5", "what's next")
+- Perform task analysis or planning
 
-## Future Implementation
+## What This Directory Contains
 
-To fully implement this feature, the following components need to be developed:
+- **task-master-specialist.json**: Unused JSON descriptor (Claude Code doesn't use this format)
+- This README: Historical note explaining the misunderstanding
 
-1. **Claude Code Integration**: Support for `backgroundAgents` in `.claude/settings.json`
-2. **Trigger Matcher**: Runtime system to detect trigger conditions
-3. **Delegation Router**: Automatically invoke the specialist agent when triggered
-4. **Bridge Implementation**: Tag-driven routing hooks in `packages/tm-bridge/`
+## Correct Implementation
 
-## Usage (When Implemented)
+See the actual working subagent at:
+- **Location**: `.claude/agents/task-master-specialist.md`
+- **Format**: Markdown with YAML frontmatter
+- **Documentation**: `.taskmaster/CLAUDE.md` (section "Claude Code Subagent Integration")
 
-Once implemented, the background agent will:
-- Automatically handle Task Master operations without explicit invocation
-- Provide consistent, formatted responses aligned with CLI output
-- Suggest next actions based on task dependencies
-- Track task progress and update status appropriately
-- Gracefully handle errors with recovery suggestions
+## Related Infrastructure
 
-## Manual Usage (Current)
+The following files were created for custom delegation routing but are unnecessary:
+- `packages/tm-bridge/src/delegation-helper.ts` - Custom trigger detection (Claude Code has built-in)
+- `packages/tm-bridge/src/delegation-helper.spec.ts` - Tests for unused code
 
-Until automatic delegation is implemented, use the specialist agent manually:
+These can be removed or repurposed for other uses.
 
-```bash
-# Explicitly invoke the agent
-@agent-taskmaster:task-master-specialist
+## References
 
-# Or use standard Task Master CLI commands
-task-master list
-task-master show <id>
-task-master next
-```
-
-## Related Files
-
-- **Agent Definition**: `.claude/agents/task-master-specialist.md`
-- **Architecture Docs**: `CLAUDE.md`, `.taskmaster/CLAUDE.md`
-- **Setup Guide**: `.claude/AGENT_SETUP.md` (to be created in subtask 11.3)
+- **Official docs**: https://anthropic.mintlify.app/en/docs/claude-code/sub-agents.md
+- **Review document**: `.taskmaster/docs/research/task-11-implementation-review.md`
+- **Task reference**: Task 11 - Automate Task Master Specialist Delegation
 
 ---
 
+**Key Takeaway**: Claude Code's built-in subagent system is simpler and more powerful than we expected. No custom infrastructure needed - just well-crafted Markdown files with clear descriptions.
+
 Last Updated: 2025-10-31
-Task Reference: Task 11 - Automate Task Master Specialist Delegation

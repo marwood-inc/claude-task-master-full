@@ -235,7 +235,7 @@ export interface SyncStateStats {
  * Subtask synchronization mode
  * Determines how subtasks are represented in GitHub
  */
-export type SubtaskSyncMode = 'checklist' | 'separate_issues';
+export type SubtaskSyncMode = 'checklist' | 'separate-issues';
 
 /**
  * Subtask mapping for checklist mode
