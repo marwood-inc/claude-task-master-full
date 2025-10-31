@@ -2,6 +2,14 @@
  * Service exports for integration module
  */
 
+export { GitHubAuthService } from './github-auth.service.js';
+export type {
+	TokenValidationResult,
+	TokenScopes,
+	PermissionCheckResult,
+	RateLimitStatus
+} from './github-auth.service.js';
+
 export { GitHubFieldMapper } from './github-field-mapper.js';
 export type { FieldMappingConfig } from './github-field-mapper.js';
 

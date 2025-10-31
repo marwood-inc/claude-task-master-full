@@ -33,6 +33,13 @@ export type {
 } from './types/github-sync-state-types.js';
 
 // Services
+export { GitHubAuthService } from './services/github-auth.service.js';
+export type {
+	TokenValidationResult,
+	TokenScopes,
+	PermissionCheckResult,
+	RateLimitStatus
+} from './services/github-auth.service.js';
 export { GitHubSyncStateService } from './services/github-sync-state.service.js';
 export { GitHubFieldMapper } from './services/github-field-mapper.js';
 
