@@ -19,6 +19,15 @@ import { GitHubConfigService } from './services/github-config.service.js';
 import { GitHubClient } from './clients/github-client.js';
 import type { Task } from '../../common/types/index.js';
 import type { GitHubSettings } from '../../common/interfaces/configuration.interface.js';
+import type {
+	ConflictInfo,
+	ConflictResolution,
+	ConflictField,
+	FieldConflict,
+	TimestampAnalysis,
+	ConflictResolutionStrategy as InternalConflictResolutionStrategy
+} from './types/github-conflict-types.js';
+import type { SyncConflict } from './types/github-types.js';
 
 /**
  * GitHub sync options for CLI layer
@@ -66,7 +75,7 @@ export interface ManualConflictResolution {
 	description?: string;
 	status?: string;
 	priority?: string;
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 /**
@@ -104,26 +113,12 @@ export class IntegrationDomain {
 		tasks: Task[],
 		options: GitHubSyncOptions = {}
 	): Promise<any> {
-		// Get GitHub configuration
-		const config = this.configManager.getConfig();
-		const githubSettings = config.github;
+		// Validate configuration and get credentials
+		const { owner: defaultOwner, repo: defaultRepo, token } = this.validateGitHubConfig();
 
-		if (!githubSettings?.enabled) {
-			throw new Error(
-				'GitHub integration is not configured. Run `tm github configure` first.'
-			);
-		}
-
-		// Validate required settings
-		if (!githubSettings.owner || !githubSettings.repo) {
-			throw new Error(
-				'GitHub owner and repository not configured. Run `tm github configure` first.'
-			);
-		}
-
-		// Override repo if provided in options
-		let owner: string = githubSettings.owner;
-		let repo: string = githubSettings.repo;
+		// Handle repo override from options
+		let owner = defaultOwner;
+		let repo = defaultRepo;
 
 		if (options.repo) {
 			const [ownerOverride, repoOverride] = options.repo.split('/');
@@ -134,16 +129,9 @@ export class IntegrationDomain {
 			repo = repoOverride;
 		}
 
-		// Validate token exists
-		if (!githubSettings.token) {
-			throw new Error(
-				'GitHub token is missing. Run `tm github configure` first.'
-			);
-		}
-
 		// Initialize GitHub services with correct constructor signatures
 		const githubClient = new GitHubClient({
-			auth: githubSettings.token
+			auth: token
 		});
 
 		const projectPath = this.configManager.getProjectRoot();
@@ -179,7 +167,8 @@ export class IntegrationDomain {
 		);
 
 		// Build sync options
-		const defaultSubtaskMode = githubSettings.subtaskMode || 'checklist';
+		const config = this.configManager.getConfig();
+		const defaultSubtaskMode = config.github?.subtaskMode || 'checklist';
 		const subtaskMode = options.subtaskMode || defaultSubtaskMode;
 
 		const syncOptions = {
@@ -227,28 +216,11 @@ export class IntegrationDomain {
 		strategy: ConflictResolutionStrategy,
 		manualData?: ManualConflictResolution
 	): Promise<void> {
-		// Get GitHub configuration
-		const config = this.configManager.getConfig();
-		const githubSettings = config.github;
+		// Validate configuration
+		const { owner, repo } = this.validateGitHubConfig();
 
-		if (!githubSettings?.enabled) {
-			throw new Error(
-				'GitHub integration is not configured. Run `tm github configure` first.'
-			);
-		}
-
-		// Validate required settings
-		if (!githubSettings.owner || !githubSettings.repo) {
-			throw new Error(
-				'GitHub owner and repository not configured. Run `tm github configure` first.'
-			);
-		}
-
-		// Initialize services with correct constructor signatures
+		// Initialize services
 		const projectPath = this.configManager.getProjectRoot();
-		const owner: string = githubSettings.owner;
-		const repo: string = githubSettings.repo;
-
 		const stateService = new GitHubSyncStateService(
 			projectPath,
 			owner,
@@ -261,6 +233,69 @@ export class IntegrationDomain {
 			}
 		);
 
+		// Lookup conflicts for this task from state
+		const allConflicts = await stateService.getConflicts();
+		const taskConflicts = allConflicts.filter((c) => c.taskId === taskId);
+
+		// Check if task has mapping (synced with GitHub)
+		const mapping = await stateService.getMapping(taskId);
+
+		// Handle no mapping case
+		if (!mapping) {
+			throw new Error(
+				`Task ${taskId} has not been synced to GitHub. Please run sync first.`
+			);
+		}
+
+		// Validate conflicts exist
+		if (taskConflicts.length === 0) {
+			throw new Error(
+				`No unresolved conflicts found for task ${taskId}. Use 'task-master github status' to view conflicts.`
+			);
+		}
+
+		// Map simple strategy to internal strategy
+		const mappedStrategy = this.mapSimpleStrategy(strategy);
+
+		// Validate manual strategy requirements
+		if (mappedStrategy === 'manual') {
+			if (!manualData) {
+				throw new Error('Manual resolution data is required for manual strategy');
+			}
+
+			// Validate manualData has at least one resolved field (not null or undefined)
+			const resolvedFields = Object.keys(manualData).filter(
+				(key) => manualData[key] !== undefined && manualData[key] !== null
+			);
+			if (resolvedFields.length === 0) {
+				throw new Error(
+					'Manual resolution must include at least one resolved field value'
+				);
+			}
+
+			// Validate that all manual data keys are valid ConflictField values
+			const validFields: ConflictField[] = [
+				'title',
+				'description',
+				'status',
+				'priority',
+				'labels',
+				'assignee',
+				'dependencies',
+				'subtasks',
+				'milestone'
+			];
+			const invalidKeys = Object.keys(manualData).filter(
+				(key) => !validFields.includes(key as ConflictField)
+			);
+			if (invalidKeys.length > 0) {
+				throw new Error(
+					`Invalid manual resolution fields: ${invalidKeys.join(', ')}. Valid fields are: ${validFields.join(', ')}`
+				);
+			}
+		}
+
+		// Initialize conflict resolution service
 		const githubConfigService = new GitHubConfigService(this.configManager);
 		const conflictResolutionService = new ConflictResolutionService(
 			this.configManager,
@@ -268,22 +303,141 @@ export class IntegrationDomain {
 			githubConfigService
 		);
 
-		// Resolve the conflict based on strategy
-		if (strategy === 'manual' && !manualData) {
-			throw new Error('Manual resolution data is required for manual strategy');
-		}
+		// Resolve all conflicts for this task with same strategy
+		for (const syncConflict of taskConflicts) {
+			// Convert SyncConflict to ConflictInfo
+			const conflictInfo = this.convertToConflictInfo(syncConflict);
 
-		// Create conflict info for resolution
-		const conflictInfo: any = {
-			taskId,
-			issueNumber: 0, // Will be looked up by service
-			conflictType: 'manual',
-			localData: {},
-			remoteData: {},
-			strategy
+			// Build resolution object
+			let resolution: ConflictResolution;
+
+			if (mappedStrategy === 'manual' && manualData) {
+				// Manual resolution - use provided data
+				resolution = {
+					strategy: mappedStrategy,
+					resolvedAt: new Date().toISOString(),
+					resolvedFields: manualData as Partial<Record<ConflictField, unknown>>,
+					automatic: false
+				};
+			} else {
+				// Automatic resolution - determine values based on strategy
+				const resolvedFields: Partial<Record<ConflictField, unknown>> = {};
+
+				for (const fieldConflict of conflictInfo.fieldConflicts) {
+					if (mappedStrategy === 'last_write_wins_local') {
+						resolvedFields[fieldConflict.field] = fieldConflict.localValue;
+					} else if (mappedStrategy === 'last_write_wins_remote') {
+						resolvedFields[fieldConflict.field] = fieldConflict.remoteValue;
+					}
+				}
+
+				resolution = {
+					strategy: mappedStrategy,
+					resolvedAt: new Date().toISOString(),
+					resolvedFields,
+					automatic: true
+				};
+			}
+
+			// Apply resolution
+			const result = await conflictResolutionService.resolveConflict(
+				conflictInfo,
+				resolution
+			);
+
+			if (!result.success) {
+				throw new Error(
+					`Failed to resolve conflict for task ${taskId}: ${result.errors?.join(', ')}`
+				);
+			}
+
+			// Mark as resolved in state
+			await stateService.resolveConflict(taskId, syncConflict.issueNumber);
+		}
+	}
+
+	/**
+	 * Map simple CLI-friendly strategies to internal strategies
+	 * @private
+	 */
+	private mapSimpleStrategy(
+		strategy: ConflictResolutionStrategy
+	): InternalConflictResolutionStrategy {
+		// Map simple names to full strategy names
+		if (strategy === 'local') return 'last_write_wins_local';
+		if (strategy === 'remote') return 'last_write_wins_remote';
+		return 'manual'; // strategy === 'manual'
+	}
+
+	/**
+	 * Convert simple SyncConflict to enhanced ConflictInfo
+	 * @private
+	 */
+	private convertToConflictInfo(syncConflict: SyncConflict): ConflictInfo {
+		// Generate unique conflict ID
+		const conflictId = `conflict_${syncConflict.taskId}_${syncConflict.issueNumber}_${Date.now()}`;
+
+		// Map conflict type to field
+		const fieldMap: Record<SyncConflict['type'], ConflictField> = {
+			title_mismatch: 'title',
+			description_mismatch: 'description',
+			status_mismatch: 'status',
+			assignee_mismatch: 'assignee',
+			label_mismatch: 'labels',
+			deleted_on_github: 'title', // Fallback to title for deletion conflicts
+			deleted_locally: 'title' // Fallback to title for deletion conflicts
 		};
 
-		await conflictResolutionService.resolveConflict(conflictInfo, strategy as any);
+		const field = fieldMap[syncConflict.type] || 'title';
+
+		// Determine correct field conflict type based on sync conflict type
+		let fieldConflictType: FieldConflict['type'];
+		if (syncConflict.type === 'deleted_on_github') {
+			fieldConflictType = 'deleted_remotely';
+		} else if (syncConflict.type === 'deleted_locally') {
+			fieldConflictType = 'deleted_locally';
+		} else {
+			fieldConflictType = 'value_mismatch';
+		}
+
+		// Build field conflict
+		const fieldConflict: FieldConflict = {
+			field,
+			localValue: syncConflict.localValue,
+			remoteValue: syncConflict.remoteValue,
+			type: fieldConflictType,
+			canAutoMerge: false
+		};
+
+		// Build timestamp analysis (minimal since SyncConflict has limited timestamp data)
+		const timestampAnalysis: TimestampAnalysis = {
+			localUpdatedAt: syncConflict.detectedAt,
+			remoteUpdatedAt: syncConflict.detectedAt,
+			lastSyncedAt: syncConflict.detectedAt,
+			timeSinceLastSync: 0,
+			recentSide: 'simultaneous',
+			simultaneousEdit: true // Conservative assumption
+		};
+
+		// Map stored resolution strategy to suggested strategy
+		let suggestedStrategy: InternalConflictResolutionStrategy = 'manual';
+		if (syncConflict.resolutionStrategy === 'prefer_local') {
+			suggestedStrategy = 'last_write_wins_local';
+		} else if (syncConflict.resolutionStrategy === 'prefer_remote') {
+			suggestedStrategy = 'last_write_wins_remote';
+		}
+
+		return {
+			conflictId,
+			taskId: syncConflict.taskId,
+			issueNumber: syncConflict.issueNumber,
+			detectedAt: syncConflict.detectedAt,
+			severity: 'medium', // Default to medium severity
+			fieldConflicts: [fieldConflict],
+			timestampAnalysis,
+			suggestedStrategy,
+			canAutoResolve: syncConflict.resolutionStrategy !== 'manual'
+		};
 	}
 
 	/**
@@ -312,7 +466,7 @@ export class IntegrationDomain {
 	 * @param tasks Optional array of tasks to calculate unmapped count
 	 */
 	async getGitHubSyncStatus(tasks?: Task[]): Promise<GitHubSyncStatusResult> {
-		// Get GitHub configuration
+		// Get GitHub configuration and check if enabled
 		const config = this.configManager.getConfig();
 		const githubSettings = config.github;
 
@@ -330,17 +484,11 @@ export class IntegrationDomain {
 			};
 		}
 
-		// Validate required settings
-		if (!githubSettings.owner || !githubSettings.repo) {
-			throw new Error(
-				'GitHub owner and repository not configured. Run `tm github configure` first.'
-			);
-		}
+		// Validate required settings (will throw if invalid)
+		const { owner, repo } = this.validateGitHubConfig();
 
 		// Initialize state service with correct constructor signature
 		const projectPath = this.configManager.getProjectRoot();
-		const owner: string = githubSettings.owner;
-		const repo: string = githubSettings.repo;
 
 		const stateService = new GitHubSyncStateService(
 			projectPath,
@@ -450,12 +598,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if milestone feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncMilestones) {
-			throw new Error(
-				'Milestone sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Milestone sync', 'syncMilestones');
 
 		return client.createMilestone(owner, repo, {
 			title,
@@ -494,12 +637,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if milestone feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncMilestones) {
-			throw new Error(
-				'Milestone sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Milestone sync', 'syncMilestones');
 
 		return client.updateMilestone(owner, repo, milestoneNumber, {
 			title: updates.title,
@@ -517,12 +655,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if milestone feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncMilestones) {
-			throw new Error(
-				'Milestone sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Milestone sync', 'syncMilestones');
 
 		return client.deleteMilestone(owner, repo, milestoneNumber);
 	}
@@ -551,6 +684,37 @@ export class IntegrationDomain {
 		repo: string;
 		client: GitHubClient;
 	}> {
+		// Validate configuration and get credentials
+		const { owner, repo, token } = this.validateGitHubConfig();
+
+		// Get optional baseUrl from config
+		const config = this.configManager.getConfig();
+		const baseUrl = config.github?.baseUrl;
+
+		// Create client
+		const client = new GitHubClient({
+			auth: token,
+			baseUrl
+		});
+
+		return {
+			owner,
+			repo,
+			client
+		};
+	}
+
+	/**
+	 * Validate GitHub configuration is enabled and has required fields.
+	 * @returns Validated configuration with owner, repo, and token
+	 * @throws Error with user-friendly message if validation fails
+	 * @private
+	 */
+	private validateGitHubConfig(): {
+		owner: string;
+		repo: string;
+		token: string;
+	} {
 		const config = this.configManager.getConfig();
 		const githubSettings = config.github;
 
@@ -572,16 +736,59 @@ export class IntegrationDomain {
 			);
 		}
 
-		const client = new GitHubClient({
-			auth: githubSettings.token,
-			baseUrl: githubSettings.baseUrl
-		});
-
 		return {
 			owner: githubSettings.owner,
 			repo: githubSettings.repo,
-			client
+			token: githubSettings.token
 		};
+	}
+
+	/**
+	 * Check if a specific GitHub feature is enabled.
+	 * @param featureName - Feature name for error message (e.g., "Milestone sync", "Projects sync")
+	 * @param featureKey - Feature key in config (e.g., "syncMilestones", "syncProjects")
+	 * @throws Error if feature is disabled
+	 * @private
+	 */
+	private validateFeatureEnabled(
+		featureName: string,
+		featureKey: keyof GitHubSettings['features']
+	): void {
+		const config = this.configManager.getConfig();
+		if (!config.github?.features?.[featureKey]) {
+			throw new Error(
+				`${featureName} is disabled. Enable it in GitHub settings.`
+			);
+		}
+	}
+
+	/**
+	 * Validate GitHub usernames and throw if any are invalid
+	 * @param client - GitHub client to use for validation
+	 * @param assignees - Array of usernames to validate
+	 * @throws Error if any usernames are invalid
+	 * @private
+	 */
+	private async validateUsernamesOrThrow(
+		client: GitHubClient,
+		assignees: string[]
+	): Promise<void> {
+		const validationResults = await Promise.all(
+			assignees.map(async (username) => ({
+				username,
+				valid: await client.validateUsername(username)
+			}))
+		);
+
+		const invalidUsernames = validationResults
+			.filter((result) => !result.valid)
+			.map((result) => result.username);
+
+		if (invalidUsernames.length > 0) {
+			throw new Error(
+				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
+			);
+		}
 	}
 
 	// ========== Project Board Management Operations ==========
@@ -597,12 +804,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if projects feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncProjects) {
-			throw new Error(
-				'Projects sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Projects sync', 'syncProjects');
 
 		return client.listRepoProjects(owner, repo, options);
 	}
@@ -622,12 +824,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if projects feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncProjects) {
-			throw new Error(
-				'Projects sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Projects sync', 'syncProjects');
 
 		// Validate project exists (projectId used for validation)
 		await client.getProject(projectId);
@@ -654,12 +851,7 @@ export class IntegrationDomain {
 		const { client } = await this.getGitHubClientAndRepo();
 
 		// Check if projects feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncProjects) {
-			throw new Error(
-				'Projects sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Projects sync', 'syncProjects');
 
 		return client.moveProjectCard(cardId, position, columnId);
 	}
@@ -673,12 +865,7 @@ export class IntegrationDomain {
 		const { client } = await this.getGitHubClientAndRepo();
 
 		// Check if projects feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncProjects) {
-			throw new Error(
-				'Projects sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Projects sync', 'syncProjects');
 
 		return client.listProjectColumns(projectId);
 	}
@@ -713,12 +900,7 @@ export class IntegrationDomain {
 		const { client } = await this.getGitHubClientAndRepo();
 
 		// Check if assignees feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncAssignees) {
-			throw new Error(
-				'Assignee sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Assignee sync', 'syncAssignees');
 
 		return client.validateUsername(username);
 	}
@@ -736,30 +918,10 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if assignees feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncAssignees) {
-			throw new Error(
-				'Assignee sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Assignee sync', 'syncAssignees');
 
 		// Validate all usernames first
-		const validationResults = await Promise.all(
-			assignees.map(async (username) => ({
-				username,
-				valid: await client.validateUsername(username)
-			}))
-		);
-
-		const invalidUsernames = validationResults
-			.filter((result) => !result.valid)
-			.map((result) => result.username);
-
-		if (invalidUsernames.length > 0) {
-			throw new Error(
-				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
-			);
-		}
+		await this.validateUsernamesOrThrow(client, assignees);
 
 		// Get current issue to determine which assignees to add/remove
 		const issue = await client.getIssue(owner, repo, issueNumber);
@@ -794,30 +956,10 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if assignees feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncAssignees) {
-			throw new Error(
-				'Assignee sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Assignee sync', 'syncAssignees');
 
 		// Validate all usernames first
-		const validationResults = await Promise.all(
-			assignees.map(async (username) => ({
-				username,
-				valid: await client.validateUsername(username)
-			}))
-		);
-
-		const invalidUsernames = validationResults
-			.filter((result) => !result.valid)
-			.map((result) => result.username);
-
-		if (invalidUsernames.length > 0) {
-			throw new Error(
-				`Invalid GitHub usernames: ${invalidUsernames.join(', ')}`
-			);
-		}
+		await this.validateUsernamesOrThrow(client, assignees);
 
 		return client.addAssignees(owner, repo, issueNumber, assignees);
 	}
@@ -835,12 +977,7 @@ export class IntegrationDomain {
 		const { owner, repo, client } = await this.getGitHubClientAndRepo();
 
 		// Check if assignees feature is enabled
-		const config = this.configManager.getConfig();
-		if (!config.github?.features?.syncAssignees) {
-			throw new Error(
-				'Assignee sync is disabled. Enable it in GitHub settings.'
-			);
-		}
+		this.validateFeatureEnabled('Assignee sync', 'syncAssignees');
 
 		return client.removeAssignees(owner, repo, issueNumber, assignees);
 	}

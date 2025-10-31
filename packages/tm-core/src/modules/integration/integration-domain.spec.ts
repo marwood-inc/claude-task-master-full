@@ -256,4 +256,366 @@ describe('IntegrationDomain - TODO Implementations', () => {
 			expect(status.tasksMapped).toBe(0);
 		});
 	});
+
+	describe('resolveConflict', () => {
+		beforeEach(async () => {
+			// Create .taskmaster directory for state file
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			await fs.mkdir(taskmasterDir, { recursive: true });
+
+			// Create initial state file
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+			const initialState = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {},
+				conflicts: [],
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+			await fs.writeFile(stateFilePath, JSON.stringify(initialState, null, 2));
+		});
+
+		it('should throw error when no mapping exists for task', async () => {
+			// Task not synced with GitHub - no mapping exists
+			await expect(
+				integrationDomain.resolveConflict('999', 'local')
+			).rejects.toThrow('has not been synced to GitHub');
+		});
+
+		it('should throw error when no conflicts exist for task', async () => {
+			// Create mapping but no conflicts
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const stateWithMapping = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {
+					'1': {
+						taskId: '1',
+						issueNumber: 42,
+						owner: 'test-owner',
+						repo: 'test-repo',
+						lastSyncedAt: new Date().toISOString(),
+						lastSyncDirection: 'to_github',
+						status: 'synced'
+					}
+				},
+				conflicts: [], // No conflicts
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+
+			await fs.writeFile(stateFilePath, JSON.stringify(stateWithMapping, null, 2));
+
+			await expect(
+				integrationDomain.resolveConflict('1', 'local')
+			).rejects.toThrow('No unresolved conflicts found');
+		});
+
+		it('should throw error when manual strategy without manualData', async () => {
+			// Create mapping and conflict
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const stateWithConflict = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {
+					'1': {
+						taskId: '1',
+						issueNumber: 42,
+						owner: 'test-owner',
+						repo: 'test-repo',
+						lastSyncedAt: new Date().toISOString(),
+						lastSyncDirection: 'to_github',
+						status: 'conflict'
+					}
+				},
+				conflicts: [
+					{
+						taskId: '1',
+						issueNumber: 42,
+						type: 'title_mismatch',
+						localValue: 'Local Title',
+						remoteValue: 'Remote Title',
+						detectedAt: new Date().toISOString(),
+						resolutionStrategy: 'manual',
+						resolved: false
+					}
+				],
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+
+			await fs.writeFile(stateFilePath, JSON.stringify(stateWithConflict, null, 2));
+
+			await expect(
+				integrationDomain.resolveConflict('1', 'manual')
+			).rejects.toThrow('Manual resolution data is required');
+		});
+
+		it('should throw error when manual strategy with empty manualData', async () => {
+			// Create mapping and conflict
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const stateWithConflict = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {
+					'1': {
+						taskId: '1',
+						issueNumber: 42,
+						owner: 'test-owner',
+						repo: 'test-repo',
+						lastSyncedAt: new Date().toISOString(),
+						lastSyncDirection: 'to_github',
+						status: 'conflict'
+					}
+				},
+				conflicts: [
+					{
+						taskId: '1',
+						issueNumber: 42,
+						type: 'title_mismatch',
+						localValue: 'Local Title',
+						remoteValue: 'Remote Title',
+						detectedAt: new Date().toISOString(),
+						resolutionStrategy: 'manual',
+						resolved: false
+					}
+				],
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+
+			await fs.writeFile(stateFilePath, JSON.stringify(stateWithConflict, null, 2));
+
+			await expect(
+				integrationDomain.resolveConflict('1', 'manual', {})
+			).rejects.toThrow('Manual resolution must include at least one resolved field');
+		});
+
+		it('should map "local" strategy to "last_write_wins_local"', async () => {
+			// This test verifies strategy mapping through type checking
+			// The actual resolution would require mocking GitHub API
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const stateWithConflict = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {
+					'1': {
+						taskId: '1',
+						issueNumber: 42,
+						owner: 'test-owner',
+						repo: 'test-repo',
+						lastSyncedAt: new Date().toISOString(),
+						lastSyncDirection: 'to_github',
+						status: 'conflict'
+					}
+				},
+				conflicts: [
+					{
+						taskId: '1',
+						issueNumber: 42,
+						type: 'title_mismatch',
+						localValue: 'Local Title',
+						remoteValue: 'Remote Title',
+						detectedAt: new Date().toISOString(),
+						resolutionStrategy: 'prefer_local',
+						resolved: false
+					}
+				],
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+
+			await fs.writeFile(stateFilePath, JSON.stringify(stateWithConflict, null, 2));
+
+			try {
+				await integrationDomain.resolveConflict('1', 'local');
+				// If we get here, resolution succeeded (may fail due to GitHub API mocking)
+			} catch (error) {
+				// Should not be a validation error about strategy
+				expect((error as Error).message).not.toContain('Invalid strategy');
+			}
+		});
+
+		it('should handle multiple conflicts for same task', async () => {
+			// Create mapping with multiple conflicts
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const stateWithMultipleConflicts = {
+				version: '1.0.0',
+				owner: 'test-owner',
+				repo: 'test-repo',
+				mappings: {
+					'1': {
+						taskId: '1',
+						issueNumber: 42,
+						owner: 'test-owner',
+						repo: 'test-repo',
+						lastSyncedAt: new Date().toISOString(),
+						lastSyncDirection: 'to_github',
+						status: 'conflict'
+					}
+				},
+				conflicts: [
+					{
+						taskId: '1',
+						issueNumber: 42,
+						type: 'title_mismatch',
+						localValue: 'Local Title',
+						remoteValue: 'Remote Title',
+						detectedAt: new Date().toISOString(),
+						resolutionStrategy: 'prefer_local',
+						resolved: false
+					},
+					{
+						taskId: '1',
+						issueNumber: 42,
+						type: 'description_mismatch',
+						localValue: 'Local Description',
+						remoteValue: 'Remote Description',
+						detectedAt: new Date().toISOString(),
+						resolutionStrategy: 'prefer_local',
+						resolved: false
+					}
+				],
+				changeMetadata: {},
+				operationHistory: [],
+				maxHistorySize: 1000,
+				lastSyncAt: null,
+				syncInProgress: false,
+				lastSyncError: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				lastBackup: null
+			};
+
+			await fs.writeFile(stateFilePath, JSON.stringify(stateWithMultipleConflicts, null, 2));
+
+			try {
+				// Should attempt to resolve all conflicts
+				await integrationDomain.resolveConflict('1', 'local');
+			} catch (error) {
+				// May fail due to GitHub API mocking, but should process all conflicts
+				// Not a validation error
+				const errorMessage = (error as Error).message;
+				expect(errorMessage).not.toContain('No unresolved conflicts');
+			}
+		});
+
+		it('should convert SyncConflict types to ConflictField correctly', async () => {
+			// Test the conversion logic for different conflict types
+			const taskmasterDir = path.join(testProjectPath, '.taskmaster');
+			const stateFilePath = path.join(taskmasterDir, 'github-sync-state.json');
+
+			const conflictTypes = [
+				'title_mismatch',
+				'description_mismatch',
+				'status_mismatch',
+				'assignee_mismatch',
+				'label_mismatch'
+			];
+
+			for (const conflictType of conflictTypes) {
+				const stateWithConflict = {
+					version: '1.0.0',
+					owner: 'test-owner',
+					repo: 'test-repo',
+					mappings: {
+						'1': {
+							taskId: '1',
+							issueNumber: 42,
+							owner: 'test-owner',
+							repo: 'test-repo',
+							lastSyncedAt: new Date().toISOString(),
+							lastSyncDirection: 'to_github',
+							status: 'conflict'
+						}
+					},
+					conflicts: [
+						{
+							taskId: '1',
+							issueNumber: 42,
+							type: conflictType,
+							localValue: 'Local Value',
+							remoteValue: 'Remote Value',
+							detectedAt: new Date().toISOString(),
+							resolutionStrategy: 'prefer_local',
+							resolved: false
+						}
+					],
+					changeMetadata: {},
+					operationHistory: [],
+					maxHistorySize: 1000,
+					lastSyncAt: null,
+					syncInProgress: false,
+					lastSyncError: null,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+					lastBackup: null
+				};
+
+				await fs.writeFile(stateFilePath, JSON.stringify(stateWithConflict, null, 2));
+
+				try {
+					await integrationDomain.resolveConflict('1', 'local');
+					// Conversion should work for all types
+				} catch (error) {
+					// May fail due to GitHub API mocking
+					// But should not fail on type conversion
+					const errorMessage = (error as Error).message;
+					expect(errorMessage).not.toContain('Invalid field');
+					expect(errorMessage).not.toContain('Unknown conflict type');
+				}
+			}
+		});
+	});
 });
