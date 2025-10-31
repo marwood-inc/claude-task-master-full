@@ -56,7 +56,7 @@ export class TemplateEngine {
 			...DEFAULT_TEMPLATES,
 			...(options.customTemplates || {})
 		};
-		this.preservePlaceholders = options.preservePlaceholders ?? false;
+		this.preservePlaceholders = options.preservePlaceholders ?? true;
 	}
 
 	/**

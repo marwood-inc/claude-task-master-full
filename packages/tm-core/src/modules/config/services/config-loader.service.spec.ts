@@ -7,10 +7,19 @@ import fs from 'node:fs/promises';
 import { ConfigLoader } from './config-loader.service.js';
 import { DEFAULT_CONFIG_VALUES } from '../../../common/interfaces/configuration.interface.js';
 
-vi.mock('node:fs', () => ({
-	promises: {
+// Mock fs/promises with vi.fn() for each method
+// This pattern ensures mockResolvedValue/mockRejectedValue are available
+vi.mock('node:fs/promises', () => ({
+	default: {
 		readFile: vi.fn(),
-		access: vi.fn()
+		writeFile: vi.fn(),
+		mkdir: vi.fn(),
+		access: vi.fn(),
+		unlink: vi.fn(),
+		rm: vi.fn(),
+		rename: vi.fn(),
+		readdir: vi.fn(),
+		stat: vi.fn()
 	}
 }));
 

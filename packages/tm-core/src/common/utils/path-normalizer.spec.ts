@@ -2,10 +2,55 @@ import { describe, it, expect } from 'vitest';
 import {
 	normalizeProjectPath,
 	denormalizeProjectPath,
-	isValidNormalizedPath
+	isValidNormalizedPath,
+	hasWindowsDriveLetter,
+	stripDriveLetter
 } from './path-normalizer.js';
 
 describe('Path Normalizer (base64url encoding)', () => {
+	describe('hasWindowsDriveLetter', () => {
+		it('should detect Windows drive letters', () => {
+			expect(hasWindowsDriveLetter('C:\\Users\\test')).toBe(true);
+			expect(hasWindowsDriveLetter('D:\\Projects\\app')).toBe(true);
+			expect(hasWindowsDriveLetter('E:/mixed/path')).toBe(true);
+			expect(hasWindowsDriveLetter('c:\\lowercase')).toBe(true);
+		});
+
+		it('should return false for paths without drive letters', () => {
+			expect(hasWindowsDriveLetter('/Users/test/project')).toBe(false);
+			expect(hasWindowsDriveLetter('./relative/path')).toBe(false);
+			expect(hasWindowsDriveLetter('relative/path')).toBe(false);
+			expect(hasWindowsDriveLetter('')).toBe(false);
+		});
+
+		it('should return false for paths with colon not in drive position', () => {
+			expect(hasWindowsDriveLetter('/path:with:colons')).toBe(false);
+			expect(hasWindowsDriveLetter('file://path')).toBe(false);
+		});
+	});
+
+	describe('stripDriveLetter', () => {
+		it('should strip Windows drive letters', () => {
+			expect(stripDriveLetter('C:\\Users\\test\\project')).toBe('\\Users\\test\\project');
+			expect(stripDriveLetter('D:\\Projects\\app')).toBe('\\Projects\\app');
+			expect(stripDriveLetter('E:/mixed/path')).toBe('/mixed/path');
+			expect(stripDriveLetter('c:\\lowercase')).toBe('\\lowercase');
+		});
+
+		it('should return path unchanged if no drive letter', () => {
+			expect(stripDriveLetter('/Users/test/project')).toBe('/Users/test/project');
+			expect(stripDriveLetter('./relative/path')).toBe('./relative/path');
+			expect(stripDriveLetter('relative/path')).toBe('relative/path');
+			expect(stripDriveLetter('')).toBe('');
+		});
+
+		it('should handle edge cases', () => {
+			expect(stripDriveLetter('C:')).toBe('');
+			expect(stripDriveLetter('C:/')).toBe('/');
+			expect(stripDriveLetter('C:\\')).toBe('\\');
+		});
+	});
+
 	describe('normalizeProjectPath', () => {
 		it('should encode Unix paths to base64url', () => {
 			const input = '/Users/test/projects/myapp';
@@ -86,12 +131,13 @@ describe('Path Normalizer (base64url encoding)', () => {
 			expect(denormalized).toBe(original);
 		});
 
-		it('should decode base64url for Windows paths', () => {
+		it('should decode base64url for Windows paths (without drive letter)', () => {
 			const original = 'C:\\Users\\test\\project';
 			const normalized = normalizeProjectPath(original);
 			const denormalized = denormalizeProjectPath(normalized);
 
-			expect(denormalized).toBe(original);
+			// Drive letter is stripped, so we expect the path without it
+			expect(denormalized).toBe('\\Users\\test\\project');
 		});
 
 		it('should handle empty string', () => {
@@ -175,19 +221,19 @@ describe('Path Normalizer (base64url encoding)', () => {
 			}
 		});
 
-		it('should perfectly preserve Windows paths (including drive letters)', () => {
-			const originalPaths = [
-				'C:\\Users\\test\\project',
-				'D:\\Projects\\my-app',
-				'E:\\path\\with-hyphens\\test'
+		it('should preserve Windows paths without drive letters', () => {
+			const testCases = [
+				{ original: 'C:\\Users\\test\\project', expected: '\\Users\\test\\project' },
+				{ original: 'D:\\Projects\\my-app', expected: '\\Projects\\my-app' },
+				{ original: 'E:\\path\\with-hyphens\\test', expected: '\\path\\with-hyphens\\test' }
 			];
 
-			for (const original of originalPaths) {
+			for (const { original, expected } of testCases) {
 				const normalized = normalizeProjectPath(original);
 				const denormalized = denormalizeProjectPath(normalized);
 
-				// Perfect round-trip - drive letters and colons preserved
-				expect(denormalized).toBe(original);
+				// Drive letters are stripped for cross-drive consistency
+				expect(denormalized).toBe(expected);
 			}
 		});
 
@@ -246,20 +292,41 @@ describe('Path Normalizer (base64url encoding)', () => {
 			expect(isValidNormalizedPath(normalizedWindows)).toBe(true);
 		});
 
-		it('should produce different normalized outputs for different paths', () => {
-			// Unix and Windows paths are different, so should produce different encoded values
+		it('should produce different normalized outputs for Unix vs Windows paths', () => {
+			// Unix and Windows paths are different (/ vs \), so should produce different encoded values
 			const unixPath = '/Users/test/project';
 			const windowsPath = 'C:\\Users\\test\\project';
 
 			const normalizedUnix = normalizeProjectPath(unixPath);
 			const normalizedWindows = normalizeProjectPath(windowsPath);
 
-			// Different inputs should produce different outputs
+			// Different path separators produce different outputs
 			expect(normalizedUnix).not.toBe(normalizedWindows);
 
-			// But both should denormalize back to their originals
+			// Both should denormalize correctly (Windows without drive letter)
 			expect(denormalizeProjectPath(normalizedUnix)).toBe(unixPath);
-			expect(denormalizeProjectPath(normalizedWindows)).toBe(windowsPath);
+			expect(denormalizeProjectPath(normalizedWindows)).toBe('\\Users\\test\\project');
+		});
+
+		it('should produce identical normalized outputs for same path on different Windows drives', () => {
+			// Different Windows drives with same path should normalize to same value
+			const pathOnC = 'C:\\Users\\test\\project';
+			const pathOnD = 'D:\\Users\\test\\project';
+			const pathOnE = 'E:\\Users\\test\\project';
+
+			const normalizedC = normalizeProjectPath(pathOnC);
+			const normalizedD = normalizeProjectPath(pathOnD);
+			const normalizedE = normalizeProjectPath(pathOnE);
+
+			// All should produce the same normalized value (drive letter stripped)
+			expect(normalizedC).toBe(normalizedD);
+			expect(normalizedD).toBe(normalizedE);
+
+			// All should denormalize to the same value (without drive letter)
+			const expected = '\\Users\\test\\project';
+			expect(denormalizeProjectPath(normalizedC)).toBe(expected);
+			expect(denormalizeProjectPath(normalizedD)).toBe(expected);
+			expect(denormalizeProjectPath(normalizedE)).toBe(expected);
 		});
 
 		it('should handle Unicode characters in paths', () => {

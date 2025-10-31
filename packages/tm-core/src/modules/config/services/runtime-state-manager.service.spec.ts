@@ -7,8 +7,10 @@ import fs from 'node:fs/promises';
 import { RuntimeStateManager } from './runtime-state-manager.service.js';
 import { DEFAULT_CONFIG_VALUES } from '../../../common/interfaces/configuration.interface.js';
 
-vi.mock('node:fs', () => ({
-	promises: {
+// Mock fs/promises with vi.fn() for each method
+// This pattern ensures mockResolvedValue/mockRejectedValue are available
+vi.mock('node:fs/promises', () => ({
+	default: {
 		readFile: vi.fn(),
 		writeFile: vi.fn(),
 		mkdir: vi.fn(),

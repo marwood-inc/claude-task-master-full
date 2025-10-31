@@ -1,23 +1,86 @@
 /**
  * @fileoverview Integration tests for ConfigManager
  * Tests the orchestration of all configuration services
+ *
+ * This test suite demonstrates the factory-based mocking pattern:
+ * - Centralized mock creation via test-helpers
+ * - Type-safe mock access via MockRegistry
+ * - Zero duplication across tests
+ * - Easy override for specific test cases
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ConfigManager } from './config-manager.js';
 import { DEFAULT_CONFIG_VALUES } from '../../../common/interfaces/configuration.interface.js';
-import { ConfigLoader } from '../services/config-loader.service.js';
-import { ConfigMerger } from '../services/config-merger.service.js';
-import { RuntimeStateManager } from '../services/runtime-state-manager.service.js';
-import { ConfigPersistence } from '../services/config-persistence.service.js';
-import { EnvironmentConfigProvider } from '../services/environment-config-provider.service.js';
 
-// Mock all services
-vi.mock('../services/config-loader.service.js');
-vi.mock('../services/config-merger.service.js');
-vi.mock('../services/runtime-state-manager.service.js');
-vi.mock('../services/config-persistence.service.js');
-vi.mock('../services/environment-config-provider.service.js');
+// Import factory functions and mock utilities
+import {
+	createMockConfigLoader,
+	createMockConfigMerger,
+	createMockRuntimeStateManager,
+	createMockConfigPersistence,
+	createMockEnvironmentConfigProvider,
+	type ConfigManagerMocks,
+	MockRegistry,
+	createRegisteredMocks
+} from '../../../../tests/test-helpers/index.js';
+
+// Create type-safe mock registry
+const mockRegistry = new MockRegistry<ConfigManagerMocks>();
+
+// Set up all service mocks with registry integration
+const serviceMocks = createRegisteredMocks(mockRegistry, {
+	loader: {
+		factory: (overrides?: Record<string, any>) =>
+			createMockConfigLoader({
+				getDefaultConfig: vi.fn().mockReturnValue({
+					models: { main: 'default-model', fallback: 'fallback-model' },
+					storage: { type: 'file' },
+					version: '1.0.0'
+				}),
+				...overrides
+			}),
+		className: 'ConfigLoader'
+	},
+	merger: {
+		factory: (overrides?: Record<string, any>) =>
+			createMockConfigMerger({
+				merge: vi.fn().mockReturnValue({
+					models: { main: 'merged-model', fallback: 'fallback-model' },
+					storage: { type: 'file' }
+				}),
+				...overrides
+			}),
+		className: 'ConfigMerger'
+	},
+	stateManager: {
+		factory: createMockRuntimeStateManager,
+		className: 'RuntimeStateManager'
+	},
+	persistence: {
+		factory: createMockConfigPersistence,
+		className: 'ConfigPersistence'
+	},
+	envProvider: {
+		factory: createMockEnvironmentConfigProvider,
+		className: 'EnvironmentConfigProvider'
+	}
+});
+
+// Apply mocks at module level
+vi.mock('../services/config-loader.service.js', () => serviceMocks.loader);
+vi.mock('../services/config-merger.service.js', () => ({
+	...serviceMocks.merger,
+	CONFIG_PRECEDENCE: {
+		DEFAULTS: 0,
+		GLOBAL: 1,
+		LOCAL: 2,
+		ENVIRONMENT: 3
+	}
+}));
+vi.mock('../services/runtime-state-manager.service.js', () => serviceMocks.stateManager);
+vi.mock('../services/config-persistence.service.js', () => serviceMocks.persistence);
+vi.mock('../services/environment-config-provider.service.js', () => serviceMocks.envProvider);
 
 describe('ConfigManager', () => {
 	let manager: ConfigManager;
@@ -26,6 +89,7 @@ describe('ConfigManager', () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
+		mockRegistry.clear(); // Clear registry for fresh mocks
 
 		// Clear environment variables
 		Object.keys(process.env).forEach((key) => {
@@ -34,91 +98,27 @@ describe('ConfigManager', () => {
 			}
 		});
 
-		// Setup default mock behaviors
-		vi.mocked(ConfigLoader).mockImplementation(
-			() =>
-				({
-					getDefaultConfig: vi.fn().mockReturnValue({
-						models: { main: 'default-model', fallback: 'fallback-model' },
-						storage: { type: 'file' },
-						version: '1.0.0'
-					}),
-					loadLocalConfig: vi.fn().mockResolvedValue(null),
-					loadGlobalConfig: vi.fn().mockResolvedValue(null),
-					hasLocalConfig: vi.fn().mockResolvedValue(false),
-					hasGlobalConfig: vi.fn().mockResolvedValue(false)
-				}) as any
-		);
-
-		vi.mocked(ConfigMerger).mockImplementation(
-			() =>
-				({
-					addSource: vi.fn(),
-					clearSources: vi.fn(),
-					merge: vi.fn().mockReturnValue({
-						models: { main: 'merged-model', fallback: 'fallback-model' },
-						storage: { type: 'file' }
-					}),
-					getSources: vi.fn().mockReturnValue([]),
-					hasSource: vi.fn().mockReturnValue(false),
-					removeSource: vi.fn().mockReturnValue(false)
-				}) as any
-		);
-
-		vi.mocked(RuntimeStateManager).mockImplementation(
-			() =>
-				({
-					loadState: vi.fn().mockResolvedValue({ activeTag: 'master' }),
-					saveState: vi.fn().mockResolvedValue(undefined),
-					getCurrentTag: vi.fn().mockReturnValue('master'),
-					setCurrentTag: vi.fn().mockResolvedValue(undefined),
-					getState: vi.fn().mockReturnValue({ activeTag: 'master' }),
-					updateMetadata: vi.fn().mockResolvedValue(undefined),
-					clearState: vi.fn().mockResolvedValue(undefined)
-				}) as any
-		);
-
-		vi.mocked(ConfigPersistence).mockImplementation(
-			() =>
-				({
-					saveConfig: vi.fn().mockResolvedValue(undefined),
-					configExists: vi.fn().mockResolvedValue(false),
-					deleteConfig: vi.fn().mockResolvedValue(undefined),
-					getBackups: vi.fn().mockResolvedValue([]),
-					restoreFromBackup: vi.fn().mockResolvedValue(undefined)
-				}) as any
-		);
-
-		vi.mocked(EnvironmentConfigProvider).mockImplementation(
-			() =>
-				({
-					loadConfig: vi.fn().mockReturnValue({}),
-					getRuntimeState: vi.fn().mockReturnValue({}),
-					hasEnvVar: vi.fn().mockReturnValue(false),
-					getAllTaskmasterEnvVars: vi.fn().mockReturnValue({}),
-					addMapping: vi.fn(),
-					getMappings: vi.fn().mockReturnValue([])
-				}) as any
-		);
-
-		// Since constructor is private, we need to use the factory method
-		// But for testing, we'll create a test instance using create()
+		// Create manager instance (triggers mock registration)
 		manager = await ConfigManager.create(testProjectRoot);
 	});
 
 	afterEach(() => {
+		mockRegistry.clear(); // Defensive clearing in case of exceptions
 		vi.restoreAllMocks();
 		process.env = { ...originalEnv };
 	});
 
+	// Helper to get mocks with type safety
+	const getMocks = () => mockRegistry.getAll();
+
 	describe('creation', () => {
 		it('should initialize all services when created', () => {
-			// Services should have been initialized during beforeEach
-			expect(ConfigLoader).toHaveBeenCalledWith(testProjectRoot);
-			expect(ConfigMerger).toHaveBeenCalled();
-			expect(RuntimeStateManager).toHaveBeenCalledWith(testProjectRoot);
-			expect(ConfigPersistence).toHaveBeenCalledWith(testProjectRoot);
-			expect(EnvironmentConfigProvider).toHaveBeenCalled();
+			// Verify all services are registered
+			expect(mockRegistry.has('loader')).toBe(true);
+			expect(mockRegistry.has('merger')).toBe(true);
+			expect(mockRegistry.has('stateManager')).toBe(true);
+			expect(mockRegistry.has('persistence')).toBe(true);
+			expect(mockRegistry.has('envProvider')).toBe(true);
 		});
 	});
 
@@ -133,11 +133,7 @@ describe('ConfigManager', () => {
 
 	describe('initialization (via create)', () => {
 		it('should load and merge all configuration sources', () => {
-			// Manager was created in beforeEach, so initialization already happened
-			const loader = (manager as any).loader;
-			const merger = (manager as any).merger;
-			const stateManager = (manager as any).stateManager;
-			const envProvider = (manager as any).envProvider;
+			const { loader, merger, stateManager, envProvider } = getMocks();
 
 			// Verify loading sequence
 			expect(merger.clearSources).toHaveBeenCalled();
@@ -150,7 +146,7 @@ describe('ConfigManager', () => {
 		});
 
 		it('should add sources with correct precedence during creation', () => {
-			const merger = (manager as any).merger;
+			const { merger } = getMocks();
 
 			// Check that sources were added with correct precedence
 			expect(merger.addSource).toHaveBeenCalledWith(
@@ -178,36 +174,35 @@ describe('ConfigManager', () => {
 
 		it('should return storage configuration', () => {
 			const storage = manager.getStorageConfig();
-			expect(storage).toEqual({ type: 'file' });
+			expect(storage).toEqual({
+				type: 'file',
+				basePath: testProjectRoot,
+				apiConfigured: false
+			});
 		});
 
 		it('should return API storage configuration when configured', async () => {
-			// Create a new instance with API storage config
-			vi.mocked(ConfigMerger).mockImplementationOnce(
-				() =>
-					({
-						addSource: vi.fn(),
-						clearSources: vi.fn(),
-						merge: vi.fn().mockReturnValue({
-							storage: {
-								type: 'api',
-								apiEndpoint: 'https://api.example.com',
-								apiAccessToken: 'token123'
-							}
-						}),
-						getSources: vi.fn().mockReturnValue([]),
-						hasSource: vi.fn().mockReturnValue(false),
-						removeSource: vi.fn().mockReturnValue(false)
-					}) as any
-			);
+			// Use the registered mock and configure its merge behavior
+			const { merger } = getMocks();
 
-			const apiManager = await ConfigManager.create(testProjectRoot);
+			merger.merge.mockReturnValue({
+				storage: {
+					type: 'api',
+					apiEndpoint: 'https://api.example.com',
+					apiAccessToken: 'token123'
+				}
+			});
 
-			const storage = apiManager.getStorageConfig();
+			// Re-initialize to apply the new merge result
+			await (manager as any).initialize();
+
+			const storage = manager.getStorageConfig();
 			expect(storage).toEqual({
 				type: 'api',
 				apiEndpoint: 'https://api.example.com',
-				apiAccessToken: 'token123'
+				apiAccessToken: 'token123',
+				basePath: testProjectRoot,
+				apiConfigured: true
 			});
 		});
 
@@ -221,7 +216,7 @@ describe('ConfigManager', () => {
 
 		it('should return default models when not configured', () => {
 			// Update the mock for current instance
-			const merger = (manager as any).merger;
+			const { merger } = getMocks();
 			merger.merge.mockReturnValue({});
 			// Force re-merge
 			(manager as any).config = merger.merge();
@@ -279,9 +274,10 @@ describe('ConfigManager', () => {
 		});
 
 		it('should set active tag through state manager', async () => {
+			const { stateManager } = getMocks();
+
 			await manager.setActiveTag('feature-branch');
 
-			const stateManager = (manager as any).stateManager;
 			expect(stateManager.setCurrentTag).toHaveBeenCalledWith('feature-branch');
 		});
 	});
@@ -290,17 +286,18 @@ describe('ConfigManager', () => {
 		// Manager is already initialized in the main beforeEach
 
 		it('should update configuration and save', async () => {
+			const { persistence } = getMocks();
+
 			const updates = {
 				models: { main: 'new-model', fallback: 'fallback-model' }
 			};
 			await manager.updateConfig(updates);
 
-			const persistence = (manager as any).persistence;
 			expect(persistence.saveConfig).toHaveBeenCalled();
 		});
 
 		it('should re-initialize after update to maintain precedence', async () => {
-			const merger = (manager as any).merger;
+			const { merger } = getMocks();
 			merger.clearSources.mockClear();
 
 			await manager.updateConfig({ custom: { test: 'value' } });
@@ -309,9 +306,10 @@ describe('ConfigManager', () => {
 		});
 
 		it('should set response language', async () => {
+			const { persistence } = getMocks();
+
 			await manager.setResponseLanguage('French');
 
-			const persistence = (manager as any).persistence;
 			expect(persistence.saveConfig).toHaveBeenCalledWith(
 				expect.objectContaining({
 					custom: { responseLanguage: 'French' }
@@ -320,9 +318,10 @@ describe('ConfigManager', () => {
 		});
 
 		it('should save configuration with options', async () => {
+			const { persistence } = getMocks();
+
 			await manager.saveConfig();
 
-			const persistence = (manager as any).persistence;
 			expect(persistence.saveConfig).toHaveBeenCalledWith(expect.any(Object), {
 				createBackup: true,
 				atomic: true
@@ -334,17 +333,16 @@ describe('ConfigManager', () => {
 		// Manager is already initialized in the main beforeEach
 
 		it('should reset configuration to defaults', async () => {
-			await manager.reset();
+			const { persistence, stateManager } = getMocks();
 
-			const persistence = (manager as any).persistence;
-			const stateManager = (manager as any).stateManager;
+			await manager.reset();
 
 			expect(persistence.deleteConfig).toHaveBeenCalled();
 			expect(stateManager.clearState).toHaveBeenCalled();
 		});
 
 		it('should re-initialize after reset', async () => {
-			const merger = (manager as any).merger;
+			const { merger } = getMocks();
 			merger.clearSources.mockClear();
 
 			await manager.reset();
@@ -353,7 +351,7 @@ describe('ConfigManager', () => {
 		});
 
 		it('should get configuration sources for debugging', () => {
-			const merger = (manager as any).merger;
+			const { merger } = getMocks();
 			const mockSources = [{ name: 'test', config: {}, precedence: 1 }];
 			merger.getSources.mockReturnValue(mockSources);
 
@@ -365,8 +363,9 @@ describe('ConfigManager', () => {
 
 	describe('error handling', () => {
 		it('should handle missing services gracefully', async () => {
+			const { loader } = getMocks();
+
 			// Even if a service fails, manager should still work
-			const loader = (manager as any).loader;
 			loader.loadLocalConfig.mockRejectedValue(new Error('File error'));
 
 			// Creating a new manager should not throw even if service fails

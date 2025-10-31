@@ -362,12 +362,20 @@ describe('FileStorage - Caching', () => {
 	});
 
 	describe('TTL Expiration', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
 		it('should expire cache after TTL', async () => {
 			// Load and cache
 			const tasks1 = await storage.loadTasks('master');
 
 			// Wait for cache to expire (TTL is 5 seconds)
-			await new Promise((resolve) => setTimeout(resolve, 5100));
+			await vi.advanceTimersByTimeAsync(5100);
 
 			// Load again - cache should be expired, fresh data loaded
 			const tasks2 = await storage.loadTasks('master');
@@ -381,13 +389,13 @@ describe('FileStorage - Caching', () => {
 			await storage.loadTasks('master');
 
 			// Wait 3 seconds
-			await new Promise((resolve) => setTimeout(resolve, 3000));
+			await vi.advanceTimersByTimeAsync(3000);
 
 			// Access cache again
 			await storage.loadTasks('master');
 
 			// Wait another 3 seconds (total 6 seconds from first load)
-			await new Promise((resolve) => setTimeout(resolve, 3000));
+			await vi.advanceTimersByTimeAsync(3000);
 
 			// Cache should be expired now (6 seconds > 5 second TTL)
 			// This verifies updateAgeOnGet: false in cache config
@@ -563,6 +571,14 @@ describe('FileStorage - Caching', () => {
 	});
 
 	describe('Long-Running Process Tests', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
 		it('should handle TTL expiration correctly over time', async () => {
 			// Load and cache
 			const tasks1 = await storage.loadTasks('master');
@@ -576,7 +592,7 @@ describe('FileStorage - Caching', () => {
 			expect(tasks2[0].title).toBe('Updated Task');
 
 			// Wait for cache TTL to expire
-			await new Promise((resolve) => setTimeout(resolve, 5100));
+			await vi.advanceTimersByTimeAsync(5100);
 
 			// Load after expiration (should re-read from file)
 			const tasks3 = await storage.loadTasks('master');
@@ -597,7 +613,7 @@ describe('FileStorage - Caching', () => {
 						expect(task).toBeDefined();
 
 						// Wait a bit
-						await new Promise((resolve) => setTimeout(resolve, 100));
+						await vi.advanceTimersByTimeAsync(100);
 
 						// Write operation (invalidates cache)
 						await storage.updateTask(
@@ -680,7 +696,7 @@ describe('FileStorage - Caching', () => {
 			expect(tasks1[0].status).toBe('pending');
 
 			// Wait for cache to expire
-			await new Promise((resolve) => setTimeout(resolve, 5100));
+			await vi.advanceTimersByTimeAsync(5100);
 
 			// Meanwhile, simulate external process modifying file
 			// (In real scenario, another process/CLI/MCP could modify the file)

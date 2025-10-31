@@ -2,12 +2,17 @@
  * @fileoverview Integration tests for FileStorage cache behavior across CLI and MCP usage patterns
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTaskMasterCore } from '../../../src/index.js';
 import type { Task, TaskStatus, TaskMasterCore } from '../../../src/index.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import {
+	setupFakeTimers,
+	advancePastTTL,
+	advanceTime
+} from '../../test-helpers/timer-helpers.js';
 
 describe('FileStorage Cache - Integration Tests', () => {
 	let tmCore: TaskMasterCore;
@@ -329,6 +334,158 @@ describe('FileStorage Cache - Integration Tests', () => {
 			expect(tasks1[0].status).toBe('pending');
 			expect(tasks2[0].status).toBe('in-progress');
 			expect(task2?.status).toBe('in-progress');
+		});
+	});
+
+	describe('Cache TTL Behavior - Integration', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(async () => {
+			// Flush all remaining timers before switching to prevent timer leakage
+			try {
+				await vi.runAllTimersAsync();
+			} catch (e) {
+				// Ignore if no timers remain
+			}
+			vi.useRealTimers();
+		});
+
+		it('should expire cache between CLI operations after TTL', async () => {
+			// Simulate CLI: task-master list
+			const tasks1 = await tmCore.tasks.list();
+			expect(tasks1).toHaveLength(3);
+
+			// Wait for cache to expire (5s TTL + 100ms buffer)
+			await advancePastTTL(5000);
+
+			// Simulate CLI: task-master list (should reload from disk)
+			const tasks2 = await tmCore.tasks.list();
+
+			// Data should be identical but freshly loaded
+			expect(tasks2).toHaveLength(3);
+			expect(tasks2).toEqual(tasks1);
+		});
+
+		it('should maintain cache throughout rapid MCP operations within TTL', async () => {
+			// Simulate rapid MCP get_tasks calls within TTL window
+			const operations = [];
+			for (let i = 0; i < 10; i++) {
+				operations.push(tmCore.tasks.list());
+			}
+
+			const results = await Promise.all(operations);
+
+			// All results should be identical (from cache)
+			results.forEach((result) => {
+				expect(result).toHaveLength(3);
+				expect(result).toEqual(results[0]);
+			});
+
+			// Verify cache still valid after all operations
+			// Advance time by 2.5 seconds (well within 5s TTL)
+			await advanceTime(2500);
+
+			const afterDelay = await tmCore.tasks.list();
+			expect(afterDelay).toEqual(results[0]);
+		});
+
+		it('should handle mixed CLI/MCP operations with TTL boundaries', async () => {
+			// Simulate CLI operation
+			const cliTasks1 = await tmCore.tasks.list();
+			expect(cliTasks1).toHaveLength(3);
+
+			// Advance 2.5 seconds (still within TTL)
+			await advanceTime(2500);
+
+			// Simulate MCP operation (should hit cache)
+			const mcpTasks = await tmCore.tasks.list();
+			expect(mcpTasks).toEqual(cliTasks1);
+
+			// Advance another 3 seconds (total 5.5s, past TTL)
+			await advanceTime(3000);
+
+			// Simulate CLI operation (cache expired, should reload)
+			const cliTasks2 = await tmCore.tasks.list();
+			expect(cliTasks2).toHaveLength(3);
+			expect(cliTasks2).toEqual(cliTasks1); // Same data, freshly loaded
+		});
+
+		it('should expire cache at exact TTL boundary', async () => {
+			// Load and cache tasks
+			const tasksBefore = await tmCore.tasks.list();
+			expect(tasksBefore).toHaveLength(3);
+
+			// Advance to just before TTL (4999ms)
+			// Cache should still be valid: 4999 < 5000
+			await advanceTime(4999);
+
+			// Verify cache is still valid
+			const tasksBeforeTTL = await tmCore.tasks.list();
+			expect(tasksBeforeTTL).toEqual(tasksBefore);
+
+			// Advance 2ms more (total 5001ms, past 5000ms TTL)
+			// Cache should expire: 5001 > 5000
+			await advanceTime(2);
+
+			// Cache should be expired, data reloaded from disk
+			const tasksAfterTTL = await tmCore.tasks.list();
+			expect(tasksAfterTTL).toHaveLength(3);
+			// Data matches but was freshly loaded
+			expect(tasksAfterTTL).toEqual(tasksBefore);
+		});
+
+		it('should handle cache invalidation and TTL reset on write', async () => {
+			// Cache initial state
+			const tasksBefore = await tmCore.tasks.list();
+			expect(tasksBefore[0].status).toBe('pending');
+
+			// Advance 3 seconds
+			await advanceTime(3000);
+
+			// Write operation (invalidates cache)
+			await tmCore.tasks.updateStatus('1', 'in-progress');
+
+			// Advance another 3 seconds (total 6s from original load)
+			await advanceTime(3000);
+
+			// Load - should have new data (cache was cleared at write time)
+			const tasksAfter = await tmCore.tasks.list();
+			expect(tasksAfter[0].status).toBe('in-progress');
+
+			// Advance just 2 more seconds (only 2s since last write/reload)
+			await advanceTime(2000);
+
+			// Cache should still be valid (only 2s since invalidation)
+			const tasksCached = await tmCore.tasks.list();
+			expect(tasksCached).toEqual(tasksAfter);
+		});
+
+		it('should handle multiple cache entries expiring at different times', async () => {
+			// Cache first query (all tasks)
+			const allTasks = await tmCore.tasks.list();
+			expect(allTasks).toHaveLength(3);
+
+			// Advance 3 seconds
+			await advanceTime(3000);
+
+			// Cache second query (filtered) - new TTL starts
+			const pendingTasks = await tmCore.tasks.list({ status: 'pending' });
+			expect(pendingTasks).toHaveLength(1);
+
+			// Advance another 3 seconds (total 6s for first, 3s for second)
+			await advanceTime(3000);
+
+			// First cache expired (6s > 5s), second still valid (3s < 5s)
+			const allTasksAfter = await tmCore.tasks.list();
+			const pendingTasksAfter = await tmCore.tasks.list({
+				status: 'pending'
+			});
+
+			// Both should return correct data
+			expect(allTasksAfter).toHaveLength(3);
+			expect(pendingTasksAfter).toEqual(pendingTasks);
 		});
 	});
 
