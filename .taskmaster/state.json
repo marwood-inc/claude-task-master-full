@@ -1,9 +1,9 @@
 {
-	"currentTag": "master",
-	"lastSwitched": "2025-10-27T09:28:03.574Z",
-	"branchTagMapping": {
-		"v017-adds": "v017-adds",
-		"next": "next"
-	},
-	"migrationNoticeShown": true
+  "currentTag": "chore-performance-optimisation",
+  "lastSwitched": "2025-10-31T02:37:28.724Z",
+  "branchTagMapping": {
+    "v017-adds": "v017-adds",
+    "next": "next"
+  },
+  "migrationNoticeShown": true
 }

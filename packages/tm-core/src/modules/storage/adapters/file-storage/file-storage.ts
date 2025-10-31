@@ -2,6 +2,7 @@
  * @fileoverview Refactored file-based storage implementation for Task Master
  */
 
+import { LRUCache } from 'lru-cache';
 import type {
 	Task,
 	TaskMetadata,
@@ -17,6 +18,15 @@ import { FormatHandler } from './format-handler.js';
 import { FileOperations } from './file-operations.js';
 import { PathResolver } from './path-resolver.js';
 import { ComplexityReportManager } from '../../../reports/managers/complexity-report-manager.js';
+import { getLogger } from '../../../../common/logger/factory.js';
+
+/**
+ * Cache entry structure
+ */
+interface CacheEntry {
+	tasks: Task[];
+	timestamp: number;
+}
 
 /**
  * File-based storage implementation using a single tasks.json file with separated concerns
@@ -26,12 +36,23 @@ export class FileStorage implements IStorage {
 	private fileOps: FileOperations;
 	private pathResolver: PathResolver;
 	private complexityManager: ComplexityReportManager;
+	private taskCache: LRUCache<string, CacheEntry>;
+	private readonly CACHE_TTL = 5000; // 5 seconds in milliseconds
+	private logger = getLogger('FileStorage');
 
 	constructor(projectPath: string) {
 		this.formatHandler = new FormatHandler();
 		this.fileOps = new FileOperations();
 		this.pathResolver = new PathResolver(projectPath);
 		this.complexityManager = new ComplexityReportManager(projectPath);
+
+		// Initialize LRU cache with max 100 entries
+		this.taskCache = new LRUCache<string, CacheEntry>({
+			max: 100,
+			ttl: this.CACHE_TTL,
+			updateAgeOnGet: false, // Don't reset TTL on cache hits
+			updateAgeOnHas: false
+		});
 	}
 
 	/**
@@ -109,12 +130,45 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
+	 * Generate a cache key for a given tag and options combination
+	 */
+	private getCacheKey(tag: string, options?: LoadTasksOptions): string {
+		return `${tag}-${JSON.stringify(options || {})}`;
+	}
+
+	/**
+	 * Check if a cache entry is still valid
+	 */
+	private isCacheValid(entry: CacheEntry): boolean {
+		const now = Date.now();
+		return now - entry.timestamp < this.CACHE_TTL;
+	}
+
+	/**
+	 * Invalidate all cache entries
+	 */
+	private invalidateCache(): void {
+		this.taskCache.clear();
+		this.logger.debug('Cache invalidated');
+	}
+
+	/**
 	 * Load tasks from the single tasks.json file for a specific tag
 	 * Enriches tasks with complexity data from the complexity report
 	 */
 	async loadTasks(tag?: string, options?: LoadTasksOptions): Promise<Task[]> {
 		const filePath = this.pathResolver.getTasksPath();
 		const resolvedTag = tag || 'master';
+		const cacheKey = this.getCacheKey(resolvedTag, options);
+
+		// Check cache first
+		const cachedEntry = this.taskCache.get(cacheKey);
+		if (cachedEntry && this.isCacheValid(cachedEntry)) {
+			this.logger.debug(`Cache hit for key: ${cacheKey}`);
+			return cachedEntry.tasks;
+		}
+
+		this.logger.debug(`Cache miss for key: ${cacheKey}`);
 
 		try {
 			const rawData = await this.fileOps.readJson(filePath);
@@ -136,7 +190,18 @@ export class FileStorage implements IStorage {
 				}
 			}
 
-			return await this.enrichTasksWithComplexity(tasks, resolvedTag);
+			const enrichedTasks = await this.enrichTasksWithComplexity(
+				tasks,
+				resolvedTag
+			);
+
+			// Cache the result
+			this.taskCache.set(cacheKey, {
+				tasks: enrichedTasks,
+				timestamp: Date.now()
+			});
+
+			return enrichedTasks;
 		} catch (error: any) {
 			if (error.code === 'ENOENT') {
 				return []; // File doesn't exist, return empty array
@@ -279,6 +344,9 @@ export class FileStorage implements IStorage {
 
 		// Write the updated file
 		await this.fileOps.writeJson(filePath, existingData);
+
+		// Invalidate cache after write
+		this.invalidateCache();
 	}
 
 	/**
@@ -355,6 +423,7 @@ export class FileStorage implements IStorage {
 		const existingTasks = await this.loadTasks(tag);
 		const allTasks = [...existingTasks, ...tasks];
 		await this.saveTasks(allTasks, tag);
+		// Cache is invalidated by saveTasks
 	}
 
 	/**
@@ -378,6 +447,7 @@ export class FileStorage implements IStorage {
 			id: String(taskId) // Keep consistent with normalizeTaskIds
 		};
 		await this.saveTasks(tasks, tag);
+		// Cache is invalidated by saveTasks
 	}
 
 	/**
@@ -435,6 +505,7 @@ export class FileStorage implements IStorage {
 		};
 
 		await this.saveTasks(tasks, tag);
+		// Cache is invalidated by saveTasks
 
 		return {
 			success: true,
@@ -540,6 +611,7 @@ export class FileStorage implements IStorage {
 		};
 
 		await this.saveTasks(tasks, tag);
+		// Cache is invalidated by saveTasks
 
 		return {
 			success: true,
@@ -561,6 +633,7 @@ export class FileStorage implements IStorage {
 		}
 
 		await this.saveTasks(filteredTasks, tag);
+		// Cache is invalidated by saveTasks
 	}
 
 	/**
@@ -577,12 +650,14 @@ export class FileStorage implements IStorage {
 				if (tag in existingData) {
 					delete existingData[tag];
 					await this.fileOps.writeJson(filePath, existingData);
+					this.invalidateCache();
 				} else {
 					throw new Error(`Tag ${tag} not found`);
 				}
 			} else if (tag === 'master') {
 				// Standard format - delete the entire file for master tag
 				await this.fileOps.deleteFile(filePath);
+				this.invalidateCache();
 			} else {
 				throw new Error(`Tag ${tag} not found in standard format`);
 			}
@@ -615,6 +690,7 @@ export class FileStorage implements IStorage {
 					}
 
 					await this.fileOps.writeJson(filePath, existingData);
+					this.invalidateCache();
 				} else {
 					throw new Error(`Tag ${oldTag} not found`);
 				}
@@ -631,6 +707,7 @@ export class FileStorage implements IStorage {
 				};
 
 				await this.fileOps.writeJson(filePath, newData);
+				this.invalidateCache();
 			} else {
 				throw new Error(`Tag ${oldTag} not found in standard format`);
 			}
@@ -653,6 +730,7 @@ export class FileStorage implements IStorage {
 		}
 
 		await this.saveTasks(tasks, targetTag);
+		// Cache is invalidated by saveTasks
 	}
 
 	/**
