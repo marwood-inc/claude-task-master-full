@@ -106,3 +106,5 @@ apps/extension/vsix-build/
 benchmark-test-data/.taskmaster/tasks/tasks.json
 .taskmaster/TASK-11-COMPLETION-CHECKLIST.md
 benchmark-baseline.txt
+.taskmaster/config.json
+.claude/settings.local.json

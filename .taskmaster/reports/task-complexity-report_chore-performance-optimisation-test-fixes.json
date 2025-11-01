@@ -1,93 +1,181 @@
 {
 	"meta": {
-		"generatedAt": "2025-10-31T06:54:13.489Z",
-		"tasksAnalyzed": 10,
-		"totalTasks": 10,
-		"analysisCount": 10,
+		"generatedAt": "2025-11-01T02:55:38.288Z",
+		"tasksAnalyzed": 21,
+		"totalTasks": 32,
+		"analysisCount": 21,
 		"thresholdScore": 5,
 		"projectName": "Taskmaster",
 		"usedResearch": true
 	},
 	"complexityAnalysis": [
 		{
-			"taskId": 1,
-			"taskTitle": "Fix Vitest Module Mocking Infrastructure",
-			"complexityScore": 6,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Break down the ViTest mock refactor by grouping spec files (config-loader, config-persistence, runtime-state-manager, etc.), converting each to explicit `vi.mock('node:fs/promises', factory)` patterns, updating helper utilities if any shared mocks exist, and scheduling targeted Vitest runs after each batch.",
-			"reasoning": "Specs such as `packages/tm-core/src/modules/config/services/config-loader.service.spec.ts:59` and `config-persistence.service.spec.ts:49` call `vi.mocked(fs.readFile)` while only mocking `node:fs`, so redefining mocks to return full `node:fs/promises` facades must be repeated across dozens of call sites, verified per file with `npx vitest run`, and checked against any other built-in module mocks to avoid regressions."
-		},
-		{
-			"taskId": 2,
-			"taskTitle": "Fix Constructor Mocking in Config Manager Tests",
-			"complexityScore": 5,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "Plan updates to `config-manager.spec.ts` so each dependency mock exports a `vi.fn().mockImplementation` constructor, ensure shared mock instances expose required methods, and finish by rerunning the spec with Vitest.",
-			"reasoning": "`packages/tm-core/src/modules/config/managers/config-manager.spec.ts:31` uses `vi.mocked(ConfigLoader).mockImplementation(() => ({ ... }))`, returning plain objects that break when `new` is invoked; replacing these with constructor-compatible `vi.fn()` mocks for five services plus adjusting shared expectations requires careful refactors but is isolated to one suite."
-		},
-		{
-			"taskId": 3,
-			"taskTitle": "Fix Template Engine Variable Preservation",
-			"complexityScore": 3,
-			"recommendedSubtasks": 2,
-			"expansionPrompt": "Outline the change to `TemplateEngine` so undefined inputs keep their `{{placeholder}}`, update or extend accompanying tests to cover mixed defined/undefined variables, and run the module test suite.",
-			"reasoning": "The replacement logic in `packages/tm-core/src/modules/git/services/template-engine.ts:94` drops placeholders when values are undefined, yet tests like `template-engine.test.ts:24` expect them preserved; updating the substitution branch and adding regression cases is localized and low effort."
-		},
-		{
-			"taskId": 4,
-			"taskTitle": "Fix Cross-Platform Path Sanitization",
-			"complexityScore": 6,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Design a normalization flow that strips Windows drive letters and standardizes separators before base64url encoding, adjust `denormalizeProjectPath` to keep round-trip fidelity, expand cross-platform cases in `path-normalizer.spec.ts`, and validate on both OSes if possible.",
-			"reasoning": "`normalizeProjectPath` in `packages/tm-core/src/common/utils/path-normalizer.ts:24` currently base64-encodes the entire input, so Windows drive prefixes survive; updating this while keeping round-trip behavior tested in `path-normalizer.spec.ts:232` and ensuring consistent identifiers across platforms introduces nuanced branching and broader test updates."
-		},
-		{
-			"taskId": 5,
-			"taskTitle": "Implement Fake Timers for Cache TTL Tests",
+			"taskId": 25,
+			"taskTitle": "Create Adaptive Model Selection Service",
 			"complexityScore": 7,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "Introduce `vi.useFakeTimers()`/`vi.useRealTimers()` hooks in file-storage cache specs, replace each `await new Promise(setTimeout...)` with appropriate `vi.advanceTimersByTime` calls, audit duration assertions that rely on `Date.now`, and rerun the storage integration suites.",
-			"reasoning": "TTL scenarios in `packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.spec.ts:374` and similar rely on real 5s waits; switching to fake timers touches many asynchronous flows, requires rewriting timing assertions, and demands thorough regression testing to ensure cache semantics remain intact."
-		},
-		{
-			"taskId": 6,
-			"taskTitle": "Add Atomic File Write Retry Logic for Windows",
-			"complexityScore": 7,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "Implement an exponential backoff helper inside `FileOperations.performAtomicWrite`, trigger retries on Windows `EPERM`/`ENOENT`, add structured logging, craft unit tests that stub `fs.rename` failures/successes, and run the storage adapter suite.",
-			"reasoning": "`performAtomicWrite` at `packages/tm-core/src/modules/storage/adapters/file-storage/file-operations.ts:61` currently fails immediately on Windows locks; adding timed retries with doubling delays, wiring platform detection, and covering this with mocks-driven tests introduces asynchronous complexity and broader failure-path handling."
-		},
-		{
-			"taskId": 7,
-			"taskTitle": "Fix Workflow Orchestrator Validation Logic",
-			"complexityScore": 6,
 			"recommendedSubtasks": 4,
-			"expansionPrompt": "Integrate `TestResultValidator` calls into RED/GREEN handling within `handleTDDPhaseTransition`, define how validation errors change workflow state/events, update orchestrator tests that expect validator enforcement, and rerun the workflow suite.",
-			"reasoning": "`handleTDDPhaseTransition` in `packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.ts:152` manually checks counts without leveraging the configurable validator, yet tests around `workflow-orchestrator.test.ts:1408` expect validator-driven errors; wiring these together while preserving existing transitions requires coordinated updates."
+			"expansionPrompt": "Design model selection logic, implement cost-based model switching, create configuration interfaces, and add performance monitoring for model selection decisions",
+			"reasoning": "High complexity due to need for sophisticated model selection algorithm, performance considerations, and integration with existing AI services. Requires careful design of selection criteria, performance tracking, and backward compatibility."
 		},
 		{
-			"taskId": 8,
-			"taskTitle": "Optimize LRU Cache Test Performance",
-			"complexityScore": 4,
-			"recommendedSubtasks": 3,
-			"expansionPrompt": "Reduce synthetic data sizes in the LRU eviction tests, add tighter assertions to prove eviction still occurs, and run the affected spec to confirm time improvements.",
-			"reasoning": "The LRU test at `packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.spec.ts:517` constructs 150 tags and large loops, causing long runtimes; shrinking datasets while keeping meaningful eviction checks is a contained change but must maintain coverage for cache limits."
-		},
-		{
-			"taskId": 9,
-			"taskTitle": "Fix Empty Cache Result Handling",
-			"complexityScore": 5,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Revise `getTasks` caching to treat cached falsy values distinctly from misses, expand cache key generation to include derived tag/projectRoot namespaces, add regression tests for empty string / null scenarios, and rerun extension API tests.",
-			"reasoning": "`apps/extension/src/utils/task-master-api/index.ts:114` builds cache keys from raw `options` and tests `if (cached)` at line 118, so empty strings or arrays get treated as misses and different roots collide; adjusting key composition and truthiness checks plus adding coverage keeps behavior consistent across consumers."
+			"taskId": 32,
+			"taskTitle": "Create Performance Benchmarking and Validation Suite",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Design benchmark framework, create test datasets, implement performance comparison logic, add regression detection, and integrate with CI/CD pipeline",
+			"reasoning": "Highly complex task involving multiple layers of performance testing, data generation, comparison methodology, and continuous integration. Requires sophisticated measurement techniques, quality validation, and robust reporting infrastructure."
 		},
 		{
 			"taskId": 10,
 			"taskTitle": "Create Cross-Platform Test Validation Suite",
 			"complexityScore": 9,
 			"recommendedSubtasks": 6,
-			"expansionPrompt": "Map out cross-platform runners (Windows/Linux) with repeat execution, update CI to a matrix workflow with performance tracking, add scripts/wrappers for local parity, document platform nuances, and build reporting to flag flaky or slow tests.",
-			"reasoning": "Current CI (`.github/workflows/ci.yml:20-120`) runs only on Ubuntu; adding Windows coverage, repeated full-suite runs, timing metrics, and documentation demands new tooling, pipeline matrix configuration, secrets handling, and ongoing maintenance, making this a sizeable multi-domain effort."
+			"expansionPrompt": "Design platform-specific test runners, implement CI matrix configuration, create performance monitoring, develop cross-platform validation logic, add reporting infrastructure, and create comprehensive documentation",
+			"reasoning": "Extremely high complexity due to multiple platform interactions, extensive test infrastructure modifications, performance monitoring requirements, and need for comprehensive cross-platform compatibility. Involves complex CI/CD configuration, platform-specific nuances, and extensive testing strategies."
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "Optimize TasksDomain Save Operations with Dirty Tracking",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize tasksdomain save operations with dirty tracking.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 14,
+			"taskTitle": "Optimize Jest Test Configuration for Smart Test Execution",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize jest test configuration for smart test execution.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "Implement Task Object Structural Sharing",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement task object structural sharing.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 16,
+			"taskTitle": "Parallelize Task Markdown Generation Operations",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on parallelize task markdown generation operations.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Optimize Event Emitter with Lazy Listener Registration",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize event emitter with lazy listener registration.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 18,
+			"taskTitle": "Optimize Template Processing with Compiled Regex Patterns",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize template processing with compiled regex patterns.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 19,
+			"taskTitle": "Implement Git Command Batching and Process Pool",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement git command batching and process pool.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 20,
+			"taskTitle": "Implement Short-Circuit Validation Chain Optimization",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement short-circuit validation chain optimization.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 22,
+			"taskTitle": "Implement JSONL Storage Format as Optional Alternative",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement jsonl storage format as optional alternative.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 23,
+			"taskTitle": "Enhance Configuration System with Optimization Settings",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on enhance configuration system with optimization settings.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 24,
+			"taskTitle": "Implement Smart Context Gatherer with Budget Limits",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement smart context gatherer with budget limits.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 26,
+			"taskTitle": "Optimize Prompt Construction and Token Usage",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize prompt construction and token usage.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 27,
+			"taskTitle": "Implement Fast Path Mode for Task Creation",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement fast path mode for task creation.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 28,
+			"taskTitle": "Add Performance Telemetry and Monitoring",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on add performance telemetry and monitoring.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 29,
+			"taskTitle": "Implement Response Streaming Infrastructure",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement response streaming infrastructure.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 30,
+			"taskTitle": "Build Background Enrichment System",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on build background enrichment system.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 31,
+			"taskTitle": "Implement Intelligent Context Caching",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on implement intelligent context caching.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
+		},
+		{
+			"taskId": 33,
+			"taskTitle": "Optimize parse-prd Performance",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down this task with a focus on optimize parse-prd performance.",
+			"reasoning": "Automatically added due to missing analysis in AI response."
 		}
 	]
 }
