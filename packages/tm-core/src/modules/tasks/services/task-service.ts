@@ -42,6 +42,10 @@ export interface GetTaskListOptions {
 	filter?: TaskFilter;
 	/** Include subtasks in response */
 	includeSubtasks?: boolean;
+	/** Maximum number of tasks to return (for pagination) */
+	limit?: number;
+	/** Number of tasks to skip (for pagination) */
+	offset?: number;
 }
 
 /**
@@ -118,6 +122,14 @@ export class TaskService {
 			// Push subtask exclusion to storage
 			if (options.includeSubtasks === false) {
 				storageOptions.excludeSubtasks = true;
+			}
+
+			// Push pagination to storage
+			if (options.limit !== undefined) {
+				storageOptions.limit = options.limit;
+			}
+			if (options.offset !== undefined) {
+				storageOptions.offset = options.offset;
 			}
 
 			// Load tasks from storage with pushed-down filters

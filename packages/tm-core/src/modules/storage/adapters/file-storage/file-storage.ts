@@ -26,6 +26,10 @@ import {
 	isCacheMiss,
 	type CacheMetrics
 } from '../../../../common/cache/index.js';
+import {
+	WriteQueueManager,
+	type WriteQueueMetrics
+} from '../../../../common/write-queue/index.js';
 
 /**
  * Cache entry structure
@@ -35,8 +39,28 @@ interface CacheEntry {
 }
 
 /**
+ * Task index entry for fast lookups
+ */
+interface TaskIndexEntry {
+	id: string;
+	position: number;
+	tag: string;
+	parentId?: string;
+}
+
+/**
+ * Performance optimization flags (for benchmarking comparison)
+ * Set TM_DISABLE_OPTIMIZATIONS=true to test baseline performance
+ */
+const PERFORMANCE_CONFIG = {
+	useTaskIndex: process.env.TM_DISABLE_OPTIMIZATIONS !== 'true',
+	useWriteThroughCache: process.env.TM_DISABLE_OPTIMIZATIONS !== 'true',
+	useOptimizedCache: process.env.TM_DISABLE_OPTIMIZATIONS !== 'true'
+};
+
+/**
  * File-based storage implementation using a single tasks.json file with separated concerns
- * Now with clean cache architecture using dependency injection
+ * Now with clean cache architecture and write queue batching using dependency injection
  */
 export class FileStorage implements IStorage {
 	private formatHandler: FormatHandler;
@@ -44,17 +68,52 @@ export class FileStorage implements IStorage {
 	private pathResolver: PathResolver;
 	private complexityManager: ComplexityReportManager;
 	private cacheManager: CacheManager;
-	private readonly CACHE_TTL = 5000; // 5 seconds in milliseconds
+	private writeQueueManager: WriteQueueManager;
+	private readonly CACHE_TTL = PERFORMANCE_CONFIG.useOptimizedCache ? 60000 : 5000; // 60s optimized, 5s baseline
 	private logger = getLogger('FileStorage');
+	
+	// Task index for O(1) lookups instead of O(n) linear search (can be disabled for comparison)
+	private taskIndex: Map<string, TaskIndexEntry> = new Map();
+	private indexLastBuilt: number = 0;
+	private readonly INDEX_TTL = 30000; // 30 seconds
+	
+	// Track active tag for cache management
+	private activeTag: string | null = null;
 
-	constructor(projectPath: string, cacheManager?: CacheManager) {
+	constructor(
+		projectPath: string,
+		cacheManager?: CacheManager,
+		writeQueueManager?: WriteQueueManager
+	) {
 		this.formatHandler = new FormatHandler();
-		this.fileOps = new FileOperations();
 		this.pathResolver = new PathResolver(projectPath);
 		this.complexityManager = new ComplexityReportManager(projectPath);
 
 		// Use injected cache or create default
 		this.cacheManager = cacheManager || this.createDefaultCache();
+
+		// Use injected write queue or create default
+		this.writeQueueManager =
+			writeQueueManager || this.createDefaultWriteQueue();
+
+		// Create FileOperations with write queue
+		this.fileOps = new FileOperations(this.writeQueueManager);
+	}
+
+	/**
+	 * Create default write queue configuration
+	 */
+	private createDefaultWriteQueue(): WriteQueueManager {
+		return new WriteQueueManager({
+			cacheManager: this.cacheManager,
+			config: {
+				maxWaitTime: 150, // 150ms flush interval
+				maxBatchSize: 10, // Flush after 10 writes
+				maxRetries: 3,
+				enableMetrics: true,
+				enableAutoFlush: true
+			}
+		});
 	}
 
 	/**
@@ -62,11 +121,11 @@ export class FileStorage implements IStorage {
 	 */
 	private createDefaultCache(): CacheManager {
 		const strategy = new LRUCacheStrategy({
-			maxEntries: 100,
+			maxEntries: PERFORMANCE_CONFIG.useOptimizedCache ? 3000 : 100, // Increased to 3000 for large datasets (16K+ items)
 			ttl: this.CACHE_TTL,
 			updateAgeOnGet: false,
 			updateAgeOnHas: false,
-			maxMemory: 50 * 1024 * 1024, // 50MB max
+			maxMemory: PERFORMANCE_CONFIG.useOptimizedCache ? 300 * 1024 * 1024 : 50 * 1024 * 1024, // 300MB for large datasets
 			enableMetrics: true
 		});
 
@@ -85,9 +144,11 @@ export class FileStorage implements IStorage {
 
 	/**
 	 * Close storage and cleanup resources
+	 * Flushes write queue and clears cache
 	 */
 	async close(): Promise<void> {
 		this.cacheManager.clear();
+		// cleanup() already flushes the queue via shutdown(), no need to flush twice
 		await this.fileOps.cleanup();
 	}
 
@@ -160,11 +221,70 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
+	 * Build task index for fast lookups
+	 * Index maps task IDs to their position in the array for O(1) access
+	 */
+	private buildTaskIndex(tasks: Task[], tag: string): void {
+		this.taskIndex.clear();
+		tasks.forEach((task, index) => {
+			this.taskIndex.set(String(task.id), {
+				id: String(task.id),
+				position: index,
+				tag,
+				parentId: task.parentId ? String(task.parentId) : undefined
+			});
+			
+			// Index subtasks too
+			if (task.subtasks && task.subtasks.length > 0) {
+				task.subtasks.forEach((subtask) => {
+					this.taskIndex.set(String(subtask.id), {
+						id: String(subtask.id),
+						position: index, // Parent task position
+						tag,
+						parentId: String(task.id)
+					});
+				});
+			}
+		});
+		this.indexLastBuilt = Date.now();
+		this.logger.debug(`Built index for ${this.taskIndex.size} tasks`);
+	}
+
+	/**
+	 * Check if index is stale and needs rebuilding
+	 */
+	private isIndexStale(): boolean {
+		return Date.now() - this.indexLastBuilt > this.INDEX_TTL;
+	}
+
+	/**
+	 * Invalidate the task index (called when tasks are modified)
+	 */
+	private invalidateIndex(): void {
+		this.taskIndex.clear();
+		this.indexLastBuilt = 0;
+		this.logger.debug('Task index invalidated');
+	}
+
+	/**
 	 * Invalidate cache entries by tag (selective invalidation)
 	 */
 	private invalidateCacheForTag(tag: string): void {
 		const count = this.cacheManager.invalidateTag(tag);
 		this.logger.debug(`Invalidated ${count} cache entries for tag: ${tag}`);
+	}
+
+	/**
+	 * Clear cache for inactive tags when switching to a new tag
+	 * This keeps memory usage low by only caching the active tag
+	 */
+	private clearInactiveTagCache(newActiveTag: string): void {
+		if (this.activeTag && this.activeTag !== newActiveTag) {
+			this.logger.debug(`Switching from tag '${this.activeTag}' to '${newActiveTag}', clearing old cache`);
+			this.invalidateCacheForTag(this.activeTag);
+			this.taskIndex.clear(); // Clear index for old tag
+		}
+		this.activeTag = newActiveTag;
 	}
 
 	/**
@@ -175,12 +295,31 @@ export class FileStorage implements IStorage {
 	}
 
 	/**
+	 * Get write queue performance metrics
+	 */
+	getWriteQueueMetrics(): WriteQueueMetrics | undefined {
+		return this.fileOps.getWriteMetrics();
+	}
+
+	/**
+	 * Explicitly flush write queue
+	 * Useful for ensuring all writes are persisted before critical operations
+	 */
+	async flushWrites(): Promise<void> {
+		await this.fileOps.flushQueue();
+	}
+
+	/**
 	 * Load tasks from the single tasks.json file for a specific tag
 	 * Enriches tasks with complexity data from the complexity report
 	 */
 	async loadTasks(tag?: string, options?: LoadTasksOptions): Promise<Task[]> {
 		const filePath = this.pathResolver.getTasksPath();
 		const resolvedTag = tag || 'master';
+		
+		// Clear cache for inactive tags to save memory (only keep active tag cached)
+		this.clearInactiveTagCache(resolvedTag);
+		
 		const cacheKey = this.getCacheKey(resolvedTag, options);
 
 		// Check cache first
@@ -209,6 +348,14 @@ export class FileStorage implements IStorage {
 						...task,
 						subtasks: []
 					}));
+				}
+
+				// Apply pagination if specified
+				if (options.offset !== undefined || options.limit !== undefined) {
+					const offset = options.offset || 0;
+					const limit = options.limit || tasks.length;
+					tasks = tasks.slice(offset, offset + limit);
+					this.logger.debug(`Pagination applied: offset=${offset}, limit=${limit}, returned=${tasks.length}`);
 				}
 			}
 
@@ -247,6 +394,9 @@ export class FileStorage implements IStorage {
 	): Promise<Task | null> {
 		const filePath = this.pathResolver.getTasksPath();
 		const resolvedTag = tag || 'master';
+		
+		// Clear cache for inactive tags to save memory
+		this.clearInactiveTagCache(resolvedTag);
 
 		// Generate cache key for single task
 		const cacheKey = CacheKeyBuilder.build(
@@ -256,10 +406,10 @@ export class FileStorage implements IStorage {
 		);
 
 		// Check cache first
-		const cachedEntry = this.taskCache.get(cacheKey);
-		if (cachedEntry && this.isCacheValid(cachedEntry)) {
+		const cachedResult = this.cacheManager.get<CacheEntry>(cacheKey);
+		if (!isCacheMiss(cachedResult)) {
 			this.logger.debug(`Single task cache hit: ${cacheKey}`);
-			return cachedEntry.tasks[0] || null;
+			return cachedResult.tasks[0] || null;
 		}
 
 		this.logger.debug(`Single task cache miss: ${cacheKey}`);
@@ -269,17 +419,45 @@ export class FileStorage implements IStorage {
 			const rawData = await this.fileOps.readJson(filePath);
 			const tasks = this.formatHandler.extractTasks(rawData, resolvedTag);
 
-			// Find the target task immediately without processing all tasks
-			const targetTask = tasks.find(
-				(task) => String(task.id) === String(taskId)
-			);
+			// Build or refresh index if optimizations enabled
+			if (PERFORMANCE_CONFIG.useTaskIndex && (this.taskIndex.size === 0 || this.isIndexStale())) {
+				this.buildTaskIndex(tasks, resolvedTag);
+			}
+
+			// Use index for O(1) lookup if enabled, otherwise fallback to linear search
+			const indexEntry = PERFORMANCE_CONFIG.useTaskIndex ? this.taskIndex.get(String(taskId)) : null;
+			let targetTask: Task | null = null;
+
+			if (indexEntry) {
+				if (indexEntry.parentId) {
+					// This is a subtask - get from parent's subtasks
+					const parentTask = tasks[indexEntry.position];
+					if (parentTask?.subtasks) {
+						const subtask = parentTask.subtasks.find(
+							(st) => String(st.id) === String(taskId)
+						);
+						// Convert subtask to task-like structure for return
+						targetTask = subtask ? (subtask as any) : null;
+					}
+				} else {
+					// Regular task - direct access via index
+					targetTask = tasks[indexEntry.position];
+				}
+			} else if (!PERFORMANCE_CONFIG.useTaskIndex) {
+				// Baseline: use O(n) linear search
+				targetTask = tasks.find((t) => String(t.id) === String(taskId)) || null;
+			}
 
 			if (!targetTask) {
 				// Cache the null result to avoid repeated lookups
-				this.taskCache.set(cacheKey, {
-					tasks: [],
-					timestamp: Date.now()
-				});
+				this.cacheManager.set(
+				cacheKey,
+				{ tasks: [] },
+				{
+					namespace: CacheNamespace.Task,
+					tags: [resolvedTag]
+				}
+			);
 				return null;
 			}
 
@@ -290,19 +468,27 @@ export class FileStorage implements IStorage {
 			);
 
 			// Cache the result
-			this.taskCache.set(cacheKey, {
-				tasks: enrichedTasks,
-				timestamp: Date.now()
-			});
+			this.cacheManager.set(
+				cacheKey,
+				{ tasks: enrichedTasks },
+				{
+					namespace: CacheNamespace.Task,
+					tags: [resolvedTag]
+				}
+			);
 
 			return enrichedTasks[0] || null;
 		} catch (error: any) {
 			if (error.code === 'ENOENT') {
 				// Cache the ENOENT result to avoid repeated file system checks
-				this.taskCache.set(cacheKey, {
-					tasks: [],
-					timestamp: Date.now()
-				});
+				this.cacheManager.set(
+				cacheKey,
+				{ tasks: [] },
+				{
+					namespace: CacheNamespace.Task,
+					tags: [resolvedTag]
+				}
+			);
 				return null; // File doesn't exist
 			}
 			throw new Error(`Failed to load task: ${error.message}`);
@@ -393,6 +579,9 @@ export class FileStorage implements IStorage {
 		// Ensure directory exists
 		await this.fileOps.ensureDir(this.pathResolver.getTasksDir());
 
+		// Normalize tasks before saving
+		const normalizedTasks = this.normalizeTaskIds(tasks);
+
 		// Get existing data from the file
 		let existingData: any = {};
 		try {
@@ -412,9 +601,6 @@ export class FileStorage implements IStorage {
 			completedCount: tasks.filter((t) => t.status === 'done').length,
 			tags: [resolvedTag]
 		};
-
-		// Normalize tasks
-		const normalizedTasks = this.normalizeTaskIds(tasks);
 
 		// Update the specific tag in the existing data structure
 		if (
@@ -451,11 +637,60 @@ export class FileStorage implements IStorage {
 			};
 		}
 
-		// Write the updated file
-		await this.fileOps.writeJson(filePath, existingData);
+		// Write the updated file with cache invalidation tag
+		await this.fileOps.writeJson(filePath, existingData, {
+			invalidationTags: [resolvedTag]
+		});
 
-		// Invalidate cache after write
-		this.invalidateCache();
+		// Write-through cache: Update cache with new data instead of invalidating
+		// This keeps individual task caches valid and improves hit rate
+		const loadAllCacheKey = this.getCacheKey(resolvedTag);
+		const enrichedTasks = await this.enrichTasksWithComplexity(
+			normalizedTasks,
+			resolvedTag
+		);
+		
+		// Update the full task list cache
+		this.cacheManager.set(
+			loadAllCacheKey,
+			{ tasks: enrichedTasks },
+			{
+				namespace: CacheNamespace.Storage,
+				tags: [resolvedTag]
+			}
+		);
+
+		// Update individual task caches (write-through caching) - only if optimization enabled
+		if (PERFORMANCE_CONFIG.useWriteThroughCache) {
+			for (const task of enrichedTasks) {
+				const taskCacheKey = CacheKeyBuilder.build(
+					CacheNamespace.Task,
+					String(task.id),
+					resolvedTag
+				);
+				this.cacheManager.set(
+					taskCacheKey,
+					{ tasks: [task] },
+					{
+						namespace: CacheNamespace.Task,
+						tags: [resolvedTag]
+					}
+				);
+			}
+		} else {
+			// Baseline: invalidate individual task caches (forces reload from disk)
+			for (const task of enrichedTasks) {
+				const taskCacheKey = CacheKeyBuilder.build(
+					CacheNamespace.Task,
+					String(task.id),
+					resolvedTag
+				);
+				this.cacheManager.delete(taskCacheKey);
+			}
+		}
+
+		// Rebuild the task index with new data
+		this.buildTaskIndex(enrichedTasks, resolvedTag);
 	}
 
 	/**
@@ -758,15 +993,16 @@ export class FileStorage implements IStorage {
 				// Legacy format - remove the tag key
 				if (tag in existingData) {
 					delete existingData[tag];
-					await this.fileOps.writeJson(filePath, existingData);
-					this.invalidateCache();
+					await this.fileOps.writeJson(filePath, existingData, {
+						invalidationTags: [tag]
+					});
 				} else {
 					throw new Error(`Tag ${tag} not found`);
 				}
 			} else if (tag === 'master') {
 				// Standard format - delete the entire file for master tag
 				await this.fileOps.deleteFile(filePath);
-				this.invalidateCache();
+				this.invalidateCacheForTag(tag);
 			} else {
 				throw new Error(`Tag ${tag} not found in standard format`);
 			}
@@ -798,8 +1034,9 @@ export class FileStorage implements IStorage {
 						existingData[newTag].metadata.tags = [newTag];
 					}
 
-					await this.fileOps.writeJson(filePath, existingData);
-					this.invalidateCache();
+					await this.fileOps.writeJson(filePath, existingData, {
+						invalidationTags: [oldTag, newTag]
+					});
 				} else {
 					throw new Error(`Tag ${oldTag} not found`);
 				}
@@ -815,8 +1052,9 @@ export class FileStorage implements IStorage {
 					}
 				};
 
-				await this.fileOps.writeJson(filePath, newData);
-				this.invalidateCache();
+				await this.fileOps.writeJson(filePath, newData, {
+					invalidationTags: [oldTag, newTag]
+				});
 			} else {
 				throw new Error(`Tag ${oldTag} not found in standard format`);
 			}

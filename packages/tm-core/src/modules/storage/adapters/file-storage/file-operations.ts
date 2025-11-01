@@ -10,12 +10,15 @@ import {
 	TaskMasterError,
 	ERROR_CODES
 } from '../../../../common/errors/task-master-error.js';
+import type { WriteQueueManager } from '../../../../common/write-queue/index.js';
+import type { WriteQueueMetrics } from '../../../../common/write-queue/types.js';
 
 /**
- * Handles atomic file operations with locking mechanism
+ * Handles atomic file operations with locking mechanism and optional write queuing
  */
 export class FileOperations {
 	private fileLocks: Map<string, Promise<void>> = new Map();
+	private writeQueueManager?: WriteQueueManager;
 
 	// Retry configuration constants
 	private static readonly MAX_RETRIES = 3;
@@ -33,6 +36,14 @@ export class FileOperations {
 
 	// Logger instance
 	private logger = getLogger('FileOperations');
+
+	/**
+	 * Constructor with optional write queue manager for batching
+	 * @param writeQueueManager - Optional write queue for batching operations
+	 */
+	constructor(writeQueueManager?: WriteQueueManager) {
+		this.writeQueueManager = writeQueueManager;
+	}
 
 	/**
 	 * Read and parse JSON file
@@ -72,8 +83,37 @@ export class FileOperations {
 
 	/**
 	 * Write JSON file with atomic operation and locking
+	 * Uses write queue if available for batching, otherwise writes immediately
+	 * @param filePath - Path to file
+	 * @param data - Data to write
+	 * @param options - Write options
 	 */
 	async writeJson(
+		filePath: string,
+		data: FileStorageData | any,
+		options?: {
+			/** Bypass queue and write immediately (default: false) */
+			immediate?: boolean;
+			/** Cache invalidation tags for batch processing */
+			invalidationTags?: string[];
+		}
+	): Promise<void> {
+		// If write queue is available and not immediate, use queue
+		if (this.writeQueueManager && !options?.immediate) {
+			const jsonData = JSON.stringify(data, null, 2);
+			return this.writeQueueManager.write(filePath, jsonData, {
+				invalidationTags: options?.invalidationTags
+			});
+		}
+
+		// Otherwise, perform immediate write with locking
+		return this.performLockedWrite(filePath, data);
+	}
+
+	/**
+	 * Perform locked write (used for immediate writes or when queue unavailable)
+	 */
+	private async performLockedWrite(
 		filePath: string,
 		data: FileStorageData | any
 	): Promise<void> {
@@ -348,13 +388,39 @@ export class FileOperations {
 	}
 
 	/**
+	 * Explicitly flush write queue
+	 * Useful for ensuring persistence before critical operations
+	 */
+	async flushQueue(): Promise<void> {
+		if (this.writeQueueManager) {
+			await this.writeQueueManager.flushQueue();
+		}
+	}
+
+	/**
+	 * Get write queue metrics
+	 * @returns Write queue metrics if queue is enabled, undefined otherwise
+	 */
+	getWriteMetrics(): WriteQueueMetrics | undefined {
+		return this.writeQueueManager?.getMetrics();
+	}
+
+	/**
 	 * Clean up all pending file operations
+	 * Waits for in-flight operations first, then flushes write queue
 	 */
 	async cleanup(): Promise<void> {
+		// Wait for any in-flight locked operations FIRST
+		// This prevents race condition between immediate writes and queued writes
 		const locks = Array.from(this.fileLocks.values());
 		if (locks.length > 0) {
 			await Promise.all(locks);
 		}
 		this.fileLocks.clear();
+
+		// Then flush write queue
+		if (this.writeQueueManager) {
+			await this.writeQueueManager.shutdown();
+		}
 	}
 }

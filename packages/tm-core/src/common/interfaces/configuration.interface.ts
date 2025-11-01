@@ -6,7 +6,8 @@
 import type {
 	TaskComplexity,
 	TaskPriority,
-	StorageType
+	StorageType,
+	StorageFormat
 } from '../types/index.js';
 
 /**
@@ -119,6 +120,11 @@ export interface RuntimeStorageConfig {
 }
 
 /**
+ * Storage format types
+ */
+export type StorageFormat = 'json' | 'jsonl';
+
+/**
  * Storage and persistence settings
  * Extended storage settings including file operation preferences
  */
@@ -132,6 +138,8 @@ export interface StorageSettings
 	 * @internal Should not be set manually in user config - computed by ConfigManager
 	 */
 	readonly apiConfigured?: boolean;
+	/** Storage format for task files (json: single file with all tags, jsonl: one file per tag with line-based format) */
+	format: StorageFormat;
 	/** Enable automatic backups */
 	enableBackup: boolean;
 	/**
@@ -596,6 +604,7 @@ export const DEFAULT_CONFIG_VALUES = {
 	},
 	STORAGE: {
 		TYPE: 'auto' as const,
+		FORMAT: 'json' as StorageFormat,
 		ENCODING: 'utf8' as BufferEncoding,
 		MAX_BACKUPS: 5
 	},

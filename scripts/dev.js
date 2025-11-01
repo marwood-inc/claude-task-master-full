@@ -9,6 +9,7 @@
  */
 
 import dotenv from 'dotenv';
+import { runCLI } from './modules/commands.js';
 
 // Load .env BEFORE any other imports to ensure env vars are available
 dotenv.config();
@@ -17,9 +18,6 @@ dotenv.config();
 if (process.env.DEBUG === '1') {
 	console.error('DEBUG - dev.js received args:', process.argv.slice(2));
 }
-
-// Use dynamic import to ensure dotenv.config() runs before module-level code executes
-const { runCLI } = await import('./modules/commands.js');
 
 // Run the CLI with the process arguments
 runCLI(process.argv);

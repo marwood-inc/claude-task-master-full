@@ -265,6 +265,14 @@ export class PerformanceMetrics {
 	}
 
 	/**
+	 * Record cache statistics from external source
+	 */
+	recordCacheStats(hits: number, misses: number): void {
+		this.cacheHits += hits;
+		this.cacheMisses += misses;
+	}
+
+	/**
 	 * Calculate cache statistics
 	 */
 	getCacheStats(): CacheStats {

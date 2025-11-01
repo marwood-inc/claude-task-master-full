@@ -12084,7 +12084,7 @@
   "chore-performance-optimisation-test-fixes": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Fix Vitest Module Mocking Infrastructure",
         "description": "Replace improper vi.mocked() usage with proper vi.mock() module declarations for Node.js built-in modules (fs/promises, path, etc.) to restore mockResolvedValue/mockRejectedValue functionality",
         "details": "Update all test files using vi.mocked(fs.readFile).mockResolvedValue() patterns to use proper vi.mock('node:fs/promises', () => ({ readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn() })) declarations. This affects 50+ tests across config-loader, config-persistence, and runtime-state-manager test files. Focus on packages/tm-core/src/modules/config/services/*.spec.ts files first as they have the highest concentration of failures.",
@@ -12151,7 +12151,7 @@
         "updatedAt": "2025-10-31T08:17:44.782Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Fix Constructor Mocking in Config Manager Tests",
         "description": "Update constructor mock factories to use vi.fn().mockImplementation() instead of returning object literals, fixing 'is not a constructor' errors in config-manager.spec.ts",
         "details": "Replace mock factories like 'ConfigLoader: () => ({ loadLocalConfig: vi.fn() })' with 'ConfigLoader: vi.fn().mockImplementation(() => ({ loadLocalConfig: vi.fn(), loadGlobalConfig: vi.fn() }))' to ensure proper constructor behavior. Update all service mocks in config-manager.spec.ts and similar files. This pattern is required for dependency injection testing to work correctly.",
@@ -12207,7 +12207,7 @@
         "updatedAt": "2025-10-31T13:52:58.240Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "Fix Template Engine Variable Preservation",
         "description": "Update template engine regex replacement logic to preserve {{placeholders}} when variables are missing instead of removing them entirely",
         "details": "Modify the template.replace() method in packages/tm-core/src/modules/git/services/template-engine.test.ts and related implementation to return the original placeholder when a variable is undefined/null. Current behavior: {{missing}} → '' (empty). Required behavior: {{missing}} → '{{missing}}' (preserved). Update regex from /{{(\\w+)}}/g with unconditional replacement to conditional replacement that checks if variable exists.",
@@ -12247,7 +12247,7 @@
         "updatedAt": "2025-10-31T09:29:34.672Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Fix Cross-Platform Path Sanitization",
         "description": "Update path sanitization logic to strip Windows drive letters (C:, D:, etc.) before processing to prevent malformed project identifiers on Windows",
         "details": "Modify path sanitization functions to detect and remove Windows drive letters using pattern /^[A-Za-z]:/ before applying path normalization. Add platform detection logic and ensure consistent path separator handling across Windows/Unix systems. Focus on packages/tm-core/src/common/utils/path-normalizer.spec.ts and related implementation files.",
@@ -12313,7 +12313,7 @@
         "updatedAt": "2025-10-31T09:34:56.264Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Implement Fake Timers for Cache TTL Tests",
         "description": "Replace real setTimeout/setInterval with vi.useFakeTimers() in cache TTL tests to eliminate 5-second timeouts and improve test performance",
         "details": "Update cache-related test files to use vi.useFakeTimers() in beforeEach() and vi.useRealTimers() in afterEach(). Replace real time waits with vi.advanceTimersByTime(6000) to fast-forward past TTL expiration. Focus on packages/tm-core/tests/integration/storage/file-storage-cache.test.ts and similar cache test files. Ensure cache expiration logic is tested without performance penalty.",
@@ -12395,7 +12395,7 @@
         "updatedAt": "2025-10-31T13:53:39.754Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Add Atomic File Write Retry Logic for Windows",
         "description": "Implement exponential backoff retry strategy for atomic write operations to handle Windows file locking (EPERM/ENOENT) errors gracefully",
         "details": "Add retry logic to atomic write operations with exponential backoff starting at 50ms, doubling up to 1000ms max, with 3 retry attempts. Implement platform-specific error handling for Windows EPERM (permission denied) and ENOENT (file not found) errors. Add proper error logging for debugging file locking issues. Focus on file storage adapter implementations.\n<info added on 2025-10-31T07:24:56.333Z>\nI'll analyze the codebase first to understand the current file storage and atomic write implementation before generating the update.Based on my analysis of the codebase, I found that the project already has well-established patterns for error handling, file operations, and retry logic in other modules. The file-operations.ts file at line 61 contains the performAtomicWrite method that needs the retry logic. Here's the comprehensive research findings that should be appended to the task:\n\n## CODEBASE RESEARCH FINDINGS - Testing Infrastructure Issues Integration\n\nThe investigation revealed critical testing infrastructure problems that directly impact the implementation and testing strategy for this atomic file write retry logic:\n\n### Primary Concern: Vitest Mocking Infrastructure Failures\nThe current test suite exhibits fundamental mocking pattern issues that will affect testing the retry functionality:\n\n1. **Module Mock Anti-Pattern**: Tests use `vi.mocked()` instead of proper `vi.mock()` declarations for Node.js built-in modules like fs/promises, causing `mockResolvedValue` and `mockRejectedValue` to be undefined in 50+ test files.\n\n2. **Constructor Mocking Failures**: Mock factories return object literals instead of proper constructor functions, leading to \"is not a constructor\" errors when testing dependency injection scenarios.\n\n### Implementation Location Analysis\nLocated the target implementation at `packages/tm-core/src/modules/storage/adapters/file-storage/file-operations.ts:61` in the `performAtomicWrite` method. The current implementation uses `fs.rename()` for atomic operations but lacks retry logic for Windows file locking scenarios.\n\n### Existing Retry Pattern Reference\nFound established retry/backoff patterns in `packages/tm-core/src/modules/ai/providers/base-provider.ts` with constants:\n- `DEFAULT_MAX_RETRIES = 3`\n- `BASE_RETRY_DELAY_MS = 1000` \n- `BACKOFF_MULTIPLIER = 2`\n- `MAX_RETRY_DELAY_MS = 32000`\n\nThis provides a proven pattern to adapt for file operations with Windows-specific parameters (50ms base, 1000ms max).\n\n### Windows Error Handling Context\nThe codebase has extensive EPERM/ENOENT error handling patterns across multiple modules, particularly in config services and storage adapters, providing established patterns for platform-specific error classification.\n\n### Test Strategy Implications\nDue to the identified Vitest infrastructure issues, the test implementation must prioritize:\n1. **Proper fs.promises mocking setup** using `vi.mock('node:fs/promises')` instead of `vi.mocked()`\n2. **Fake timer implementation** for exponential backoff testing to avoid real delays\n3. **Platform detection mocking** for Windows-specific behavior testing\n4. **Error simulation patterns** that work with the corrected mocking infrastructure\n\nThe existing file-storage.spec.ts shows extensive testing patterns but suffers from the same mocking issues, requiring careful attention to ensure the retry logic tests don't exhibit similar problems. The test strategy should include validation that the retry helper works correctly with the current file locking mechanism in FileOperations while maintaining compatibility with the existing test infrastructure once the mocking issues are resolved.\n</info added on 2025-10-31T07:24:56.333Z>",
@@ -12475,7 +12475,7 @@
         "updatedAt": "2025-10-31T13:54:23.901Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "Fix Workflow Orchestrator Validation Logic",
         "description": "Debug and fix workflow orchestrator RED phase validation to ensure proper test failure detection and workflow state transitions",
         "details": "Investigate workflow orchestrator test failures in packages/tm-core/src/modules/workflow/orchestrators/workflow-orchestrator.test.ts. Fix validation logic that determines when tests fail during RED phase. Ensure proper state transitions from RED → GREEN → REFACTOR phases. Update test result processing to correctly identify genuine test failures vs setup issues.",
@@ -12547,7 +12547,7 @@
         "updatedAt": "2025-10-31T11:45:07.884Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "Optimize LRU Cache Test Performance",
         "description": "Reduce LRU eviction test dataset size from 100+ entries to 20 entries to prevent test timeouts while maintaining test coverage",
         "details": "Update LRU cache tests that currently create large datasets (100+ entries) causing 5-second timeouts. Reduce to 20 entries while ensuring eviction behavior is still properly tested. Focus on packages/tm-core/tests/integration/storage/ cache-related tests. Maintain test coverage of eviction policies, memory limits, and performance characteristics.",
@@ -12602,7 +12602,7 @@
         "updatedAt": "2025-10-31T12:42:33.205Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Fix Empty Cache Result Handling",
         "description": "Update cache implementation to properly differentiate between cache misses and empty string values, fixing cache key collision issues",
         "details": "Modify cache get/set logic to distinguish between undefined (cache miss), null (intentional null value), and empty string (valid empty value). Implement proper cache key differentiation by tag or namespace to prevent collisions. Focus on cache service implementations and ensure proper return value handling in consuming code.",
@@ -12671,7 +12671,7 @@
         "updatedAt": "2025-10-31T13:25:06.074Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Create Cross-Platform Test Validation Suite",
         "description": "Establish comprehensive test validation on both Windows and Linux platforms, including CI/CD pipeline integration and performance benchmarking",
         "details": "Create platform-specific test runners that validate all 640 tests pass on both Windows and Linux. Set up CI/CD integration with Windows Server and Linux Ubuntu runners. Implement test performance monitoring to track execution times and identify regressions. Create documentation for platform-specific testing procedures and troubleshooting guides.\n<info added on 2025-10-31T07:18:06.395Z>\nI'll investigate the current test infrastructure state to provide accurate context for this task update.Based on my codebase analysis, I can provide the following update for Task 10:\n\n## Research Session Findings - Critical Infrastructure Issues Identified\n\nInvestigation reveals the project currently runs exclusively on Ubuntu Linux in CI/CD (.github/workflows/ci.yml shows only ubuntu-latest runners), creating significant cross-platform testing gaps. The codebase has pervasive Node.js built-in module mocking failures using vi.mocked(fs.readFile) patterns that require proper vi.mock('node:fs/promises') declarations to fix 50+ failing tests across config services.\n\n**Key Platform-Specific Risks Discovered:**\n- Windows file locking vulnerabilities (EPERM errors) already identified in packages/tm-core/src/modules/config/services/runtime-state-manager.service.ts with ENOENT handling\n- Missing Windows retry logic for atomic file operations despite atomic write interface defined in packages/tm-core/src/common/interfaces/storage.interface.ts\n- Constructor mocking anti-patterns preventing dependency injection testing in config-manager.spec.ts\n- Mixed test frameworks (Jest in root package.json, Vitest in individual packages) complicating cross-platform validation\n\n**Infrastructure Dependencies:**\nThe project uses individual package-level vitest.config.ts files (apps/cli, apps/mcp, packages/tm-core) requiring matrix strategy coordination. Root-level test scripts use Jest with coverage thresholds while package-level scripts use Vitest, necessitating unified cross-platform test execution strategies.\n\n**Implementation Priority Adjustments:**\nGiven the research findings, subtask 1 (Windows/Linux CI matrix) becomes critical for exposing platform-specific file system issues before implementing performance monitoring. The validation suite must address both the underlying mocking infrastructure problems and platform differences to achieve the target of 640 tests passing consistently on both platforms.\n</info added on 2025-10-31T07:18:06.395Z>",
@@ -12842,14 +12842,14 @@
         "expansionPrompt": "Map out cross-platform runners (Windows/Linux) with repeat execution, update CI to a matrix workflow with performance tracking, add scripts/wrappers for local parity, document platform nuances, and build reporting to flag flaky or slow tests."
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "Upgrade LRU Cache Implementation with HashMap-based Storage",
         "description": "Replace current LRU cache array-based lookups with Map data structure for O(1) performance instead of O(n) complexity in file-storage.ts",
         "details": "Current FileStorage class in packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.ts uses lru-cache package but may have inefficient lookup patterns. Implement optimized cache with Map-based storage for constant-time lookups. Add performance benchmarks comparing before/after cache performance with 100, 500, and 1000 items. Ensure cache eviction policy and TTL behavior remains consistent. Add cache hit/miss metrics logging.",
         "testStrategy": "Create performance benchmark tests measuring cache lookup times with varying cache sizes. Unit tests for cache eviction policy correctness. Integration tests ensuring no regression in file storage functionality. Memory usage profiling to ensure cache doesn't exceed memory bounds.",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -12882,11 +12882,11 @@
             "dependencies": [
               2
             ],
-            "details": "Replace the LRUCache import and initialization in file-storage.ts with the new HashMap-based implementation. Update the cache usage in loadTasks, loadTask, and cache invalidation methods. Implement cache hit/miss metrics logging with counters for cache hits, misses, evictions, and TTL expirations. Ensure the getCacheKey, isCacheValid, and invalidateCache methods work with the new implementation. Maintain backward compatibility with existing cache behavior.",
-            "status": "in-progress",
+            "details": "Replace the LRUCache import and initialization in file-storage.ts with the new HashMap-based implementation. Update the cache usage in loadTasks, loadTask, and cache invalidation methods. Implement cache hit/miss metrics logging with counters for cache hits, misses, evictions, and TTL expirations. Ensure the getCacheKey, isCacheValid, and invalidateCache methods work with the new implementation. Maintain backward compatibility with existing cache behavior.\n<info added on 2025-10-31T16:34:33.589Z>\nLet me analyze the codebase to understand the current cache implementation and architecture before generating the update.I can see there are remaining references to the old cache API in the FileStorage class. Let me check the new cache architecture files to understand the implementation better.Now I can see the issue. The `loadSingleTask` method in FileStorage still references the old cache API (`this.taskCache.get`, `this.isCacheValid`, etc.) instead of using the new CacheManager architecture. Let me check the remaining methods that need migration.Let me examine the methods that still need migration to understand the exact scope of remaining work:Based on my analysis of the codebase, I can now generate the appropriate update for the subtask details:\n\nNext session tasks identified: loadSingleTask() method requires full migration to CacheManager API (line 259-310) - currently uses obsolete this.taskCache.get(), this.isCacheValid(), and this.taskCache.set() calls. saveTasks() method needs migration from this.invalidateCache() to this.invalidateCacheForTag(resolvedTag) (line 458). deleteTag() and renameTag() methods need migration from this.invalidateCache() to this.invalidateCacheForTag(tag) calls (lines 762, 769, 802, 819). All remaining methods properly use CacheManager for cache operations except these specific legacy API references.\n</info added on 2025-10-31T16:34:33.589Z>",
+            "status": "done",
             "testStrategy": "Integration tests ensuring no regression in file storage functionality. Cache behavior verification tests for loadTasks, loadTask, and cache invalidation scenarios. Metrics collection validation tests.",
             "parentId": "undefined",
-            "updatedAt": "2025-10-31T16:28:38.502Z"
+            "updatedAt": "2025-10-31T22:00:58.491Z"
           },
           {
             "id": 4,
@@ -12896,9 +12896,10 @@
               3
             ],
             "details": "Create benchmark tests in packages/tm-core/tests/integration/storage/ that measure cache lookup performance with varying cache sizes. Implement tests for sequential lookups, random access patterns, cache eviction scenarios, and TTL expiration handling. Measure execution time, memory allocation, cache hit ratios, and eviction frequency. Compare HashMap-based implementation against the original lru-cache package performance. Include stress tests with high cache turnover.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Performance benchmark suite measuring cache operations under different load patterns. Memory profiling to verify reduced allocation overhead. Statistical analysis of performance improvements with confidence intervals.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T22:03:39.783Z"
           },
           {
             "id": 5,
@@ -12908,22 +12909,23 @@
               4
             ],
             "details": "Run comprehensive validation tests to ensure the new HashMap-based cache maintains identical behavior to the original lru-cache implementation. Verify TTL expiration timing, LRU eviction order, capacity limits, and cache invalidation patterns. Validate that cache hit/miss metrics are accurately collected and logged. Confirm that O(1) performance is achieved for lookup operations while maintaining consistent eviction policy. Document performance improvements achieved with quantitative metrics.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Regression tests ensuring cache behavior parity with original implementation. Performance validation confirming O(1) lookup complexity. Cache policy correctness tests for eviction order and TTL behavior. End-to-end integration tests with FileStorage operations.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-10-31T22:04:00.004Z"
           }
         ],
-        "updatedAt": "2025-10-31T16:28:38.502Z"
+        "updatedAt": "2025-10-31T22:04:00.004Z"
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "Implement Write Queue and Batch File Operations",
         "description": "Optimize the atomic file write operations in FileOperations class by implementing write queuing and batching for multiple concurrent file operations",
         "details": "Current file-operations.ts already uses async operations with atomic writes and locking. Enhance this by adding a write queue that can batch multiple pending writes to different files and execute them in parallel. Implement write coalescing for rapid successive writes to the same file. Add metrics for write operation performance and queue depth. Maintain existing retry logic and error handling while improving throughput.",
         "testStrategy": "Performance tests measuring write throughput for single vs batched operations. Concurrency tests with multiple simultaneous writes. Integration tests ensuring atomic writes and data consistency. Error injection tests for retry logic validation.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -12931,9 +12933,9 @@
             "description": "Define the core write queue architecture for batching file operations with interfaces for queue management, write coalescing, and batch processing.",
             "dependencies": [],
             "details": "Create interfaces and types for WriteQueueEntry, BatchWriteOptions, and WriteMetrics. Design queue processing strategies including parallel batching for different files and write coalescing for same-file operations. Define interfaces for performance monitoring including queue depth, write throughput, and operation timing metrics.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for interface compliance and type safety. Mock implementations to verify queue entry structure and batch processing logic.",
-            "parentId": "undefined"
+            "parentId": 12
           },
           {
             "id": 2,
@@ -12943,9 +12945,9 @@
               1
             ],
             "details": "Implement WriteQueue class with Map-based file queues for organizing writes by file path. Add write coalescing logic to merge rapid successive writes to the same file, keeping only the latest data. Implement priority-based processing and entry lifecycle management with proper cleanup mechanisms.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for queue operations including enqueue, dequeue, and coalescing. Tests for write merging behavior and priority handling. Memory leak tests for proper cleanup.",
-            "parentId": "undefined"
+            "parentId": 12
           },
           {
             "id": 3,
@@ -12955,9 +12957,9 @@
               2
             ],
             "details": "Build BatchProcessor class that processes queued writes in parallel for different files using Promise.all with concurrency limits. Maintain existing atomic write behavior using temporary files and rename operations. Integrate with existing retry logic and error handling while adding batch-level error recovery.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Integration tests with multiple concurrent file writes. Tests for atomic write guarantees during batch operations. Error injection tests for batch-level retry behavior and cleanup.",
-            "parentId": "undefined"
+            "parentId": 12
           },
           {
             "id": 4,
@@ -12967,9 +12969,9 @@
               3
             ],
             "details": "Create WriteMetrics class to track queue depth, write throughput (ops/second), average batch size, and operation latency. Add metrics for write coalescing effectiveness and retry statistics. Implement metrics export functionality and integration with existing logger for performance monitoring and debugging.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Performance benchmarks comparing single vs batched operation throughput. Metrics accuracy tests for queue depth and timing measurements. Integration tests for metrics export and logging.",
-            "parentId": "undefined"
+            "parentId": 12
           },
           {
             "id": 5,
@@ -12979,14 +12981,14 @@
               4
             ],
             "details": "Replace direct writeJson calls with queue-based operations. Add configuration options for enabling/disabling batching, queue size limits, and batch processing intervals. Ensure existing file locking mechanism works with queued operations. Maintain full backward compatibility with current FileOperations API used by FileStorage class.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Integration tests with existing FileStorage usage patterns. Backward compatibility tests ensuring no API changes. Performance tests demonstrating improved throughput for multiple concurrent writes while maintaining data consistency.",
-            "parentId": "undefined"
+            "parentId": 12
           }
         ]
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "Optimize TasksDomain Save Operations with Dirty Tracking",
         "description": "Implement dirty tracking and debounced saves in task domain operations to minimize redundant file writes and improve update performance",
         "details": "Add dirty tracking to packages/tm-core/src/modules/tasks/domains/ task operations. Implement debounced batch saves with 100ms window to prevent excessive file writes during rapid task updates. Only serialize and save modified tasks rather than entire task collections. Add flush() method for immediate persistence when needed. Ensure no data loss during shutdown or errors.",
@@ -12996,10 +12998,65 @@
           "12"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement dirty tracking mechanism in TasksDomain",
+            "description": "Add dirty tracking flags and monitoring to TasksDomain operations to track when tasks have been modified and need saving",
+            "dependencies": [],
+            "details": "Add private fields to track dirty state for individual tasks and overall collection state. Implement markDirty() and markClean() methods. Track dirty state during update operations in TasksDomain class. Create utility methods like isDirty() and getDirtyTasks() to query dirty state. Ensure dirty tracking is thread-safe and works across all update methods.",
+            "status": "pending",
+            "testStrategy": "Unit tests for dirty flag accuracy during various update operations. Test concurrent modification scenarios. Verify dirty state is properly maintained across task and subtask updates."
+          },
+          {
+            "id": 2,
+            "title": "Implement debounced batch save functionality",
+            "description": "Create debounced save mechanism with 100ms window to batch multiple rapid task updates into single save operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement timer-based debouncing in TasksDomain that delays save operations by 100ms. Cancel previous timers when new updates arrive within the window. Create batchSave() method that collects all dirty tasks and saves them in a single operation. Integrate with existing FileStorage write queue system. Ensure debouncing works across all update methods (updateTask, updateTaskWithPrompt, updateTaskStatus).",
+            "status": "pending",
+            "testStrategy": "Performance tests measuring save frequency reduction. Unit tests for debounce timing accuracy using fake timers. Integration tests ensuring no data loss during rapid updates."
+          },
+          {
+            "id": 3,
+            "title": "Optimize task serialization for modified tasks only",
+            "description": "Modify save operations to serialize and persist only modified tasks rather than entire task collections",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update FileStorage to accept dirty task collections instead of full task arrays. Implement selective serialization logic that only processes modified tasks. Maintain task file integrity by merging modified tasks with existing data structure. Update cache invalidation to work with partial updates. Ensure atomic updates to prevent data corruption during partial saves.",
+            "status": "pending",
+            "testStrategy": "Performance benchmarks comparing full vs partial serialization times. Data integrity tests ensuring task relationships remain consistent. Memory usage tests during large task collections."
+          },
+          {
+            "id": 4,
+            "title": "Add flush() method for immediate persistence",
+            "description": "Implement flush() method in TasksDomain that bypasses debouncing for immediate task persistence when needed",
+            "dependencies": [
+              2
+            ],
+            "details": "Add public flush() method to TasksDomain that cancels pending debounced saves and immediately persists all dirty tasks. Integrate with existing FileStorage flushWrites() method. Ensure flush() is called during critical operations like shutdown, error conditions, or explicit user requests. Maintain thread safety when canceling debounced operations. Add option to flush specific tasks vs all dirty tasks.",
+            "status": "pending",
+            "testStrategy": "Integration tests ensuring flush() immediately persists pending changes. Error handling tests verifying data safety during exceptions. Performance tests measuring flush() latency vs normal debounced saves."
+          },
+          {
+            "id": 5,
+            "title": "Implement data loss prevention during shutdown and errors",
+            "description": "Add error handling and shutdown hooks to ensure no data loss occurs during application shutdown or unexpected errors",
+            "dependencies": [
+              4
+            ],
+            "details": "Add process shutdown hooks that automatically call flush() before exit. Implement error recovery logic that persists dirty tasks when exceptions occur. Add try-catch blocks around all update operations with fallback persistence. Create graceful degradation when debouncing fails - fall back to immediate saves. Add logging and monitoring for save operation failures with automatic retry logic.",
+            "status": "pending",
+            "testStrategy": "Stress tests with hundreds of rapid task modifications during simulated crashes. Integration tests for process shutdown scenarios. Error injection tests verifying data persistence during various failure modes."
+          }
+        ]
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "Optimize Jest Test Configuration for Smart Test Execution",
         "description": "Configure Jest to use dependency-aware test execution, parallel test runners, and optimize test file patterns to reduce unnecessary test runs",
         "details": "Current package.json shows Jest configuration. Enhance with smart test execution by configuring Jest with --findRelatedTests for changed files, optimize --maxWorkers based on CPU cores, implement test file filtering based on dependency graph. Add coverage thresholds and configure Jest to skip unchanged modules. Implement test result caching and parallel execution optimization.",
@@ -13007,10 +13064,62 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add CPU-aware maxWorkers configuration to Jest",
+            "description": "Configure Jest maxWorkers setting based on CPU core count to optimize parallel test execution",
+            "dependencies": [],
+            "details": "Add dynamic maxWorkers configuration to jest.config.js based on os.cpus().length with a fallback to 4 cores. Use formula like Math.max(1, Math.min(os.cpus().length - 1, 8)) to leave one core free and cap at 8 workers. This optimizes parallel test execution based on available hardware.",
+            "status": "pending",
+            "testStrategy": "Execute test suite with different worker counts and measure execution times. Verify CPU utilization during tests. Test on different machines with varying core counts."
+          },
+          {
+            "id": 2,
+            "title": "Implement findRelatedTests CLI flag support",
+            "description": "Add support for Jest's --findRelatedTests flag to run only tests related to changed files",
+            "dependencies": [],
+            "details": "Configure package.json test scripts to support --findRelatedTests flag for dependency-aware test execution. Create a new script like 'test:changed' that uses git diff to find changed files and passes them to Jest with --findRelatedTests. This enables smart test execution that only runs tests affected by code changes.",
+            "status": "pending",
+            "testStrategy": "Modify files and verify only related tests run. Test with different types of changes (source files, test files, config files). Validate test coverage accuracy."
+          },
+          {
+            "id": 3,
+            "title": "Optimize test file patterns and directories",
+            "description": "Refine Jest testMatch patterns to exclude unnecessary test directories and optimize file discovery",
+            "dependencies": [],
+            "details": "Update testMatch patterns in jest.config.js to be more specific and exclude node_modules test files. Add more precise patterns like '**/tests/**/*.{test,spec}.{js,ts}' and '**/{src,lib}/**/*.{test,spec}.{js,ts}' while excluding '**/node_modules/**' explicitly. This reduces test discovery time and prevents running external dependency tests.",
+            "status": "pending",
+            "testStrategy": "Measure test discovery time before/after optimization. Verify all intended tests are still found. Check that no external/dependency tests are accidentally included."
+          },
+          {
+            "id": 4,
+            "title": "Implement test result caching and skip unchanged modules",
+            "description": "Configure Jest to cache test results and skip running tests for unchanged modules to improve incremental test performance",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Enable Jest's cache mechanism by setting cache: true and cacheDirectory to a specific location. Configure onlyChanged option for watch mode. Add dependency tracking to invalidate cache when dependencies change. Implement module change detection to skip tests for unmodified files while maintaining accuracy.",
+            "status": "pending",
+            "testStrategy": "Verify cached tests are skipped on subsequent runs. Test cache invalidation when files change. Measure performance improvement for incremental test runs. Validate cache consistency across different environments."
+          },
+          {
+            "id": 5,
+            "title": "Enhanced coverage thresholds and selective collection",
+            "description": "Optimize coverage collection to run only when needed and enhance threshold configuration for better performance",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Update coverageThreshold configuration to be more granular with per-directory thresholds. Configure collectCoverageFrom patterns to exclude test files and node_modules. Add environment-based coverage collection (e.g., only in CI). Implement coverage caching to avoid re-collecting for unchanged files. Set up coverage reports to be generated conditionally.",
+            "status": "pending",
+            "testStrategy": "Verify coverage accuracy with selective collection. Test performance difference between coverage enabled/disabled runs. Validate threshold enforcement works correctly with new configuration."
+          }
+        ]
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "Implement Task Object Structural Sharing",
         "description": "Add copy-on-write semantics to Task objects to minimize memory allocation and improve cloning performance during task updates",
         "details": "Implement immutable Task objects with structural sharing in packages/tm-core/src/common/types/. Use copy-on-write pattern where unchanged properties share references between task versions. Add lazy deep cloning only when persistence is required. Maintain TaskMapper compatibility while reducing memory footprint for task operations that don't modify all properties.",
@@ -13018,10 +13127,64 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create immutable Task class with structural sharing",
+            "description": "Implement an ImmutableTask class that uses copy-on-write semantics to share unchanged properties between task versions",
+            "dependencies": [],
+            "details": "Create a new ImmutableTask class in packages/tm-core/src/common/types/immutable-task.ts that wraps the existing Task interface. Use proxy patterns or property getters to detect when properties are accessed vs modified. Implement structural sharing where unchanged properties reference the same object instances between task versions. Include methods like withChanges() and clone() for creating new versions.",
+            "status": "pending",
+            "testStrategy": "Unit tests for property sharing verification, memory allocation tests, and immutability enforcement tests"
+          },
+          {
+            "id": 2,
+            "title": "Implement copy-on-write property system",
+            "description": "Add copy-on-write semantics to Task property access and modification to minimize memory allocation during updates",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a property management system that tracks which properties have been modified. Use JavaScript Proxy or similar patterns to intercept property access. When a property is modified for the first time, create a shallow copy of that property while keeping references to unchanged properties. Track modification state to enable lazy cloning only when necessary.",
+            "status": "pending",
+            "testStrategy": "Property modification tracking tests, shallow vs deep copy verification, and memory usage profiling"
+          },
+          {
+            "id": 3,
+            "title": "Add lazy deep cloning for persistence layer",
+            "description": "Implement lazy deep cloning that only occurs when Task objects need to be persisted or serialized",
+            "dependencies": [
+              2
+            ],
+            "details": "Create a cloning strategy that defers deep cloning until Task objects are passed to persistence layers (FileStorage, API storage). Add methods like toSerializable() or deepClone() that create fully independent copies. Integrate with existing TaskMapper to ensure compatibility with persistence operations while maintaining memory efficiency for in-memory operations.",
+            "status": "pending",
+            "testStrategy": "Lazy cloning behavior tests, persistence integration tests, and TaskMapper compatibility verification"
+          },
+          {
+            "id": 4,
+            "title": "Integrate with existing TaskMapper and TaskEntity",
+            "description": "Update TaskMapper and TaskEntity classes to work seamlessly with the new immutable Task objects",
+            "dependencies": [
+              3
+            ],
+            "details": "Modify TaskMapper.ts to handle both regular Task objects and ImmutableTask objects. Update TaskEntity class to optionally use structural sharing for improved performance. Ensure backward compatibility by supporting both mutable and immutable task patterns. Add factory methods to create ImmutableTask instances from database results while maintaining existing API contracts.",
+            "status": "pending",
+            "testStrategy": "TaskMapper integration tests, TaskEntity compatibility tests, and backward compatibility verification"
+          },
+          {
+            "id": 5,
+            "title": "Add performance monitoring and memory profiling",
+            "description": "Implement monitoring tools to measure memory usage and cloning performance improvements from structural sharing",
+            "dependencies": [
+              4
+            ],
+            "details": "Add performance benchmarks comparing memory allocation between traditional deep cloning and structural sharing approaches. Create memory profiling utilities to track object reference sharing and copy-on-write effectiveness. Include metrics for task update operations, subtask modifications, and bulk task processing. Add performance tests to verify that structural sharing reduces memory footprint without impacting functionality.",
+            "status": "pending",
+            "testStrategy": "Performance benchmark tests, memory profiling verification, and comparative analysis between old and new implementations"
+          }
+        ]
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "Parallelize Task Markdown Generation Operations",
         "description": "Implement parallel generation of task markdown files with concurrency control to improve large task set processing performance",
         "details": "Enhance task file generation in packages/tm-core/src/modules/integration/services/ to process markdown generation in parallel batches. Implement concurrency limiting (10 concurrent operations) to prevent file system overload. Add progress reporting for large task sets. Maintain existing file naming and content generation logic while improving throughput through parallelization.",
@@ -13031,10 +13194,68 @@
           "12"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create a Parallelizable Task File Generator Service",
+            "description": "Implement a new service class to handle markdown generation for task files with parallel processing capabilities",
+            "dependencies": [],
+            "details": "Create a TaskFileGeneratorService in packages/tm-core/src/modules/integration/services/ that implements parallel task markdown generation. The service should include methods for generating individual task markdown files and a batch processor that handles multiple tasks concurrently. Include proper error handling for file system operations and integrate with the existing cache system for performance optimization.",
+            "status": "pending",
+            "testStrategy": "Unit tests for individual markdown generation methods. Integration tests for batch processing with various task set sizes. Error handling tests for file system failures and concurrency edge cases."
+          },
+          {
+            "id": 2,
+            "title": "Implement Concurrency Control with Semaphore Pattern",
+            "description": "Add a semaphore-based concurrency limiter to prevent file system overload during parallel operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a semaphore pattern or use a concurrency control library to limit parallel file operations to 10 concurrent operations. This prevents overwhelming the file system and ensures stable performance. The concurrency controller should be configurable and integrated with the TaskFileGeneratorService to control how many markdown files are generated simultaneously.",
+            "status": "pending",
+            "testStrategy": "Unit tests verifying concurrency limits are enforced. Performance tests measuring throughput with different concurrency levels. Resource monitoring tests to ensure file system stability under load."
+          },
+          {
+            "id": 3,
+            "title": "Add Progress Reporting for Large Task Sets",
+            "description": "Implement progress tracking and reporting functionality for batch markdown generation operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Add progress reporting capabilities to the TaskFileGeneratorService that can track completion status during large batch operations. Include percentage completion, estimated time remaining, and current file being processed. The progress reporter should emit events or use callbacks to allow integration with CLI progress bars or other UI components.",
+            "status": "pending",
+            "testStrategy": "Unit tests for progress calculation accuracy. Integration tests with mock large task sets to verify progress reporting. Event emission tests to ensure proper progress callbacks are triggered."
+          },
+          {
+            "id": 4,
+            "title": "Integrate Parallel Generation with Existing FileStorage",
+            "description": "Modify the existing FileStorage class to use the new parallel task markdown generation service",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update the FileStorage class in packages/tm-core/src/modules/storage/adapters/file-storage/ to integrate with the new TaskFileGeneratorService. Replace existing sequential markdown generation with parallel processing while maintaining backward compatibility. Ensure that existing file naming conventions and content generation logic are preserved. Add configuration options to enable/disable parallel processing.",
+            "status": "pending",
+            "testStrategy": "Integration tests comparing sequential vs parallel generation results for content accuracy. Performance benchmarks measuring improvement in generation times. Backward compatibility tests ensuring existing functionality is not broken."
+          },
+          {
+            "id": 5,
+            "title": "Add Performance Benchmarking and Optimization",
+            "description": "Implement comprehensive performance testing and optimization for the parallel markdown generation system",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create performance benchmarks to measure the improvement in markdown generation times between sequential and parallel approaches. Test with various task set sizes (10, 100, 1000+ tasks) and different concurrency levels. Add monitoring for memory usage, file system I/O, and CPU utilization. Implement adaptive concurrency adjustment based on system resources and performance metrics.",
+            "status": "pending",
+            "testStrategy": "Performance benchmarks comparing sequential vs parallel generation across different dataset sizes. Memory and resource usage monitoring during large batch operations. Stress tests with maximum task set sizes to identify performance bottlenecks."
+          }
+        ]
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "Optimize Event Emitter with Lazy Listener Registration",
         "description": "Implement lazy listener registration and automatic cleanup in task domain event systems to reduce memory overhead and improve performance",
         "details": "Review event emitter usage in packages/tm-core/src/modules/tasks/domains/ and implement lazy listener registration. Only register event listeners when first subscriber attaches. Implement automatic cleanup when last listener is removed. Add listener lifecycle tracking and memory usage monitoring. Maintain existing event functionality while reducing baseline memory consumption.",
@@ -13042,10 +13263,64 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Analyze Event Emitter Usage in Task Domain",
+            "description": "Review and catalog all event emitter usage patterns in packages/tm-core/src/modules/tasks/domains/ and related workflow components to understand current listener registration behavior and memory implications",
+            "dependencies": [],
+            "details": "Examine WorkflowOrchestrator.ts, WorkflowActivityLogger.ts, and other task domain files to identify event emission patterns, listener registration timing, and current memory consumption. Document baseline event listener counts and memory usage patterns. Identify opportunities for lazy registration where listeners are registered immediately but could be deferred until first subscription.",
+            "status": "pending",
+            "testStrategy": "Create memory profiling snapshots before optimization. Document current event listener registration patterns and timing. Establish baseline metrics for memory consumption and listener counts."
+          },
+          {
+            "id": 2,
+            "title": "Design Lazy Listener Registration Architecture",
+            "description": "Design the lazy listener registration system architecture with listener lifecycle tracking and automatic cleanup capabilities",
+            "dependencies": [
+              1
+            ],
+            "details": "Create design for lazy listener registration system that defers event listener registration until first subscriber attaches. Design listener lifecycle tracking to count active subscriptions and automatically cleanup when last listener is removed. Define interfaces for lazy event emitters, subscription counting, and cleanup triggers. Include memory usage monitoring hooks and metrics collection.",
+            "status": "pending",
+            "testStrategy": "Design validation through architecture review. Unit tests for subscription counting logic. Integration tests for listener lifecycle management. Memory profiling tests to verify lazy registration reduces baseline consumption."
+          },
+          {
+            "id": 3,
+            "title": "Implement Lazy Event Emitter Base Class",
+            "description": "Implement the core lazy event emitter functionality with subscription tracking and automatic listener lifecycle management",
+            "dependencies": [
+              2
+            ],
+            "details": "Create LazyEventEmitter base class or mixin that wraps standard EventEmitter functionality. Implement subscription counting (track number of active listeners per event type). Add lazy registration logic that only registers internal listeners when first external subscriber attaches. Implement automatic cleanup that removes internal listeners when last external subscriber is removed. Include memory usage monitoring and metrics collection.",
+            "status": "pending",
+            "testStrategy": "Unit tests for subscription counting accuracy. Tests for lazy registration timing (listeners only added when needed). Tests for automatic cleanup when last subscriber removes. Memory usage tests comparing baseline consumption before/after lazy implementation."
+          },
+          {
+            "id": 4,
+            "title": "Integrate Lazy Listeners in WorkflowOrchestrator",
+            "description": "Update WorkflowOrchestrator to use lazy listener registration while maintaining all existing event functionality and backward compatibility",
+            "dependencies": [
+              3
+            ],
+            "details": "Modify WorkflowOrchestrator to extend or use LazyEventEmitter functionality. Update event listener registration in WorkflowActivityLogger to work with lazy registration system. Ensure all existing event types ('workflow:started', 'phase:entered', 'tdd:red:started', etc.) continue to work correctly. Maintain backward compatibility with existing event listener code. Add memory usage monitoring specific to workflow event systems.",
+            "status": "pending",
+            "testStrategy": "Integration tests ensuring all existing workflow events still fire correctly. Tests for WorkflowActivityLogger compatibility with lazy registration. Backward compatibility tests for existing event listener code. Memory profiling showing reduced baseline consumption while maintaining functionality."
+          },
+          {
+            "id": 5,
+            "title": "Add Memory Monitoring and Performance Validation",
+            "description": "Implement comprehensive memory monitoring for event emitter optimizations and validate performance improvements with benchmarks",
+            "dependencies": [
+              4
+            ],
+            "details": "Add memory usage monitoring hooks throughout the lazy event emitter system. Create performance benchmarks comparing memory consumption before/after optimization. Implement listener lifecycle metrics (registration counts, cleanup events, memory saved). Add performance validation tests that verify event emission overhead hasn't increased significantly. Create monitoring dashboard or logging for memory usage patterns in production.",
+            "status": "pending",
+            "testStrategy": "Memory profiling benchmarks before/after optimization showing reduced baseline consumption. Performance tests ensuring event emission speed hasn't regressed. Stress tests with many event subscriptions/unsubscriptions. Integration tests verifying memory cleanup occurs correctly in real workflow scenarios."
+          }
+        ]
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "Optimize Template Processing with Compiled Regex Patterns",
         "description": "Implement single-pass template variable substitution with compiled regex patterns and variable caching for template processing",
         "details": "Optimize template processing in packages/tm-core/src/modules/ by implementing compiled regex patterns for variable substitution. Create template compilation cache for repeated template usage. Replace multiple-pass regex operations with single-pass processing. Add performance benchmarks for template processing operations with varying complexity levels.",
@@ -13053,10 +13328,65 @@
         "priority": "low",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create CompiledRegex class for template pattern optimization",
+            "description": "Implement a CompiledRegex class that pre-compiles regular expressions for template variable substitution and conditional block processing to eliminate repeated regex compilation overhead",
+            "dependencies": [],
+            "details": "Create a new CompiledRegex class in packages/tm-core/src/modules/git/services/ that pre-compiles regex patterns for variable substitution (\\{\\{\\s*([^}#/\\s]+)\\s*\\}\\}) and conditional blocks (\\{\\{#([^}]+)\\}\\}...\\{\\{\\/\\1\\}\\}). Include pattern caching, match optimization, and performance monitoring methods. This will eliminate the regex compilation overhead currently present in substituteVariables() and processConditionalBlocks() methods.",
+            "status": "pending",
+            "testStrategy": "Unit tests for regex compilation accuracy and performance benchmarks measuring compilation time vs execution time improvements"
+          },
+          {
+            "id": 2,
+            "title": "Implement template compilation cache with LRU eviction",
+            "description": "Add template compilation caching to TemplateEngine using LRU strategy to store compiled templates and avoid repeated parsing and compilation of the same templates",
+            "dependencies": [
+              1
+            ],
+            "details": "Extend TemplateEngine class with a template compilation cache using the existing LRUCacheStrategy. Cache compiled template objects that include pre-compiled regex patterns, extracted variables, and processed conditional blocks. Implement cache key generation based on template content hash. Add cache hit/miss metrics and configure appropriate TTL and memory limits. Integrate with the CompiledRegex class from subtask 1.",
+            "status": "pending",
+            "testStrategy": "Cache hit/miss ratio tests, memory usage monitoring, and performance benchmarks comparing cached vs non-cached template processing"
+          },
+          {
+            "id": 3,
+            "title": "Refactor template processing to single-pass variable substitution",
+            "description": "Replace the current multi-pass template processing (conditional blocks first, then variables) with a single-pass algorithm that processes all template elements in one iteration",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Modify the substituteVariables() and processConditionalBlocks() methods in TemplateEngine to use a single-pass algorithm. Implement a state machine that can handle both variable substitution and conditional block processing simultaneously while maintaining proper nesting. Use the compiled regex patterns from subtask 1 and ensure the processing maintains the current functionality for both {{variable}} and {{#conditional}}...{{/conditional}} syntax.",
+            "status": "pending",
+            "testStrategy": "Functional correctness tests comparing single-pass vs multi-pass output, performance benchmarks measuring processing time improvements, and edge case testing for nested conditional blocks"
+          },
+          {
+            "id": 4,
+            "title": "Add comprehensive performance benchmarks for template operations",
+            "description": "Create performance benchmark suite to measure and compare template processing performance across different complexity levels and optimization strategies",
+            "dependencies": [
+              3
+            ],
+            "details": "Create benchmark test files in packages/tm-core/src/modules/git/services/ that measure template processing performance for various scenarios: simple templates (1-5 variables), medium complexity (5-15 variables with conditionals), and complex templates (15+ variables with nested conditionals). Include benchmarks for template compilation time, rendering time, cache hit rates, and memory usage. Compare performance before and after optimizations using different dataset sizes.",
+            "status": "pending",
+            "testStrategy": "Performance regression tests ensuring optimizations provide measurable improvements, memory leak detection for cache usage, and CI integration for performance monitoring"
+          },
+          {
+            "id": 5,
+            "title": "Integrate optimizations with existing template engine usage",
+            "description": "Update all existing TemplateEngine usage throughout the codebase to leverage the new optimized template processing while maintaining backward compatibility",
+            "dependencies": [
+              4
+            ],
+            "details": "Review and update TemplateEngine usage in commit-message-generator.ts and other modules to use the optimized template processing. Ensure backward compatibility with existing template syntax and functionality. Add migration path for any breaking changes and update relevant documentation. Verify that the cache invalidation works correctly when templates are updated via setTemplate() method.",
+            "status": "pending",
+            "testStrategy": "Integration tests ensuring all existing template functionality works with optimizations, backward compatibility tests, and end-to-end tests for commit message generation performance"
+          }
+        ]
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "Implement Git Command Batching and Process Pool",
         "description": "Optimize git operations in git-adapter.ts by implementing command batching and process pooling to reduce git command overhead",
         "details": "Enhance packages/tm-core/src/modules/git/adapters/git-adapter.ts to batch multiple git commands and maintain a pool of git processes. Implement command queuing for sequential operations that can be combined. Add process lifecycle management with cleanup on shutdown. Maintain existing git operation reliability while improving performance for multiple sequential commands.",
@@ -13064,10 +13394,65 @@
         "priority": "low",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Git Command Batching Architecture",
+            "description": "Design the architecture for batching git commands to reduce process overhead and improve performance for sequential operations",
+            "dependencies": [],
+            "details": "Analyze existing git-adapter.ts methods to identify operations that can be batched (status checks, multiple commits, branch operations). Design a command queue system that can group compatible git operations and execute them efficiently. Define interfaces for GitCommandBatch, GitBatchExecutor, and GitCommandQueue. Consider which operations are safe to batch vs those requiring immediate execution.",
+            "status": "pending",
+            "testStrategy": "Unit tests for batch design interfaces and command grouping logic"
+          },
+          {
+            "id": 2,
+            "title": "Implement Git Process Pool Manager",
+            "description": "Create a process pool manager to maintain long-lived git processes and reduce spawn overhead",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement GitProcessPool class that maintains a pool of SimpleGit instances with configurable pool size. Add process lifecycle management including spawn, reuse, cleanup, and shutdown. Implement process health checking and automatic replacement of failed processes. Add connection pooling for git operations with proper resource cleanup on GitAdapter destruction.",
+            "status": "pending",
+            "testStrategy": "Unit tests for process pool lifecycle, resource management, and process health monitoring. Integration tests with real git operations."
+          },
+          {
+            "id": 3,
+            "title": "Implement Command Queue and Batching Logic",
+            "description": "Create the command queuing system that can batch compatible git operations for efficient execution",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement GitCommandQueue that can queue, group, and batch compatible git commands. Add logic to identify which commands can be safely batched (multiple status calls, sequential file staging). Implement command coalescing for rapid successive operations on same targets. Add timeout-based and size-based batch flushing similar to existing WriteQueueManager patterns. Ensure proper error handling and retry logic for failed batches.",
+            "status": "pending",
+            "testStrategy": "Unit tests for command batching logic, queue management, and error handling. Performance benchmarks comparing batched vs individual operations."
+          },
+          {
+            "id": 4,
+            "title": "Integrate Batching into GitAdapter Methods",
+            "description": "Modify existing GitAdapter methods to use the new batching and process pool infrastructure",
+            "dependencies": [
+              3
+            ],
+            "details": "Update GitAdapter constructor to initialize process pool and command queue. Modify high-frequency methods like getStatus(), stageFiles(), and validation operations to use batching when beneficial. Add configuration options to enable/disable batching and control batch sizes. Maintain backward compatibility and ensure all existing functionality works unchanged. Add proper cleanup in destructor to shutdown pools and flush queues.",
+            "status": "pending",
+            "testStrategy": "Integration tests ensuring all existing GitAdapter functionality works with batching enabled. Regression tests for edge cases and error conditions."
+          },
+          {
+            "id": 5,
+            "title": "Add Performance Monitoring and Metrics",
+            "description": "Implement comprehensive performance monitoring and metrics collection for the git batching system",
+            "dependencies": [
+              4
+            ],
+            "details": "Add metrics collection for batch efficiency, process pool utilization, and performance gains. Implement GitBatchMetrics similar to WriteQueueMetrics with batch sizes, queue times, process pool hit rates, and operation throughput. Add methods to retrieve performance metrics from GitAdapter. Include monitoring for process pool health, command queue depth, and batch flush frequency. Add debug logging for performance analysis and troubleshooting.",
+            "status": "pending",
+            "testStrategy": "Performance benchmark tests measuring throughput improvements. Unit tests for metrics accuracy. Integration tests validating metrics collection across different git operation patterns."
+          }
+        ]
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "Implement Short-Circuit Validation Chain Optimization",
         "description": "Optimize validation chains to use short-circuit evaluation and cost-based validator ordering to improve validation performance",
         "details": "Review validation logic in packages/tm-core/src/modules/tasks/services/ and implement short-circuit evaluation. Order validators by execution cost (cheapest first). Stop validation chain on first failure rather than running all validators. Add validation performance metrics and cost profiling for validator operations.",
@@ -13075,17 +13460,258 @@
         "priority": "low",
         "dependencies": [],
         "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Cost-Based Validator Interface and Profiling Framework",
+            "description": "Design and implement an interface for cost-aware validators with execution time profiling capabilities",
+            "dependencies": [],
+            "details": "Create ICostAwareValidator interface extending base validation with getCost() and profile() methods. Implement ValidationProfiler class for timing validator execution. Add cost categories (fast/medium/slow) and cost estimation based on operation type. Implement decorator pattern for existing validators to add cost tracking without modification.",
+            "status": "pending",
+            "testStrategy": "Unit tests for cost estimation accuracy and profiling metrics. Benchmarks comparing estimated vs actual execution times. Test decorator pattern integration with existing validators."
+          },
+          {
+            "id": 2,
+            "title": "Implement Short-Circuit Validation Chain Manager",
+            "description": "Create a validation chain manager that stops execution on first failure and orders validators by cost",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement ValidationChainManager class that sorts validators by cost (cheapest first) and uses early termination on first validation error. Add configuration for strict vs warning-only failures. Implement async validator execution with proper error aggregation. Support both sequential and parallel validation modes based on validator independence.",
+            "status": "pending",
+            "testStrategy": "Unit tests ensuring early termination behavior. Performance tests measuring execution time reduction. Integration tests with existing TaskLoaderService validation chains."
+          },
+          {
+            "id": 3,
+            "title": "Refactor TaskLoaderService to Use Short-Circuit Validation",
+            "description": "Update TaskLoaderService validation methods to use the new cost-ordered short-circuit validation chain",
+            "dependencies": [
+              2
+            ],
+            "details": "Replace individual validation method calls in loadAndValidateTask() with ValidationChainManager. Implement cost profiling for existing validators: validateTaskStatus (fast), validateSubtasksExist (fast), validateSubtaskStructure (medium), validateDependencies (slow). Add validation performance metrics collection and logging. Maintain backward compatibility with existing error handling.",
+            "status": "pending",
+            "testStrategy": "Integration tests ensuring existing validation behavior is preserved. Performance benchmarks showing validation speed improvement. Unit tests for proper error aggregation and early termination."
+          },
+          {
+            "id": 4,
+            "title": "Add Validation Performance Metrics and Monitoring",
+            "description": "Implement comprehensive validation performance tracking and monitoring capabilities",
+            "dependencies": [
+              3
+            ],
+            "details": "Create ValidationMetrics class tracking execution times, failure rates, and short-circuit effectiveness per validator type. Add integration with CacheManager for validation result caching based on task content hash. Implement performance dashboard data collection for validation chain optimization. Add configurable performance thresholds and alerting for validation regression detection.",
+            "status": "pending",
+            "testStrategy": "Unit tests for metrics collection accuracy. Integration tests with CacheManager for validation result caching. Performance tests ensuring metrics collection overhead is minimal. Mock validation scenarios for testing alerting thresholds."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Short-Circuit Validation with Other Services",
+            "description": "Apply short-circuit validation optimization to PhaseValidator and TestResultValidator services",
+            "dependencies": [
+              4
+            ],
+            "details": "Update PhaseValidator.validatePhase() to use cost-based validation ordering. Apply short-circuit optimization to TestResultValidator phase-specific validations. Add validation caching for repeated test result validations. Implement cross-service validation metrics aggregation. Ensure consistent error handling and response format across all validation services.",
+            "status": "pending",
+            "testStrategy": "Integration tests across all validation services. Performance benchmarks for workflow validation chains. Unit tests ensuring consistent error format. End-to-end tests with real task validation scenarios."
+          }
+        ]
+      },
+      {
+        "id": 21,
+        "title": "Implement JSONL Storage Format as Optional Feature",
+        "description": "Add JSONL (JSON Lines) storage format as an optional alternative to JSON with configuration support, streaming capabilities, and backward compatibility.",
+        "details": "Implement a comprehensive JSONL storage system that operates alongside the existing JSON storage. Add a 'storageFormat' configuration option in the main config with values 'json' | 'jsonl' defaulting to 'json'. Create a new JSONL file operations module that handles line-by-line reading/writing operations for efficient memory usage. Implement tag-based file organization where each tag gets its own JSONL file (e.g., tasks-master.jsonl, tasks-feature-x.jsonl). Add streaming pagination support that can read specific line ranges without loading entire files into memory. Update the file storage adapter with format detection logic that automatically chooses the appropriate handler based on file extension and configuration. Ensure complete backward compatibility so existing JSON files continue to work seamlessly. Create a migration utility that can convert between JSON and JSONL formats bidirectionally. Update performance benchmarks to compare both storage formats under various load conditions. Document the new storage format option in configuration documentation with usage examples and performance characteristics.",
+        "testStrategy": "Create comprehensive test suites covering JSONL file operations (read/write individual lines, append operations, streaming pagination). Test format detection and automatic handler selection. Verify backward compatibility by testing mixed environments with both JSON and JSONL files. Test migration utility bidirectional conversion with data integrity validation. Performance benchmarks comparing memory usage and read/write speeds between JSON and JSONL formats with various file sizes (1KB to 100MB+). Integration tests ensuring the file storage adapter correctly routes operations to appropriate handlers. Edge case testing for malformed JSONL files, concurrent access, and error recovery scenarios.",
+        "status": "pending",
+        "dependencies": [
+          6,
+          12
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Implement JSONL Storage Format as Optional Alternative",
+        "description": "Add JSONL (JSON Lines) storage format as an optional alternative to JSON with configuration support, streaming capabilities, and backward compatibility.",
+        "details": "Implement a comprehensive JSONL storage system that operates alongside the existing JSON storage. Add a 'storageFormat' configuration option in the main config with values 'json' | 'jsonl' defaulting to 'json'. Create a new JSONL file operations module that handles line-by-line reading/writing operations for efficient memory usage. Implement tag-based file organization where each tag gets its own JSONL file (e.g., tasks-master.jsonl, tasks-feature-x.jsonl). Add streaming pagination support that can read only the required lines from JSONL files without loading entire file into memory. Create a JSONL storage adapter in packages/tm-core/src/modules/storage/ that implements the same interface as the JSON storage adapter but provides efficient line-by-line operations. Update the file-storage module to detect the configured format and instantiate the appropriate storage adapter. Implement a migration utility that can convert between JSON and JSONL formats bidirectionally while preserving data integrity. Ensure the JSONL implementation integrates with the existing atomic write operations and retry logic from the FileOperations class. Add comprehensive benchmarks comparing JSON vs JSONL performance for different task set sizes and operation types (read, write, append, pagination). Maintain full backward compatibility ensuring existing JSON files continue to work seamlessly when storageFormat is set to 'json'.",
+        "testStrategy": "Create comprehensive test suites covering JSONL file operations (read/write individual lines, append operations, streaming pagination). Test format detection and automatic handler selection. Verify backward compatibility by testing mixed environments with both JSON and JSONL files. Test migration utility in both directions ensuring data integrity and no loss. Performance benchmarks comparing JSON vs JSONL for various task set sizes (100, 1000, 10000 tasks). Memory usage profiling during large file operations to verify streaming benefits. Integration tests with existing TasksDomain operations ensuring seamless adapter switching. Stress testing with concurrent read/write operations to JSONL files. Error handling tests for corrupted JSONL files and recovery scenarios.",
+        "status": "pending",
+        "dependencies": [
+          6,
+          12
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Enhance Configuration System with Optimization Settings",
+        "description": "Add performance optimization settings to the configuration system including smart context, model selection, and caching options",
+        "details": "Extend the existing config-manager.js to support new optimization settings including enableSmartContext, contextBudgetTokens, skipSemanticSearchThreshold, defaultMode selection, and caching configuration. Add feature flags for gradual rollout and telemetry tracking. Implement backward compatibility with existing configuration structure.",
+        "testStrategy": "Unit tests for configuration loading/saving, validation of new settings, backward compatibility tests, and integration tests with existing config commands",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Implement Smart Context Gatherer with Budget Limits",
+        "description": "Optimize the ContextGatherer class to intelligently reduce context collection based on task list size and implement token budget controls",
+        "details": "Modify scripts/modules/utils/contextGatherer.js to add smartMode option that analyzes task list size and skips semantic search for lists under 50 items. Implement context budget limits (max tokens), cache dependency graphs for reuse, and lazy load complexity reports only when needed. Add token counting and budget enforcement.",
+        "testStrategy": "Unit tests for smart mode logic, token counting accuracy, cache behavior, and performance benchmarks comparing old vs new context gathering",
+        "priority": "high",
+        "dependencies": [
+          23
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Create Adaptive Model Selection Service",
+        "description": "Build a model selection service that automatically chooses optimal AI models based on task complexity and user preferences",
+        "details": "Create ModelSelector class in scripts/modules/ai-services-unified.js that selects Claude Haiku for fast operations, Sonnet only when research flag is used or token budget exceeds thresholds. Implement logic to analyze context size, task complexity, and user preferences to determine the most efficient model for each operation.",
+        "testStrategy": "Unit tests for model selection logic, integration tests with AI service calls, performance tests measuring response times with different models, and quality validation tests",
+        "priority": "high",
+        "dependencies": [
+          23
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 26,
+        "title": "Optimize Prompt Construction and Token Usage",
+        "description": "Reduce token usage through smarter prompt construction, context summarization, and removal of redundant information",
+        "details": "Modify prompt templates and context building logic to summarize large contexts instead of including verbatim, remove duplicate task information, implement progressive context loading (start small, expand if needed), and use structured data formats instead of verbose descriptions. Target 70% token reduction from current 118K average.",
+        "testStrategy": "Token counting tests, prompt quality validation, A/B testing with current vs optimized prompts, and output quality metrics to ensure no degradation in task generation quality",
+        "priority": "medium",
+        "dependencies": [
+          24,
+          25
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Implement Fast Path Mode for Task Creation",
+        "description": "Create immediate task creation mode that provides basic task structure instantly while optionally enriching details in background",
+        "details": "Modify scripts/modules/task-manager/add-task.js to support multiple modes: immediate (create basic task, enrich in background), standard (optimized AI generation), detailed (full context with research model), and manual (no AI, direct creation). Implement task creation pipeline that can return immediately with basic structure.",
+        "testStrategy": "Unit tests for each mode, integration tests with MCP interface, performance benchmarks for each mode, and user experience tests for perceived performance",
+        "priority": "medium",
+        "dependencies": [
+          24,
+          25,
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Add Performance Telemetry and Monitoring",
+        "description": "Implement comprehensive telemetry to track optimization performance and provide detailed timing breakdowns",
+        "details": "Enhance existing telemetry system to track contextGatherMs, aiGenerationMs, totalMs, tokensUsed, modelUsed, optimizationsApplied, and cacheHit status. Add telemetry display in CLI and MCP responses. Implement performance regression detection and alerting for significant slowdowns.",
+        "testStrategy": "Unit tests for telemetry collection, integration tests with all optimization features, validation of timing accuracy, and end-to-end tests of telemetry reporting",
+        "priority": "medium",
+        "dependencies": [
+          24,
+          25,
+          26,
+          27
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Implement Response Streaming Infrastructure",
+        "description": "Build streaming layer for real-time progress updates during task creation with cancellation support",
+        "details": "Create new component scripts/modules/streaming/task-stream.js with SSE (Server-Sent Events) support for progress updates, partial result caching, and cancellation support. Integrate with MCP server to provide real-time feedback during long-running AI operations. Include fallback to traditional mode for unsupported clients.",
+        "testStrategy": "Unit tests for streaming functionality, integration tests with MCP server, cancellation behavior tests, and fallback mechanism validation",
+        "priority": "low",
+        "dependencies": [
+          27,
+          28
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 30,
+        "title": "Build Background Enrichment System",
+        "description": "Implement background job queue for task enrichment that allows immediate task creation with progressive detail enhancement",
+        "details": "Create background job system that can queue AI enrichment tasks (implementation details, test strategy enhancement) after immediate task creation. Implement job status tracking, completion notifications, and option to skip enrichment entirely. Ensure thread safety and proper error handling for background operations.",
+        "testStrategy": "Unit tests for job queue functionality, concurrency tests, integration tests with task creation flow, and error handling validation for failed background jobs",
+        "priority": "low",
+        "dependencies": [
+          27,
+          29
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Implement Intelligent Context Caching",
+        "description": "Add context caching system to reuse gathered context across operations and reduce repeated computation",
+        "details": "Implement context cache with 5-minute TTL, cache invalidation on task file changes, and sharing cache across MCP sessions. Add cache key management, memory usage monitoring, and cache hit/miss tracking. Integrate with existing cache infrastructure if available.",
+        "testStrategy": "Unit tests for cache operations, TTL behavior tests, invalidation logic tests, memory usage tests, and integration tests with context gathering operations",
+        "priority": "low",
+        "dependencies": [
+          24,
+          28
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 32,
+        "title": "Create Performance Benchmarking and Validation Suite",
+        "description": "Build comprehensive benchmarking system to validate performance improvements and prevent regressions",
+        "details": "Create automated benchmark suite that tests task creation performance with datasets of 40, 400, and 2000 tasks. Implement baseline comparison, regression detection, and performance reporting. Include quality validation to ensure optimizations don't degrade task generation quality. Add CI integration for automated performance testing.",
+        "testStrategy": "Benchmark accuracy validation, regression detection tests, quality metric validation, and CI integration tests to ensure benchmarks run reliably in automated environments",
+        "priority": "medium",
+        "dependencies": [
+          24,
+          25,
+          26,
+          27,
+          28
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 33,
+        "title": "Optimize parse-prd Performance",
+        "description": "Reduce parse-prd execution time from 143s to under 30s by implementing token reduction strategies and model optimization",
+        "details": "1. Summarize long PRDs instead of full text inclusion (635K to ~100K tokens)\\n2. Use Haiku model by default, Sonnet only with --research\\n3. Implement token budget limits\\n4. Generate tasks in batches of 3-4 with parallel requests\\n5. Smart context truncation for large PRDs\\nTarget: 80% token reduction, 70% time reduction",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 34,
+        "title": "Optimize parse-prd Performance",
+        "description": "Reduce parse-prd execution time from 143s to under 30s while preserving all PRD content and detail",
+        "details": "Current state: 635K input tokens, 143s execution time. Target: 100K tokens, under 30s. Implementation: Remove unnecessary context gathering, optimize system prompts, use Haiku by default.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
         "subtasks": []
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2025-10-31T16:28:38.522Z",
-      "taskCount": 20,
-      "completedCount": 9,
-      "tags": [
-        "chore-performance-optimisation-test-fixes"
-      ]
+      "created": "2025-10-31T23:26:00.077Z",
+      "updated": "2025-11-01T02:32:57.469Z",
+      "description": "Tasks for chore-performance-optimisation-test-fixes context"
     }
   }
 }

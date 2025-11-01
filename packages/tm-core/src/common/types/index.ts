@@ -10,6 +10,13 @@
  */
 export type StorageType = 'file' | 'api' | 'auto';
 
+/**
+ * Storage format options for file-based storage
+ * - 'json': Single tasks.json file containing all tags
+ * - 'jsonl': One .jsonl file per tag with line-based JSON format (better for pagination)
+ */
+export type StorageFormat = 'json' | 'jsonl';
+
 // ============================================================================
 // Type Literals
 // ============================================================================

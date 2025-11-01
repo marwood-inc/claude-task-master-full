@@ -39,8 +39,10 @@ export default defineConfig(
 		outDir: 'dist',
 		copy: ['assets'],
 		ignoreWatch: ['node_modules', 'dist', 'tests', 'apps/extension'],
-		// Bundle only our workspace packages, keep npm dependencies external
-		noExternal: [/^@tm\//],
+		// Override external to bundle everything except npm packages from node_modules
+		external: [/node_modules/],
+		// Explicitly bundle local code
+		noExternal: [/^@tm\//, /scripts/, /src/, /mcp-server/],
 		env: getBuildTimeEnvs()
 	})
 );

@@ -28,27 +28,27 @@ export interface DatasetConfig {
 export const DATASET_CONFIGS: Record<DatasetSize, DatasetConfig> = {
 	small: {
 		size: 'small',
-		taskCount: 10,
+		taskCount: 40,
 		subtasksPerTask: 3,
-		description: '10 tasks with 3 subtasks each (40 total items)'
+		description: '40 tasks with 3 subtasks each (160 total items)'
 	},
 	medium: {
 		size: 'medium',
-		taskCount: 100,
+		taskCount: 400,
 		subtasksPerTask: 5,
-		description: '100 tasks with 5 subtasks each (600 total items)'
+		description: '400 tasks with 5 subtasks each (2400 total items)'
 	},
 	large: {
 		size: 'large',
-		taskCount: 500,
+		taskCount: 2000,
 		subtasksPerTask: 7,
-		description: '500 tasks with 7 subtasks each (4000 total items)'
+		description: '2000 tasks with 7 subtasks each (16000 total items)'
 	},
 	'extra-large': {
 		size: 'extra-large',
-		taskCount: 1000,
+		taskCount: 4000,
 		subtasksPerTask: 10,
-		description: '1000 tasks with 10 subtasks each (11000 total items)'
+		description: '4000 tasks with 10 subtasks each (44000 total items)'
 	}
 };
 

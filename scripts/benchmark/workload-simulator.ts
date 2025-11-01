@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import { PerformanceMetrics, type PerformanceReport } from './performance-metrics.js';
 import { generateDatasetBySize, type DatasetSize } from './dataset-generator.js';
 import type { Task } from '../../packages/tm-core/src/common/types/index.js';
+import { FileStorage } from '../../packages/tm-core/src/modules/storage/adapters/file-storage/file-storage.js';
 
 /**
  * Workload pattern types
@@ -132,6 +133,7 @@ export class WorkloadSimulator {
 	private metrics: PerformanceMetrics;
 	private tasks: Task[] = [];
 	private testFilePath: string = '';
+	private storage: FileStorage | null = null;
 
 	/**
 	 * Create a new workload simulator
@@ -149,12 +151,18 @@ export class WorkloadSimulator {
 		// Create test directory
 		await fs.mkdir(this.testDir, { recursive: true });
 
+		// Initialize FileStorage with cache
+		this.storage = new FileStorage(this.testDir);
+		await this.storage.initialize();
+
 		// Generate dataset
 		this.tasks = generateDatasetBySize(datasetSize);
 
-		// Create test file
-		this.testFilePath = path.join(this.testDir, `workload-test-${datasetSize}.json`);
-		await this.saveTasks();
+		// Save tasks using FileStorage to populate cache
+		await this.storage.saveTasks(this.tasks, 'master');
+		
+		// Create test file path for compatibility
+		this.testFilePath = path.join(this.testDir, 'tasks', 'master.json');
 	}
 
 	/**
@@ -218,6 +226,12 @@ export class WorkloadSimulator {
 
 		this.metrics.stop();
 
+		// Get cache metrics from FileStorage
+		if (this.storage) {
+			const cacheMetrics = this.storage.getCacheMetrics();
+			this.metrics.recordCacheStats(cacheMetrics.hits, cacheMetrics.misses);
+		}
+
 		const performanceReport = this.metrics.generateReport();
 		const actualDuration = Date.now() - startTime;
 
@@ -243,10 +257,8 @@ export class WorkloadSimulator {
 	 */
 	private async executeListTasks(): Promise<void> {
 		await this.metrics.measureAsync('list-tasks', async () => {
-			const content = await fs.readFile(this.testFilePath, 'utf-8');
-			this.metrics.recordFileIO('read', this.testFilePath);
-			const data = JSON.parse(content);
-			return data.tasks || [];
+			if (!this.storage) throw new Error('Storage not initialized');
+			return await this.storage.loadTasks('master');
 		});
 	}
 
@@ -259,11 +271,8 @@ export class WorkloadSimulator {
 		const taskId = String(this.tasks[randomIndex].id);
 
 		await this.metrics.measureAsync('show-task', async () => {
-			const content = await fs.readFile(this.testFilePath, 'utf-8');
-			this.metrics.recordFileIO('read', this.testFilePath);
-			const data = JSON.parse(content);
-			const tasks = data.tasks || [];
-			return tasks.find((t: Task) => String(t.id) === taskId);
+			if (!this.storage) throw new Error('Storage not initialized');
+			return await this.storage.loadTask(taskId, 'master');
 		});
 	}
 
@@ -277,20 +286,17 @@ export class WorkloadSimulator {
 		const newStatus = ['pending', 'in-progress', 'done'][Math.floor(Math.random() * 3)];
 
 		await this.metrics.measureAsync('update-status', async () => {
-			// Read
-			const content = await fs.readFile(this.testFilePath, 'utf-8');
-			this.metrics.recordFileIO('read', this.testFilePath);
-			const data = JSON.parse(content);
-
-			// Update (in-memory only for simulation)
-			const tasks = data.tasks || [];
-			const task = tasks.find((t: Task) => String(t.id) === taskId);
+			if (!this.storage) throw new Error('Storage not initialized');
+			// Load task (will use cache)
+			const task = await this.storage.loadTask(taskId, 'master');
 			if (task) {
 				task.status = newStatus as any;
+				// Update in the tasks array
+				const taskInArray = this.tasks.find(t => String(t.id) === taskId);
+				if (taskInArray) {
+					taskInArray.status = newStatus as any;
+				}
 			}
-
-			// Note: We don't actually write back to avoid slowing down the simulation
-			// In real usage, this would be a write operation
 		});
 	}
 
@@ -299,26 +305,9 @@ export class WorkloadSimulator {
 	 */
 	private async executeSaveTasks(): Promise<void> {
 		await this.metrics.measureAsync('save-tasks', async () => {
-			await this.saveTasks();
+			if (!this.storage) throw new Error('Storage not initialized');
+			await this.storage.saveTasks(this.tasks, 'master');
 		});
-	}
-
-	/**
-	 * Save tasks to file
-	 */
-	private async saveTasks(): Promise<void> {
-		const data = {
-			tasks: this.tasks,
-			metadata: {
-				version: '1.0.0',
-				lastModified: new Date().toISOString(),
-				taskCount: this.tasks.length,
-				completedCount: this.tasks.filter(t => t.status === 'done').length,
-				tags: ['master']
-			}
-		};
-		await fs.writeFile(this.testFilePath, JSON.stringify(data, null, 2), 'utf-8');
-		this.metrics.recordFileIO('write', this.testFilePath);
 	}
 
 	/**

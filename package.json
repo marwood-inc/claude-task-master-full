@@ -1,6 +1,6 @@
 {
 	"name": "task-master-ai",
-	"version": "0.30.2",
+	"version": "0.30.2.dev.1",
 	"description": "A task management system for ambitious AI-driven development that doesn't overwhelm and confuse Cursor.",
 	"main": "index.js",
 	"type": "module",
@@ -39,7 +39,11 @@
 		"format-check": "biome format .",
 		"format": "biome format . --write",
 		"deps:check": "manypkg check || echo 'Note: Workspace package version warnings are expected for internal @tm/* packages'",
-		"deps:fix": "manypkg fix"
+		"deps:fix": "manypkg fix",
+		"benchmark": "tsx scripts/benchmark/index.ts",
+		"benchmark:dataset": "tsx scripts/benchmark/index.ts --dataset-only",
+		"benchmark:workload": "tsx scripts/benchmark/index.ts --workload-only",
+		"benchmark:pagination": "node --expose-gc --max-old-space-size=512 node_modules/tsx/dist/cli.mjs scripts/benchmark/pagination-tester.ts"
 	},
 	"keywords": [
 		"claude",

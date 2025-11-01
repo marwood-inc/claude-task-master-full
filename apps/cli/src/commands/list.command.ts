@@ -41,6 +41,8 @@ export interface ListCommandOptions {
 	format?: OutputFormat;
 	silent?: boolean;
 	project?: string;
+	limit?: number;
+	page?: number;
 }
 
 /**
@@ -78,6 +80,17 @@ export class ListTasksCommand extends Command {
 			)
 			.option('--silent', 'Suppress output (useful for programmatic usage)')
 			.option('-p, --project <path>', 'Project root directory', process.cwd())
+			.option(
+				'--limit <number>',
+				'Maximum number of tasks to display per page',
+				(value) => parseInt(value, 10)
+			)
+			.option(
+				'--page <number>',
+				'Page number (1-based, requires --limit)',
+				(value) => parseInt(value, 10),
+				1
+			)
 			.action(async (options: ListCommandOptions) => {
 				await this.executeCommand(options);
 			});
@@ -172,11 +185,23 @@ export class ListTasksCommand extends Command {
 					}
 				: undefined;
 
+		// Calculate pagination offset
+		let limit: number | undefined;
+		let offset: number | undefined;
+
+		if (options.limit && options.limit > 0) {
+			limit = options.limit;
+			const page = options.page && options.page > 0 ? options.page : 1;
+			offset = (page - 1) * limit;
+		}
+
 		// Call tm-core
 		const result = await this.tmCore.tasks.list({
 			tag: options.tag,
 			filter,
-			includeSubtasks: options.withSubtasks
+			includeSubtasks: options.withSubtasks,
+			limit,
+			offset
 		});
 
 		return result as ListTasksResult;
@@ -202,7 +227,7 @@ export class ListTasksCommand extends Command {
 
 			case 'text':
 			default:
-				this.displayText(result, options.withSubtasks);
+				this.displayText(result, options);
 				break;
 		}
 	}
@@ -250,14 +275,29 @@ export class ListTasksCommand extends Command {
 	/**
 	 * Display in text format with tables
 	 */
-	private displayText(data: ListTasksResult, withSubtasks?: boolean): void {
-		const { tasks, tag, storageType } = data;
+	private displayText(data: ListTasksResult, options: ListCommandOptions): void {
+		const { tasks, tag, storageType, total } = data;
 
 		// Display header using utility function
 		displayCommandHeader(this.tmCore, {
 			tag: tag || 'master',
 			storageType
 		});
+
+		// Display pagination info if applicable
+		if (options.limit && options.limit > 0) {
+			const page = options.page || 1;
+			const totalPages = Math.ceil(total / options.limit);
+			const showing = tasks.length;
+			const rangeStart = ((page - 1) * options.limit) + 1;
+			const rangeEnd = rangeStart + showing - 1;
+
+			console.log(
+				chalk.gray(
+					`\nPage ${page} of ${totalPages} • Showing ${showing} of ${total} tasks (${rangeStart}-${rangeEnd})\n`
+				)
+			);
+		}
 
 		// No tasks message
 		if (tasks.length === 0) {
@@ -291,7 +331,7 @@ export class ListTasksCommand extends Command {
 		// Task table
 		console.log(
 			ui.createTaskTable(tasks, {
-				showSubtasks: withSubtasks,
+				showSubtasks: options.withSubtasks,
 				showDependencies: true,
 				showComplexity: true // Enable complexity column
 			})

@@ -69,6 +69,7 @@ export class ConfigLoader {
 			},
 			storage: {
 				type: DEFAULT_CONFIG_VALUES.STORAGE.TYPE,
+				format: DEFAULT_CONFIG_VALUES.STORAGE.FORMAT,
 				encoding: DEFAULT_CONFIG_VALUES.STORAGE.ENCODING,
 				enableBackup: false,
 				maxBackups: DEFAULT_CONFIG_VALUES.STORAGE.MAX_BACKUPS,

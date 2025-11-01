@@ -13,6 +13,10 @@ export interface LoadTasksOptions {
 	status?: TaskStatus;
 	/** Exclude subtasks from loaded tasks (default: false) */
 	excludeSubtasks?: boolean;
+	/** Pagination: Number of tasks per page */
+	limit?: number;
+	/** Pagination: Number of tasks to skip */
+	offset?: number;
 }
 
 /**
