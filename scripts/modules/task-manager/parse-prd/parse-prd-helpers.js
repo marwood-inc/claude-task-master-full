@@ -24,17 +24,112 @@ export function estimateTokens(text) {
 }
 
 /**
+ * Preprocess PRD content to remove instructional scaffolding
+ * Strips RPG template boilerplate while preserving actual requirements
+ * @param {string} prdContent - Raw PRD content
+ * @returns {string} Preprocessed PRD content
+ */
+export function preprocessPRD(prdContent) {
+	let processed = prdContent;
+
+	// 1. Remove <rpg-method> wrapper (template introduction)
+	processed = processed.replace(
+		/<rpg-method>[\s\S]*?<\/rpg-method>\n*(?:---\n*)?/,
+		''
+	);
+
+	// 2. Remove <instruction> blocks (how to write content)
+	processed = processed.replace(/<instruction>[\s\S]*?<\/instruction>\n*/g, '');
+
+	// 3. Remove <example> blocks (good/bad pattern examples)
+	processed = processed.replace(/<example[^>]*>[\s\S]*?<\/example>\n*/g, '');
+
+	// 4. Remove <task-master-integration> section (meta-documentation)
+	processed = processed.replace(
+		/<task-master-integration>[\s\S]*?<\/task-master-integration>/,
+		''
+	);
+
+	// 5. Clean up excessive newlines (leave max 2 consecutive)
+	processed = processed.replace(/\n{3,}/g, '\n\n');
+
+	return processed.trim();
+}
+
+/**
+ * Detect if PRD is incremental (builds on existing tasks)
+ * @param {string} prdContent - PRD content to analyze
+ * @returns {boolean} True if PRD appears to reference existing work
+ */
+export function detectIncrementalPRD(prdContent) {
+	// Pattern 1: Direct task ID references
+	// Match: #123, Task #123, task #123 (1-4 digits, typical task IDs)
+	// Don't match: #123456 (hex colors - too many digits)
+	// Require word boundary or whitespace before #, and no more digits after
+	const taskIdPattern = /(?:^|\s|task\s+)#(\d{1,4})(?!\d)/gi;
+	if (taskIdPattern.test(prdContent)) {
+		return true;
+	}
+
+	// Pattern 2: Incremental keywords (case-insensitive)
+	const incrementalKeywords = [
+		/\bbuilds?\s+on\b/i,
+		/\bextends?\b/i,
+		/\bphase\s+\d+/i,
+		/\bincremental/i,
+		/\bexisting\s+task/i,
+		/\bcurrent\s+implementation/i,
+		/\bprevious\s+work/i,
+		/\balready\s+implemented/i,
+		/\benhance\s+existing/i,
+		/\bimprove\s+existing/i,
+		/\badd\s+to\s+existing/i
+	];
+
+	return incrementalKeywords.some((pattern) => pattern.test(prdContent));
+}
+
+/**
+ * Summarize existing tasks for context
+ * @param {Array} tasks - Array of task objects
+ * @returns {string} Summarized task list
+ */
+export function summarizeTasksForContext(tasks) {
+	if (!tasks || tasks.length === 0) {
+		return '';
+	}
+
+	return tasks
+		.map((task) => {
+			const deps =
+				task.dependencies?.length > 0
+					? ` [depends on: ${task.dependencies.join(', ')}]`
+					: '';
+			return `Task #${task.id}: ${task.title} (${task.status})${deps}`;
+		})
+		.join('\n');
+}
+
+/**
  * Read and validate PRD content
  * @param {string} prdPath - Path to PRD file
- * @returns {string} PRD content
+ * @param {Object} options - Options object
+ * @param {boolean} options.noPreprocess - Skip preprocessing (for testing/debugging)
+ * @returns {string} PRD content (preprocessed by default)
  * @throws {Error} If file is empty or cannot be read
  */
-export function readPrdContent(prdPath) {
+export function readPrdContent(prdPath, options = {}) {
 	const prdContent = fs.readFileSync(prdPath, 'utf8');
 	if (!prdContent) {
 		throw new Error(`Input file ${prdPath} is empty or could not be read.`);
 	}
-	return prdContent;
+
+	// Preprocess by default unless explicitly disabled
+	if (options.noPreprocess) {
+		return prdContent;
+	}
+
+	return preprocessPRD(prdContent);
 }
 
 /**
@@ -227,14 +322,21 @@ export function saveTasksToFile(tasksPath, tasks, targetTag, logger) {
  * @param {Object} config - Configuration object
  * @param {string} prdContent - PRD content
  * @param {number} nextId - Next task ID
+ * @param {Array} existingTasks - Existing tasks (for context if needed)
  * @returns {Promise<{systemPrompt: string, userPrompt: string}>}
  */
-export async function buildPrompts(config, prdContent, nextId) {
+export async function buildPrompts(
+	config,
+	prdContent,
+	nextId,
+	existingTasks = []
+) {
 	const promptManager = getPromptManager();
 	const defaultTaskPriority =
 		getDefaultPriority(config.projectRoot) || 'medium';
 
-	return promptManager.loadPrompt('parse-prd', {
+	// Build base parameters
+	const promptParams = {
 		research: config.research,
 		numTasks: config.numTasks,
 		nextId,
@@ -243,7 +345,15 @@ export async function buildPrompts(config, prdContent, nextId) {
 		defaultTaskPriority,
 		hasCodebaseAnalysis: config.hasCodebaseAnalysis(),
 		projectRoot: config.projectRoot || ''
-	});
+	};
+
+	// Auto-detect if PRD is incremental and include context if needed
+	if (detectIncrementalPRD(prdContent) && existingTasks.length > 0) {
+		const taskSummary = summarizeTasksForContext(existingTasks);
+		promptParams.existingTasksContext = `\n\nExisting tasks in this project (${existingTasks.length} total):\n${taskSummary}`;
+	}
+
+	return promptManager.loadPrompt('parse-prd', promptParams);
 }
 
 /**

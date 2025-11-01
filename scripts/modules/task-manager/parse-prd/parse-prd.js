@@ -63,7 +63,7 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 
 		// Read PRD content and build prompts
 		const prdContent = readPrdContent(config.prdPath);
-		const prompts = await buildPrompts(config, prdContent, nextId);
+		const prompts = await buildPrompts(config, prdContent, nextId, existingTasks);
 
 		// Call the appropriate service handler
 		const serviceResult = await serviceHandler(
