@@ -537,4 +537,250 @@ describe('GitHubConfigService', () => {
 			expect(summary.repository).toBeUndefined();
 		});
 	});
+
+	describe('serializeFeatures', () => {
+		it('should convert features object to array of enabled feature names', () => {
+			const features: GitHubSettings['features'] = {
+				syncMilestones: true,
+				syncProjects: false,
+				syncAssignees: true,
+				syncLabels: true
+			};
+
+			const result = service.serializeFeatures(features);
+
+			expect(result).toEqual(['syncMilestones', 'syncAssignees', 'syncLabels']);
+			expect(result).not.toContain('syncProjects');
+		});
+
+		it('should return empty array when all features are disabled', () => {
+			const features: GitHubSettings['features'] = {
+				syncMilestones: false,
+				syncProjects: false,
+				syncAssignees: false,
+				syncLabels: false
+			};
+
+			const result = service.serializeFeatures(features);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should return all features when all are enabled', () => {
+			const features: GitHubSettings['features'] = {
+				syncMilestones: true,
+				syncProjects: true,
+				syncAssignees: true,
+				syncLabels: true
+			};
+
+			const result = service.serializeFeatures(features);
+
+			expect(result).toEqual([
+				'syncMilestones',
+				'syncProjects',
+				'syncAssignees',
+				'syncLabels'
+			]);
+		});
+
+		it('should maintain consistent ordering of feature names', () => {
+			const features: GitHubSettings['features'] = {
+				syncMilestones: true,
+				syncProjects: true,
+				syncAssignees: true,
+				syncLabels: true
+			};
+
+			const result = service.serializeFeatures(features);
+
+			// Verify order matches implementation
+			expect(result[0]).toBe('syncMilestones');
+			expect(result[1]).toBe('syncProjects');
+			expect(result[2]).toBe('syncAssignees');
+			expect(result[3]).toBe('syncLabels');
+		});
+	});
+
+	describe('deserializeFeatures', () => {
+		it('should convert array of feature names to features object', () => {
+			const selected = ['syncMilestones', 'syncLabels'];
+
+			const result = service.deserializeFeatures(selected);
+
+			expect(result).toEqual({
+				syncMilestones: true,
+				syncProjects: false,
+				syncAssignees: false,
+				syncLabels: true
+			});
+		});
+
+		it('should create features object with all features disabled for empty array', () => {
+			const selected: string[] = [];
+
+			const result = service.deserializeFeatures(selected);
+
+			expect(result).toEqual({
+				syncMilestones: false,
+				syncProjects: false,
+				syncAssignees: false,
+				syncLabels: false
+			});
+		});
+
+		it('should enable all features when all feature names provided', () => {
+			const selected = [
+				'syncMilestones',
+				'syncProjects',
+				'syncAssignees',
+				'syncLabels'
+			];
+
+			const result = service.deserializeFeatures(selected);
+
+			expect(result).toEqual({
+				syncMilestones: true,
+				syncProjects: true,
+				syncAssignees: true,
+				syncLabels: true
+			});
+		});
+
+		it('should throw error for invalid feature name', () => {
+			const selected = ['syncMilestones', 'invalidFeature'];
+
+			expect(() => service.deserializeFeatures(selected)).toThrow(
+				'Invalid feature: "invalidFeature"'
+			);
+			expect(() => service.deserializeFeatures(selected)).toThrow(
+				'Valid features: syncMilestones, syncProjects, syncAssignees, syncLabels'
+			);
+		});
+
+		it('should throw error for multiple invalid feature names', () => {
+			const selected = ['invalidFeature1', 'syncLabels', 'invalidFeature2'];
+
+			// Should fail on first invalid feature
+			expect(() => service.deserializeFeatures(selected)).toThrow(
+				'Invalid feature: "invalidFeature1"'
+			);
+		});
+
+		it('should handle case-sensitive feature names', () => {
+			const selected = ['syncmilestones']; // lowercase
+
+			expect(() => service.deserializeFeatures(selected)).toThrow(
+				'Invalid feature'
+			);
+		});
+
+		it('should handle duplicate feature names gracefully', () => {
+			const selected = ['syncMilestones', 'syncMilestones', 'syncLabels'];
+
+			// Should not throw, duplicates are harmless
+			const result = service.deserializeFeatures(selected);
+
+			expect(result).toEqual({
+				syncMilestones: true,
+				syncProjects: false,
+				syncAssignees: false,
+				syncLabels: true
+			});
+		});
+	});
+
+	describe('serializeFeatures and deserializeFeatures roundtrip', () => {
+		it('should maintain data integrity through serialize -> deserialize cycle', () => {
+			const original: GitHubSettings['features'] = {
+				syncMilestones: true,
+				syncProjects: false,
+				syncAssignees: true,
+				syncLabels: false
+			};
+
+			const serialized = service.serializeFeatures(original);
+			const deserialized = service.deserializeFeatures(serialized);
+
+			expect(deserialized).toEqual(original);
+		});
+
+		it('should maintain data integrity through deserialize -> serialize cycle', () => {
+			const original = ['syncMilestones', 'syncAssignees'];
+
+			const deserialized = service.deserializeFeatures(original);
+			const serialized = service.serializeFeatures(deserialized);
+
+			expect(serialized).toEqual(original);
+		});
+
+		it('should handle edge case of all disabled features', () => {
+			const allDisabled: GitHubSettings['features'] = {
+				syncMilestones: false,
+				syncProjects: false,
+				syncAssignees: false,
+				syncLabels: false
+			};
+
+			const serialized = service.serializeFeatures(allDisabled);
+			expect(serialized).toEqual([]);
+
+			const deserialized = service.deserializeFeatures(serialized);
+			expect(deserialized).toEqual(allDisabled);
+		});
+
+		it('should handle edge case of all enabled features', () => {
+			const allEnabled: GitHubSettings['features'] = {
+				syncMilestones: true,
+				syncProjects: true,
+				syncAssignees: true,
+				syncLabels: true
+			};
+
+			const serialized = service.serializeFeatures(allEnabled);
+			const deserialized = service.deserializeFeatures(serialized);
+
+			expect(deserialized).toEqual(allEnabled);
+		});
+	});
+
+	describe('validateDetailed', () => {
+		it('should return detailed validation result for valid config', () => {
+			mockConfigManager.getConfig.mockReturnValue({
+				github: mockGitHubConfig
+			});
+
+			const result = service.validateDetailed();
+
+			expect(result.valid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+			expect(result.metadata).toBeDefined();
+			expect(result.metadata.validatedAspects).toBeInstanceOf(Array);
+		});
+
+		it('should return error with suggestion when no config exists', () => {
+			mockConfigManager.getConfig.mockReturnValue({});
+
+			const result = service.validateDetailed();
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toHaveLength(1);
+			expect(result.errors[0].code).toBe('NO_CONFIG');
+			expect(result.errors[0].suggestion).toContain('tm github configure');
+		});
+
+		it('should delegate to validation service for existing config', () => {
+			mockConfigManager.getConfig.mockReturnValue({
+				github: mockGitHubConfig
+			});
+
+			const result = service.validateDetailed();
+
+			// Validation service should provide structured errors
+			expect(result).toHaveProperty('valid');
+			expect(result).toHaveProperty('errors');
+			expect(result).toHaveProperty('warnings');
+			expect(result).toHaveProperty('metadata');
+		});
+	});
 });

@@ -1,53 +1,149 @@
 {
 	"meta": {
-		"generatedAt": "2025-10-31T13:25:23.781Z",
-		"tasksAnalyzed": 5,
-		"totalTasks": 22,
-		"analysisCount": 5,
+		"generatedAt": "2025-11-01T11:14:46.672Z",
+		"tasksAnalyzed": 17,
+		"totalTasks": 36,
+		"analysisCount": 17,
 		"thresholdScore": 5,
 		"projectName": "Taskmaster",
 		"usedResearch": true
 	},
 	"complexityAnalysis": [
 		{
-			"taskId": 18,
-			"taskTitle": "Fix Race Condition in GitHubSyncStateService File Lock Implementation",
-			"complexityScore": 8,
-			"recommendedSubtasks": 5,
-			"expansionPrompt": "Outline subtasks that cover designing a reusable async mutex utility with timeouts/reentrancy, refactoring both `GitHubSyncStateService` and the file-storage adapter to adopt it, adding targeted concurrency tests (unit + integration), and validating logging/backward-compatibility.",
-			"reasoning": "`GitHubSyncStateService` still relies on a `Map<string, Promise<void>>` lock map (`packages/tm-core/src/modules/integration/services/github-sync-state.service.ts:150`) across three write paths (`saveState`, `modifyState`, `saveStateWithoutBackup` around lines 794-1036), and `FileOperations` repeats the same pattern (`packages/tm-core/src/modules/storage/adapters/file-storage/file-operations.ts:13`). Replacing this with a queued mutex that supports timeouts and reentrancy requires building a new utility, integrating it in multiple async flows, and ensuring release-on-error semantics. Existing concurrency specs are skipped (`github-sync-state.service.spec.ts:610-640`), so new stress tests plus regression coverage are needed. The work touches core persistence code and shared utilities, raising risk of regressions and making the effort high."
-		},
-		{
-			"taskId": 19,
-			"taskTitle": "Move CLI Business Logic to tm-core for Architecture Compliance",
-			"complexityScore": 6,
-			"recommendedSubtasks": 4,
-			"expansionPrompt": "Break down subtasks for creating/exporting a `GitHubValidationService`, extending `GitHubConfigService` with feature helpers, refactoring CLI commands to call tm-core while preserving CLI-specific messaging, and updating/adding unit tests for both layers.",
-			"reasoning": "CLI-side validation lives in `apps/cli/src/commands/github/sync.command.ts:205-232` and feature parsing sits in `configure.command.ts:545-570`, while tm-core already hosts GitHub config services (`packages/tm-core/src/modules/integration/services/github-config.service.ts:30`). Migrating this logic requires introducing a new service in tm-core, wiring it through `IntegrationDomain` and the module exports, and adapting the CLI to depend on the shared methods without breaking existing error formatting. New tests must cover the freshly added tm-core APIs and the refactored CLI flows. The refactor spans both packages but uses straightforward patterns, yielding medium complexity."
-		},
-		{
 			"taskId": 20,
 			"taskTitle": "Add validation to convertToConflictInfo method in IntegrationDomain",
-			"complexityScore": 5,
+			"complexityScore": 4,
 			"recommendedSubtasks": 3,
-			"expansionPrompt": "Create subtasks that introduce strict input validation inside `convertToConflictInfo`, ensure exhaustive type mapping with descriptive errors, and expand the integration-domain test suite to cover all valid/invalid conflict scenarios.",
-			"reasoning": "`convertToConflictInfo` currently trusts unvalidated fields (`packages/tm-core/src/modules/integration/integration-domain.ts:354-416`) and falls back to `'title'` when a conflict type is missing (`integration-domain.ts:369`). Adding guards for `taskId`, `issueNumber`, conflict type coverage, and required values will change control flow and error behavior. Comprehensive unit tests must confirm each failure mode and re-run the conflict resolution path. Although localized, the method feeds critical sync resolution logic, so tightening validation with tests demands careful updates, giving moderate complexity."
+			"expansionPrompt": "Create subtasks for: 1) Adding comprehensive input validation with specific error messages for required fields (taskId, issueNumber, localValue, remoteValue, detectedAt), 2) Implementing exhaustive conflict type mapping validation to replace silent fallbacks, and 3) Expanding unit test coverage for all validation scenarios including edge cases and error conditions.",
+			"reasoning": "Medium complexity due to existing method structure and clear validation patterns. The convertToConflictInfo method is well-defined with specific validation requirements. Implementation involves straightforward input validation, type checking, and comprehensive test coverage. The existing codebase has validation patterns to follow."
 		},
 		{
 			"taskId": 21,
-			"taskTitle": "Enhance type safety with readonly modifiers and branded types",
-			"complexityScore": 9,
-			"recommendedSubtasks": 7,
-			"expansionPrompt": "Plan subtasks that phase in readonly GitHub types, introduce branded ID utilities, update all call sites (including workflow/state machine types) with appropriate conversions, add discriminated union helpers, and refresh affected unit/integration tests plus build configuration.",
-			"reasoning": "Applying `readonly` across GitHub models (`packages/tm-core/src/modules/integration/types/github-types.ts:10-214`) and replacing the legacy `TaskId = string` alias (`packages/tm-core/src/common/types/legacy.ts:9`) with branded types forces widespread recompilation fixes—`taskId`, `issueNumber`, and related IDs appear throughout tasks, storage, workflow, and integration modules. Introducing creation/extraction helpers affects serialization boundaries, while reworking `WorkflowEvent` into discriminated unions (`packages/tm-core/src/modules/workflow/types.ts:44-80`) changes downstream switch statements and guards. This ripples across many files and tests, requiring staged updates and extensive verification, making the task highly complex."
+			"taskTitle": "Improve documentation coverage for internal methods",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: 1) Audit existing documentation gaps across 8+ service files, 2) Document authentication and configuration services with JSDoc, 3) Add comprehensive documentation for sync coordination and conflict resolution logic, 4) Document field mapping and state management services, 5) Perform consistency review and ensure all complex algorithms have inline comments explaining business logic.",
+			"reasoning": "High complexity due to the extensive scope covering 8+ service files with sophisticated algorithms. Documentation requires deep understanding of authentication flows, sync coordination, conflict resolution, and field mapping logic. The task involves both JSDoc additions and complex inline algorithm documentation across multiple interconnected services."
 		},
 		{
 			"taskId": 22,
-			"taskTitle": "Create architecture decision records (ADRs) for GitHub sync implementation",
+			"taskTitle": "Refactor GitHubAuthService instantiation in CLI",
 			"complexityScore": 6,
 			"recommendedSubtasks": 6,
-			"expansionPrompt": "Define subtasks to establish the ADR directory/template, gather supporting references from code and existing docs, draft each numbered ADR with Context/Decision/Consequences sections, and perform a consistency review against implementation status and lessons-learned documents.",
-			"reasoning": "Seven ADRs must be authored under `.taskmaster/docs/adrs` (directory not yet present), each documenting specific integration choices referencing concrete code such as services in `packages/tm-core/src/modules/integration/services/` and insights from `GITHUB_SYNC_LESSONS_LEARNED.md`. Crafting context-rich records with accurate references and examples is content-heavy, requiring research across implementation files plus coordination of naming/numbering. While mostly documentation, the breadth of topics and need for precise alignment with code and prior docs give the task moderate complexity."
+			"expansionPrompt": "Create subtasks for: 1) Adding configureGitHub() method to IntegrationDomain, 2) Implementing lazy GitHubAuthService initialization pattern, 3) Moving token validation logic from CLI to IntegrationDomain, 4) Updating GitHubConfigureCommand to use the new facade, 5) Ensuring consistent error handling and user experience, 6) Aligning with established IntegrationDomain patterns for architectural consistency.",
+			"reasoning": "Medium-high complexity involving architectural refactoring across CLI and core layers. Requires careful service layer migration, maintaining user experience, and following established domain patterns. The refactoring involves moving business logic from presentation to domain layer while preserving existing functionality."
+		},
+		{
+			"taskId": 23,
+			"taskTitle": "Harden GitHub Sync Null Safety and Error Classification",
+			"complexityScore": 8,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Adding null safety guards and structured error handling in CLI sync command, 2) Implementing comprehensive error classification system with typed error details in GitHubSyncService, 3) Updating error formatting and consumers to handle structured error types, 4) Refactoring Promise.all to Promise.allSettled for graceful failure handling in username validation.",
+			"reasoning": "High complexity due to comprehensive error handling refactoring across multiple layers. Involves creating new error classification systems, updating CLI error handling, modifying core sync services, and ensuring backward compatibility. Requires careful consideration of error propagation and user experience."
+		},
+		{
+			"taskId": 24,
+			"taskTitle": "Add Edge Case Tests for Repository Format Validation",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Implementing special character and Unicode testing for repository format validation, 2) Adding security-focused tests for path traversal attempts and malicious input patterns, 3) Creating comprehensive whitespace, boundary, and format validation tests, 4) Expanding integration with existing validation systems and ensuring proper error code coverage.",
+			"reasoning": "Medium complexity focused on comprehensive test coverage. While the validation logic exists, implementing thorough edge case testing requires systematic approach to security patterns, Unicode handling, and boundary conditions. The task involves creating extensive test matrices and ensuring security validation."
+		},
+		{
+			"taskId": 25,
+			"taskTitle": "Fix Manual Conflict Resolution Edge Cases and Validation",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Enhancing cross-reference validation between manual resolution data and actual conflict fields, 2) Implementing comprehensive field presence validation ensuring all conflicting fields have resolutions, 3) Adding type checking for resolved values based on ConflictField types, 4) Updating ConflictResolution type definitions and integration testing with resolution pipeline.",
+			"reasoning": "Medium-high complexity involving validation logic across conflict resolution system. Requires understanding of conflict data structures, implementing type-safe validation, and ensuring consistency between manual resolutions and actual conflicts. The task involves both runtime validation and type system improvements."
+		},
+		{
+			"taskId": 26,
+			"taskTitle": "Clean Up Code Documentation and Remove Deprecated Code",
+			"complexityScore": 3,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Create subtasks for: 1) Removing redundant @private JSDoc tags from TypeScript private methods across validation services, 2) Fixing incorrect service name references in CLI command comments, 3) Completing deprecation warnings with version information and migration guidance, plus auditing deprecated method usage.",
+			"reasoning": "Low complexity focused on code quality improvements. Tasks involve straightforward documentation cleanup, comment corrections, and deprecation management. Most work is mechanical with clear patterns to follow across the codebase."
+		},
+		{
+			"taskId": 27,
+			"taskTitle": "Add Validation and Logging Improvements",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Create subtasks for: 1) Adding logger.debug() calls for validation failures in inquirer prompts with field context, 2) Implementing configuration validation before persistence in updateConfig() method, 3) Creating comprehensive test coverage for logging validation and audit trail verification.",
+			"reasoning": "Medium complexity involving logging integration and validation enhancements. Requires adding structured logging to CLI validation flows and implementing pre-persistence validation in config service. The task has clear implementation patterns and focused scope."
+		},
+		{
+			"taskId": 28,
+			"taskTitle": "Remove Redundant Comments and Improve Code Clarity",
+			"complexityScore": 2,
+			"recommendedSubtasks": 2,
+			"expansionPrompt": "Create subtasks for: 1) Removing redundant inline comments that restate obvious code logic in github-validation.service.ts, 2) Performing code review to verify readability improvements while preserving meaningful business logic comments and ensuring self-documenting code structure.",
+			"reasoning": "Low complexity focused on code clarity improvements. Task involves removing specific redundant comments while preserving valuable documentation. Work is largely mechanical with clear guidelines for what to remove versus preserve."
+		},
+		{
+			"taskId": 29,
+			"taskTitle": "Fix Critical Null Safety Issues in GitHub Sync",
+			"complexityScore": 5,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Create subtasks for: 1) Adding null safety checks in sync.command.ts validateOptions() method with descriptive error messages, 2) Replacing Promise.all() with Promise.allSettled() in username validation for graceful failure handling, 3) Creating comprehensive test coverage for null safety scenarios and error resilience.",
+			"reasoning": "Medium complexity involving critical runtime safety fixes. Requires defensive programming patterns and graceful error handling. The fixes are focused and well-defined, but testing and error handling need to be comprehensive to prevent regressions."
+		},
+		{
+			"taskId": 30,
+			"taskTitle": "Fix Type Design Issues - Computed Properties for Consistency",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Converting ValidationResult.valid to computed property and updating all creation sites, 2) Converting ConfigureGitHubResult.success to computed property based on validation state, 3) Updating all instantiation sites to remove manual flag assignments, 4) Creating comprehensive tests for computed property behavior and state consistency validation.",
+			"reasoning": "Medium-high complexity involving type system refactoring across multiple interfaces. Requires updating 15+ creation sites, ensuring type safety, and maintaining backward compatibility. The refactoring involves computed properties and requires careful validation of state consistency."
+		},
+		{
+			"taskId": 31,
+			"taskTitle": "Add Factory Validation for GitHubSyncOptions",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Implementing static factory method with comprehensive parameter validation for GitHubSyncOptions, 2) Adding mode and repository format validation with regex patterns, 3) Making constructor private and updating all instantiation sites to use factory pattern, 4) Creating extensive test coverage for factory validation including success cases, failure scenarios, and integration tests.",
+			"reasoning": "Medium complexity involving factory pattern implementation with validation. Requires updating multiple instantiation sites, implementing comprehensive validation logic, and ensuring fail-fast behavior. The task has clear validation requirements and existing patterns to follow."
+		},
+		{
+			"taskId": 32,
+			"taskTitle": "Create Comprehensive CLI Command Unit Tests",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Create subtasks for: 1) Setting up test infrastructure and mocking strategy for external dependencies (inquirer, @tm/core, ora, chalk), 2) Creating comprehensive configure.command.spec.ts with interactive/non-interactive flows and validation scenarios, 3) Implementing sync.command.spec.ts with option validation and execution flow testing, 4) Adding error handling and edge case coverage for both commands, 5) Achieving >80% code coverage and ensuring tests follow existing patterns.",
+			"reasoning": "High complexity due to comprehensive test creation for untested CLI commands. Requires extensive mocking of external dependencies, testing both interactive and non-interactive flows, and achieving high coverage. The scope includes two complex command files with multiple integration points."
+		},
+		{
+			"taskId": 33,
+			"taskTitle": "Add Concurrent Modification Tests for Sync Operations",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Create subtasks for: 1) Implementing concurrent sync operation tests with race condition simulation, 2) Creating atomic state file update tests using ResourceMutex mechanism, 3) Adding configuration concurrent access tests with file-based locking, 4) Implementing lock contention and timeout behavior tests, 5) Creating stress tests and performance baselines for concurrency overhead.",
+			"reasoning": "High complexity involving sophisticated concurrency testing. Requires understanding of ResourceMutex implementation, creating race condition scenarios, and testing file system concurrency. The task involves both unit and integration testing of critical concurrency safety mechanisms."
+		},
+		{
+			"taskId": 34,
+			"taskTitle": "Fix validateOptions Error Propagation in Sync Command",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Create subtasks for: 1) Creating specific error types for sync validation failures (GitHubSyncValidationError, InvalidSyncModeError, etc.), 2) Updating validateOptions() method to throw specific errors instead of returning boolean, 3) Updating callers with proper try/catch error handling and comprehensive test coverage for error scenarios.",
+			"reasoning": "Medium complexity involving error handling pattern refactoring. Requires creating new error types, updating method signature, and ensuring proper error propagation. The changes are focused but require careful consideration of caller impact and user experience."
+		},
+		{
+			"taskId": 35,
+			"taskTitle": "Add Error IDs to All CLI Error Messages",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Create subtasks for: 1) Creating GitHubErrorCodes registry with categorized error constants and formatError() helper function, 2) Updating all error handling in configure.command.ts with standardized error codes, 3) Updating all error handling in sync.command.ts with error code integration, 4) Creating comprehensive test coverage for error code uniqueness, formatting, and integration with existing error utilities.",
+			"reasoning": "Medium-high complexity involving systematic error code implementation across CLI commands. Requires creating error registry, updating all error messages, and ensuring integration with existing error handling utilities. The scope covers multiple command files with comprehensive error scenarios."
+		},
+		{
+			"taskId": 36,
+			"taskTitle": "Fix Wrong Service Name in Configure Command Comment",
+			"complexityScore": 1,
+			"recommendedSubtasks": 1,
+			"expansionPrompt": "Create single subtask to update the incorrect service name reference in comment from 'GitHubAuthService' to 'IntegrationDomain' in configure.command.ts:32 and verify no other similar incorrect references exist in the codebase.",
+			"reasoning": "Very low complexity involving a simple comment correction. The task is straightforward documentation fix with minimal scope and clear implementation. Requires only text change and brief verification of similar issues."
 		}
 	]
 }

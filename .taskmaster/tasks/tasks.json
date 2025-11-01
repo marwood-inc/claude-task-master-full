@@ -6355,7 +6355,7 @@
   "feat-github-sync": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Implement GitHub API Integration Foundation",
         "description": "Establish core GitHub API communication layer with proper TypeScript types, authentication, and error handling using @octokit/rest",
         "details": "Create GitHubClient class as abstraction over @octokit/rest for task-master specific operations. Implement CRUD operations for issues, labels, milestones, projects, and assignees. Handle authentication with GitHub tokens, rate limiting with exponential backoff, and proper error handling with typed exceptions. Include comprehensive type definitions for all GitHub entities (GitHubIssue, GitHubLabel, GitHubMilestone, SyncMapping, SyncConflict, SyncState, SyncOptions, SyncResult). Use @octokit/rest@^20.0.0 and @octokit/types@^12.0.0 for latest GitHub API support.",
@@ -6434,7 +6434,7 @@
         "updatedAt": "2025-10-31T03:22:28.780Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Implement GitHub Field Mapping Service",
         "description": "Create bidirectional transformation layer between task-master data structures and GitHub Issue format with semantic preservation",
         "details": "Implement GitHubFieldMapper class with methods for taskToIssue() and issueToTask() conversions. Map task-master status values (pending/in-progress/done/blocked) to GitHub issue state + labels. Map priority levels to colored GitHub labels (low=green, high=orange, critical=red). Enrich issue descriptions by combining task description, details, and testStrategy into structured markdown. Handle subtasks in both checklist mode (markdown checklist items) and separate-issues mode (child issues with parent references). Include complexity metadata as labels and body sections.",
@@ -6502,7 +6502,7 @@
         "updatedAt": "2025-10-31T03:32:11.258Z"
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "Implement Sync State Management",
         "description": "Create persistent tracking system for task-issue mappings and sync history with conflict detection capabilities",
         "details": "Implement GitHubSyncStateService to manage .taskmaster/github-sync-state.json file with task-to-issue mappings, sync timestamps, and conflict markers. Provide fast lookup by task ID, handle concurrent access safely with atomic file operations, store sync operation history for debugging. Include change detection by comparing local task updatedAt with remote issue updated_at timestamps. Support 1000+ mappings with acceptable performance (<100ms operations). Handle state file corruption with backup and recovery mechanisms.",
@@ -6570,7 +6570,7 @@
         "updatedAt": "2025-10-31T04:08:49.856Z"
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "Implement One-Way Sync (Task → GitHub)",
         "description": "Create synchronization service for pushing local task changes to GitHub Issues without pulling remote changes",
         "details": "Implement GitHubSyncService.syncToGitHub() method to create new issues for unmapped tasks and update existing issues for mapped tasks. Handle subtasks in both checklist mode (markdown items in parent issue body) and separate-issues mode (child issues with parent references in body). Apply status, priority, and complexity labels. Convert task dependencies to GitHub issue references (\"Depends on #123\" in body). Include dry-run mode for previewing changes without API calls. Record all mappings in sync state. Batch API operations for performance with 100 requests at a time.",
@@ -6655,7 +6655,7 @@
         "updatedAt": "2025-10-31T04:35:36.468Z"
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "Implement Conflict Detection and Resolution",
         "description": "Create comprehensive conflict detection and resolution system for bidirectional synchronization scenarios",
         "details": "Implement GitHubConflictResolver service to detect when both local tasks and remote issues have been modified since last sync. Identify conflicting fields (title, description, status, priority) and provide interactive resolution via inquirer prompts. Support auto-resolution strategies (last-write-wins-local, last-write-wins-remote, timestamp-based). Show clear diffs before applying resolutions. Never auto-resolve ambiguous conflicts - always prompt user. Include undo functionality and validation of resolution choices.",
@@ -6759,7 +6759,7 @@
         "updatedAt": "2025-10-31T05:24:44.257Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "Implement Two-Way Sync with Conflict Handling",
         "description": "Create bidirectional synchronization capability that maintains consistency between local tasks and GitHub issues",
         "details": "Implement GitHubSyncService.syncWithGitHub() method for bidirectional sync. Detect changes on both local and remote sides using timestamp comparison. Pull remote issue changes to update local tasks, push local task changes to update remote issues. Route conflicts to GitHubConflictResolver for user resolution. Apply non-conflicting changes automatically. Maintain data integrity with atomic operations. Handle partial failures gracefully with clear error reporting.",
@@ -6906,7 +6906,7 @@
         "updatedAt": "2025-10-31T06:31:30.700Z"
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "Implement Advanced GitHub Features",
         "description": "Add support for GitHub milestones, project boards, and assignee management for enterprise collaboration workflows",
         "details": "Extend GitHubClient to support milestone CRUD operations, GitHub Projects v1 (REST API) integration for kanban boards, and assignee management. Create milestones for task groups, assign issues to milestones, add issues to project boards and update column placement based on status changes. Sync task assignee field to GitHub issue assignees with username validation. Include feature flags to enable/disable individual features. Support both GitHub.com and GitHub Enterprise via configurable base URL.",
@@ -6962,7 +6962,7 @@
         "updatedAt": "2025-10-31T07:12:14.810Z"
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "Implement GitHub Configuration Management",
         "description": "Create secure configuration system for GitHub credentials, repository settings, and user preferences",
         "details": "Implement GitHubConfigureCommand for interactive setup with prompts for GitHub token, repository selection, and sync preferences. Validate token and repository access via GitHub API. Support GITHUB_TOKEN environment variable for security. Save configuration to .taskmaster/config.json with github section. Include settings for subtask mode (checklist vs separate-issues), conflict resolution strategy, and feature toggles for milestones/projects/assignees. Provide clear error messages for invalid configurations.",
@@ -7019,7 +7019,7 @@
         "updatedAt": "2025-10-31T05:00:37.443Z"
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "Implement CLI Commands and User Interface",
         "description": "Create user-friendly CLI commands for GitHub sync operations with comprehensive options and clear feedback",
         "details": "Implement github-sync command with options for --mode (one-way/two-way), --dry-run, --force, --subtask-mode, --repo. Add github-status command to show sync state, conflicts, last sync timestamp, and mapped vs unmapped tasks. Include progress indicators for long sync operations, clear success/error messages, and actionable error guidance. Follow existing CLI patterns in task-master codebase. Add commands to apps/cli/src/commands/ and register in index.ts.",
@@ -7093,7 +7093,7 @@
         "updatedAt": "2025-10-31T06:43:26.689Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "Extend Integration Domain Facade",
         "description": "Update the existing IntegrationDomain class to include GitHub sync methods alongside existing export functionality",
         "details": "Modify packages/tm-core/src/modules/integration/integration-domain.ts to add GitHub sync methods: syncToGitHub(), syncWithGitHub(), resolveConflict(), getGitHubSyncStatus(), and configureGitHub(). Follow existing patterns for ExportService integration. Provide clean error handling and delegate to appropriate services. Maintain backward compatibility with existing export functionality. Update constructor to initialize GitHub services alongside existing ExportService.",
@@ -7153,7 +7153,7 @@
         "updatedAt": "2025-10-31T06:58:48.229Z"
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "Automate Task Master Specialist Delegation",
         "description": "Wire up an auto-invoked background agent so Task Master operations and taskmaster-tagged work are transparently handled by the Task Master specialist.",
         "details": "- Deepen the specialist brief in `.claude/agents/task-master-specialist.md:1` so it documents background-agent behavior, standardized response templates (status summaries, next actions, command suggestions), and authoritative references to Task Master architecture; keep existing architectural guardrails intact.\n- Add a dedicated background agent descriptor (create `.claude/background-agents/task-master-specialist.json:1`) defining triggers for CLI verbs (`list|show|next|expand|update|set-status|analyze`), natural-language cues, and a `taskTags` matcher for `taskmaster`; configure delegation targets, required tools, and output channel metadata; document fallback rules.\n- Register and surface the automation by updating `.claude/settings.local.json:1` with the new background agent entry, refreshing `.taskmaster/CLAUDE.md:1` and `.claude/TM_COMMANDS_GUIDE.md:1` to explain automatic takeover, and amending `.claude/AGENT_SETUP.md:1` plus `.claude/commands/tm-specialist.md:1` so manual usage remains correct but defers to auto mode when available.\n- Implement tag-driven routing hooks: extend `packages/tm-bridge/src/update-bridge.ts:1` (or a new helper under `packages/tm-bridge/src/`) to emit delegation metadata whenever the active tag or explicit CLI flag resolves to `taskmaster`, and optionally annotate command metadata in `apps/cli/src/command-registry.ts:1` so downstream layers can flag Task Master verbs for the background agent.\n- Provide developer documentation describing the delegation lifecycle, configuration knobs, and troubleshooting (e.g., how to disable the agent temporarily, interpreting specialist responses) in `.claude/README.md:1` or a new section within `.claude/AGENT_SETUP.md:1`.\n- Ensure response formatting stays consistent with CLI expectations (colored tables, diff blocks) by reusing existing formatters in `apps/cli/src/utils/display-helpers.ts:1` or referencing their patterns inside the agent brief.",
@@ -7235,7 +7235,7 @@
         "updatedAt": "2025-10-31T08:24:49.104Z"
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "Fix Type Assertion in IntegrationDomain",
         "description": "Replace 'as any' type assertion with proper typing for subtaskMode parameter in integration-domain.ts line 187. The current implementation uses 'as any' to handle enum mismatch which defeats type safety.",
         "details": "",
@@ -7273,7 +7273,7 @@
         "updatedAt": "2025-10-31T08:06:20.569Z"
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "Address TODO Comments in IntegrationDomain",
         "description": "Review and implement or track all TODO comments found in integration-domain.ts including: two-way sync implementation (line 202), detailed conflict retrieval (line 369), calculate unmapped tasks (line 383), and implement change detection (lines 386-387).",
         "details": "",
@@ -7369,7 +7369,7 @@
         "updatedAt": "2025-10-31T09:39:51.633Z"
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "Refactor GitHub Configuration Validation",
         "description": "Extract common GitHub configuration validation logic into a private validateGitHubConfiguration() method. Currently duplicated across syncWithGitHub, resolveConflict, getGitHubSyncStatus and other methods in integration-domain.ts.",
         "details": "",
@@ -7419,7 +7419,7 @@
         "updatedAt": "2025-10-31T10:10:07.357Z"
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "Improve Conflict Resolution Implementation",
         "description": "Fix placeholder values and 'any' types in the resolveConflict method (integration-domain.ts lines 278-287). The issueNumber is hardcoded to 0 with comment 'Will be looked up by service'. Implement proper conflict info lookup or disable feature.",
         "details": "",
@@ -7488,7 +7488,7 @@
         "updatedAt": "2025-10-31T11:03:52.853Z"
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "Refactor Service Initialization Duplication",
         "description": "Service initialization pattern (creating GitHubSyncStateService, GitHubConfigService, etc.) is duplicated across multiple methods in integration-domain.ts (lines 144-179, 248-270, 340-355). Implement lazy initialization or service factory method.",
         "details": "",
@@ -7541,7 +7541,7 @@
         "updatedAt": "2025-10-31T11:33:17.512Z"
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "Implement Specific Error Handling in CLI Commands",
         "description": "CLI commands (sync.command.ts, configure.command.ts) catch all errors generically. Improve by implementing different handling for network vs validation errors, specific exit codes for different error types, and retry prompts for transient failures.",
         "details": "",
@@ -7594,12 +7594,12 @@
         "updatedAt": "2025-10-31T12:10:05.650Z"
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "Fix Race Condition in GitHubSyncStateService File Lock Implementation",
         "description": "Replace the current Map<string, Promise<void>> file locking mechanism with a proper mutex/semaphore pattern using acquire/release mechanism to prevent data corruption in concurrent operations.",
         "details": "The current file locking implementation in GitHubSyncStateService at line 150 uses a simple Map<string, Promise<void>> which has several race condition vulnerabilities: 1) Multiple concurrent operations can create new promises before existing ones are stored, 2) The promise-based approach doesn't provide proper acquire/release semantics, 3) Lock cleanup timing can allow overlapping operations. Implement a proper Mutex class with acquire() and release() methods that: - Maintains a queue of pending operations per file path, - Provides atomic lock acquisition with proper error handling, - Implements timeout mechanisms to prevent deadlocks, - Ensures locks are always released even on exceptions, - Supports reentrant locking for the same operation context. The mutex should be used in saveState(), modifyState(), and saveStateWithoutBackup() methods (lines 794-826, 899-941, 1005-1039). Consider creating a shared utility class since the same pattern exists in file-operations.ts. Include proper TypeScript types for the mutex interface and ensure backward compatibility with existing error handling patterns.",
         "testStrategy": "Create comprehensive unit tests covering: 1) Concurrent write scenarios with multiple simultaneous file operations, 2) Exception handling during locked operations to ensure locks are properly released, 3) Timeout scenarios to verify deadlock prevention, 4) Sequential operation ordering to ensure FIFO queue behavior, 5) Stress testing with rapid succession of file operations, 6) Integration tests with actual file I/O to verify atomic operations, 7) Mock scenarios testing lock acquisition/release timing, 8) Backward compatibility tests ensuring existing GitHubSyncStateService functionality remains intact. Use Jest with async/await patterns and proper cleanup in afterEach hooks.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": [
@@ -7649,10 +7649,10 @@
               3
             ],
             "details": "Author stress tests for skipped concurrency specs, simulate overlapping operations, assert deterministic sequencing, validate locks release on exceptions, and verify timeout handling paths.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Use jest parallel test helpers or manual Promise coordination to run simultaneous operations and assert resulting state and logged errors.",
             "parentId": "undefined",
-            "updatedAt": "2025-10-31T21:42:47.344Z"
+            "updatedAt": "2025-10-31T22:58:44.486Z"
           },
           {
             "id": 5,
@@ -7663,24 +7663,24 @@
               3
             ],
             "details": "Audit log messages around lock acquisition failures, ensure timeout errors map to existing patterns, update documentation if needed, and confirm configuration knobs remain unchanged.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
             "parentId": "undefined",
-            "updatedAt": "2025-10-31T21:42:56.730Z"
+            "updatedAt": "2025-10-31T22:58:58.464Z"
           }
         ],
         "complexity": 8,
         "recommendedSubtasks": 5,
         "expansionPrompt": "Outline subtasks that cover designing a reusable async mutex utility with timeouts/reentrancy, refactoring both `GitHubSyncStateService` and the file-storage adapter to adopt it, adding targeted concurrency tests (unit + integration), and validating logging/backward-compatibility.",
-        "updatedAt": "2025-10-31T22:58:29.953Z"
+        "updatedAt": "2025-10-31T22:58:58.464Z"
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "Move CLI Business Logic to tm-core for Architecture Compliance",
         "description": "Refactor CLI command validation and transformation logic from sync.command.ts and configure.command.ts into tm-core services to comply with architecture guidelines and enable code reuse.",
         "details": "Move the following business logic from CLI to tm-core: 1) validateOptions method from sync.command.ts (lines 205-231) - validates mode, subtaskMode, and repo format for GitHubSyncCommandOptions. Create a new GitHubValidationService in packages/tm-core/src/modules/integration/services/ with validateSyncOptions method. 2) getEnabledFeatures and parseFeatures methods from configure.command.ts (lines 545-570) - transforms between GitHubSettings['features'] object and string array formats. Add these as utility methods to existing GitHubConfigService. Update CLI commands to use tm-core methods: sync.command.ts should call tmCore.integration.validateSyncOptions(), configure.command.ts should use tmCore.integration.config.getEnabledFeatures() and parseFeatures(). Ensure error handling preserves CLI-specific formatting while validation logic remains in tm-core. Follow existing tm-core patterns for service organization and export new methods through integration domain.",
         "testStrategy": "Create unit tests for new GitHubValidationService.validateSyncOptions() covering invalid mode, subtaskMode, and repo format scenarios. Test GitHubConfigService.getEnabledFeatures() and parseFeatures() with various feature combinations. Verify CLI commands still function correctly by running existing CLI integration tests. Test that validation errors from tm-core are properly formatted in CLI output. Ensure MCP can also use the new validation methods without CLI dependencies.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9",
           "1"
@@ -7693,9 +7693,10 @@
             "description": "Add the GitHub sync options validator to tm-core.",
             "dependencies": [],
             "details": "Create GitHubValidationService under packages/tm-core/src/modules/integration/services with validateSyncOptions replicating existing CLI validation for mode, subtaskMode, and repo format, wire it through integration domain exports, and ensure injection patterns match existing services.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Add new tm-core unit tests covering valid and invalid sync options scenarios, including edge cases for mode, subtaskMode, and repo format.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-01T06:49:06.086Z"
           },
           {
             "id": 2,
@@ -7703,9 +7704,10 @@
             "description": "Move GitHub feature parsing helpers into tm-core.",
             "dependencies": [],
             "details": "Add getEnabledFeatures and parseFeatures methods to GitHubConfigService to convert between GitHubSettings features objects and CLI string arrays, update service exports, and ensure behavior matches the CLI implementation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Write tm-core unit tests for the new GitHubConfigService helpers verifying round-trip conversions and handling of empty or unknown feature flags.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-01T06:49:15.482Z"
           },
           {
             "id": 3,
@@ -7716,9 +7718,10 @@
               2
             ],
             "details": "Modify apps/cli sync.command.ts to replace inline option validation with tmCore.integration.validateSyncOptions() and adjust configure.command.ts to use tmCore.integration.config.getEnabledFeatures() and parseFeatures(), keeping CLI-specific messaging and error formatting intact.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run or update CLI-level tests (unit or integration) that cover sync and configure command flows to confirm outputs and error messages remain correct after using tm-core services.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-01T06:49:25.040Z"
           },
           {
             "id": 4,
@@ -7728,17 +7731,19 @@
               3
             ],
             "details": "Augment or create Jest specs for both tm-core and CLI layers, asserting the new shared validation behaves correctly, CLI commands still format errors/messages properly, and feature parsing functions integrate with command handlers without regressions.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Execute Jest suites across tm-core and CLI packages, adding coverage for regression cases; verify new tests fail if validation or feature transformations regress.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2025-11-01T06:49:34.066Z"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "Break down subtasks for creating/exporting a `GitHubValidationService`, extending `GitHubConfigService` with feature helpers, refactoring CLI commands to call tm-core while preserving CLI-specific messaging, and updating/adding unit tests for both layers."
+        "expansionPrompt": "Break down subtasks for creating/exporting a `GitHubValidationService`, extending `GitHubConfigService` with feature helpers, refactoring CLI commands to call tm-core while preserving CLI-specific messaging, and updating/adding unit tests for both layers.",
+        "updatedAt": "2025-11-01T06:49:34.066Z"
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "Add validation to convertToConflictInfo method in IntegrationDomain",
         "description": "Add comprehensive input validation to convertToConflictInfo method to prevent invalid conflict data from propagating through the system by validating required fields and ensuring exhaustive type mapping.",
         "details": "The convertToConflictInfo method in packages/tm-core/src/modules/integration/integration-domain.ts:354-419 currently uses silent fallbacks without validating required fields before accessing them. Implement explicit validation by: 1) Add input parameter validation at method start to check that syncConflict.taskId is defined, non-empty string; throw new Error('Invalid conflict: taskId is required') if missing. 2) Validate syncConflict.issueNumber is defined and positive integer; throw new Error('Invalid conflict: issueNumber must be a positive integer') if invalid. 3) Replace the current fallback pattern 'const field = fieldMap[syncConflict.type] || 'title'' with exhaustive type checking - add explicit validation that syncConflict.type exists in fieldMap keys, throw new Error(`Unsupported conflict type: ${syncConflict.type}`) for unmapped types. 4) Add validation for required conflict fields (localValue, remoteValue, detectedAt) with appropriate error messages. 5) Consider adding JSDoc comments with @throws annotations to document the validation errors. The current implementation silently falls back to 'title' for unknown conflict types and doesn't validate that required fields exist, which can lead to malformed ConflictInfo objects being created and propagated through the system.",
@@ -7792,7 +7797,7 @@
         "expansionPrompt": "Create subtasks that introduce strict input validation inside `convertToConflictInfo`, ensure exhaustive type mapping with descriptive errors, and expand the integration-domain test suite to cover all valid/invalid conflict scenarios."
       },
       {
-        "id": "21",
+        "id": 21,
         "title": "Improve documentation coverage for internal methods",
         "description": "Add comprehensive JSDoc comments to internal methods in GitHub integration services. Document complex algorithms with detailed inline comments explaining the logic.",
         "details": "The GitHub integration services in packages/tm-core/src/modules/integration/services/ contain sophisticated internal methods that lack comprehensive documentation. This task involves:\n\n**Service Files to Document:**\n- github-auth.service.ts: Internal token validation, scope checking, and permission verification methods\n- github-sync.service.ts: Complex bidirectional sync algorithms, conflict detection, and batch processing methods  \n- github-config.service.ts: Configuration validation and transformation methods\n- github-field-mapper.ts: Field mapping algorithms, metadata parsing, and label extraction methods\n- github-sync-state.service.ts: State management and change detection algorithms\n- github-change-detection.service.ts: Change detection and comparison logic\n- github-resilience.ts: Retry logic and error handling strategies\n- github-conflict-resolver.ts: Conflict resolution algorithms\n\n**Documentation Requirements:**\n1. Add comprehensive JSDoc comments to all private and internal methods with:\n   - Purpose and behavior description\n   - Parameter descriptions with types and constraints\n   - Return value descriptions\n   - Example usage where appropriate\n   - Algorithm complexity notes for complex operations\n   - Error conditions and exception handling\n\n2. Add detailed inline comments for complex algorithms:\n   - Conflict detection logic in detectConflicts() method\n   - Bidirectional sync coordination in syncWithGitHub()\n   - Field mapping transformations in GitHubFieldMapper\n   - Timestamp analysis and comparison logic\n   - Batch processing and rate limiting strategies\n   - Metadata parsing and extraction algorithms\n\n3. Document internal data structures and interfaces used by these methods\n\n4. Add code examples in comments for complex transformation methods\n\n**Focus Areas:**\n- Authentication flow complexity in GitHubAuthService\n- Sync state management in GitHubSyncStateService  \n- Conflict resolution decision trees\n- Field mapping bidirectional transformations\n- Error handling and resilience patterns\n\nThis documentation will significantly improve code maintainability and reduce onboarding time for new developers working on the GitHub integration features.",
@@ -7807,13 +7812,171 @@
           "10"
         ],
         "priority": "medium",
-        "subtasks": [],
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit undocumented GitHub services",
+            "description": "Catalog existing doc gaps across targeted GitHub integration services.",
+            "dependencies": [],
+            "details": "Review each service file to identify undocumented private/internal methods and note algorithm hotspots needing inline explanation.",
+            "status": "pending",
+            "testStrategy": "Use static analysis tooling or manual inspection checklists to confirm every target service has an annotated inventory.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Document auth and configuration internals",
+            "description": "Add comprehensive JSDoc to GitHubAuthService and GitHubConfigService internals.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create detailed JSDoc for token validation, scope checks, permission verification, and configuration validation routines, including examples, complexity notes, and error handling coverage.",
+            "status": "pending",
+            "testStrategy": "Run lint or doc-generation checks to ensure JSDoc syntax validity and manually confirm all auth/config methods are covered.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Document sync coordination and conflict logic",
+            "description": "Enhance documentation for GitHubSyncService, conflict resolver, and resilience flows.",
+            "dependencies": [
+              1
+            ],
+            "details": "Annotate syncWithGitHub, batch processing, conflict detection, retry strategies, and state transitions with JSDoc plus inline comments clarifying algorithm decisions and error paths.",
+            "status": "pending",
+            "testStrategy": "Review rendered documentation or IDE hints to confirm new comments appear and accurately describe complex flows.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Document field mapping and state analytics",
+            "description": "Expand JSDoc and inline comments for field mapper, sync state, and change detection services.",
+            "dependencies": [
+              1
+            ],
+            "details": "Document mapping transformations, metadata parsing, timestamp comparisons, and state change detection including data structure descriptions and code examples for intricate conversions.",
+            "status": "pending",
+            "testStrategy": "Verify documentation coverage through manual inspection and ensure parsers/builders expose correct hints in editors.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Apply readonly GitHub model types",
+            "description": "Phase in readonly variants across GitHub integration types.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Refactor github-types definitions to readonly structures, adjust importers incrementally, and resolve compilation issues introduced by stricter immutability guarantees.",
+            "status": "pending",
+            "testStrategy": "Run TypeScript compilation and targeted unit suites to catch regressions introduced by readonly enforcement.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Introduce branded IDs and discriminated unions",
+            "description": "Replace legacy TaskId aliases with branded utilities and update workflow unions.",
+            "dependencies": [
+              5
+            ],
+            "details": "Implement branded ID creators/extractors, migrate call sites including workflow/state machine types, and add discriminated union helpers to preserve exhaustiveness checks.",
+            "status": "pending",
+            "testStrategy": "Execute TypeScript type-checking and relevant domain unit tests to ensure all call sites handle new ID branding and union shapes correctly.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 7,
+            "title": "Refresh tests and build configuration",
+            "description": "Update affected tests, integration workflows, and build scripts after type and doc changes.",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "Revise unit/integration tests, adjust mocks or fixtures for readonly and branded IDs, and tweak build or lint configs to accommodate documentation rules and new helpers.",
+            "status": "pending",
+            "testStrategy": "Run full test suites and CI build scripts locally to verify green status and confirm documentation linting passes.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 8,
+            "title": "Set up ADR documentation scaffold",
+            "description": "Create the ADR directory structure and base template file to house the upcoming GitHub integration ADRs.",
+            "dependencies": [],
+            "details": "Add `.taskmaster/docs/adrs` and introduce a reusable markdown template with Context, Decision, and Consequences headings for consistent authoring.",
+            "status": "pending",
+            "testStrategy": "Verify directory and template presence via filesystem listing.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 9,
+            "title": "Compile integration reference materials",
+            "description": "Collect code locations and documentation references that will inform the GitHub integration ADRs.",
+            "dependencies": [
+              1
+            ],
+            "details": "Survey `packages/tm-core/src/modules/integration` services, related CLI commands, and `GITHUB_SYNC_LESSONS_LEARNED.md` to assemble citations for token validation and configuration workflows.",
+            "status": "pending",
+            "testStrategy": "Document the gathered references in notes and confirm paths resolve locally.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 10,
+            "title": "Plan ADR numbering and scope coverage",
+            "description": "Determine ADR numbering sequence and assign each to specific integration decisions that must be documented.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Map seven ADR topics to clear decision statements, allocate numbering, and note supporting evidence needed for each Context/Decision/Consequences section.",
+            "status": "pending",
+            "testStrategy": "Review the plan to ensure all required decisions are covered without overlap.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 11,
+            "title": "Draft ADRs 1-3 for GitHub integration",
+            "description": "Write the first three ADRs capturing foundational GitHub configuration and service instantiation decisions.",
+            "dependencies": [
+              3
+            ],
+            "details": "Author Context/Decision/Consequences narratives referencing IntegrationDomain responsibilities, GitHubAuthService usage, and prior configuration patterns.",
+            "status": "pending",
+            "testStrategy": "Self-review each ADR against template to confirm sections are complete and references align.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 12,
+            "title": "Draft ADRs 4-7 for GitHub integration",
+            "description": "Complete the remaining four ADRs detailing validation workflows, permission handling, and CLI-domain separation.",
+            "dependencies": [
+              3
+            ],
+            "details": "Compose ADR markdown files covering repository access checks, permission warnings, CLI thin-layer design, and lazy service initialization behavior.",
+            "status": "pending",
+            "testStrategy": "Cross-check narratives with source files to ensure decisions mirror current implementation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 13,
+            "title": "Perform ADR consistency and quality review",
+            "description": "Validate all seven ADRs for accuracy, consistency with implementation status, and alignment with lessons-learned insights.",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "Review ADR set for coherent numbering, consistent terminology, accurate code references, and reconcile with `GITHUB_SYNC_LESSONS_LEARNED.md` and implementation state.",
+            "status": "pending",
+            "testStrategy": "Conduct a holistic read-through noting any discrepancies and adjust ADRs until issues are resolved.",
+            "parentId": "undefined"
+          }
+        ],
         "complexity": 9,
         "recommendedSubtasks": 7,
         "expansionPrompt": "Plan subtasks that phase in readonly GitHub types, introduce branded ID utilities, update all call sites (including workflow/state machine types) with appropriate conversions, add discriminated union helpers, and refresh affected unit/integration tests plus build configuration."
       },
       {
-        "id": "22",
+        "id": 22,
         "title": "Refactor GitHubAuthService instantiation in CLI",
         "description": "Move GitHubAuthService token validation logic from GitHubConfigureCommand to IntegrationDomain for architectural consistency and ensure all business logic remains in tm-core while keeping the CLI layer thin.",
         "details": "The current architecture violates the established pattern where CLI commands should be thin presentation layers that delegate business logic to tm-core services. In configure.command.ts:37, GitHubAuthService is directly instantiated in the CLI layer and token validation methods (validateToken, verifyRepositoryAccess, checkPermissions) are called directly from the CLI command (lines 135-237). This implementation needs refactoring to move these operations into IntegrationDomain as a facade method.\n\nImplementation steps:\n1. Add a configureGitHub() method to IntegrationDomain class in packages/tm-core/src/modules/integration/integration-domain.ts that encapsulates the complete configuration workflow including token validation, repository access verification, and permission checking.\n2. Create a GitHubAuthService instance within IntegrationDomain using the existing lazy initialization pattern (similar to how fieldMapper and resilienceService are cached) to maintain performance while centralizing business logic.\n3. Move token validation logic from GitHubConfigureCommand.executeConfigure() (lines 133-248) into the new IntegrationDomain.configureGitHub() method, preserving the same validation steps and error handling patterns.\n4. Update GitHubConfigureCommand to call IntegrationDomain.configureGitHub() instead of directly instantiating and calling GitHubAuthService methods, making the CLI command a thin wrapper that handles user interaction and displays results.\n5. Ensure the refactored solution maintains the same user experience with identical error messages, validation feedback, and permission warnings while centralizing the business logic in tm-core.\n6. Follow the established pattern used by other IntegrationDomain methods like syncWithGitHub() and resolveConflict() for service initialization and error handling consistency.",
@@ -7827,90 +7990,826 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "Set up ADR documentation scaffold",
-            "description": "Create the ADR directory structure and base template file to house the upcoming GitHub integration ADRs.",
+            "title": "Create configureGitHub method in IntegrationDomain",
+            "description": "Add a new configureGitHub() method to the IntegrationDomain class that will encapsulate the complete GitHub configuration workflow including token validation, repository access verification, and permission checking.",
             "dependencies": [],
-            "details": "Add `.taskmaster/docs/adrs` and introduce a reusable markdown template with Context, Decision, and Consequences headings for consistent authoring.",
+            "details": "Create a new public method configureGitHub() in packages/tm-core/src/modules/integration/integration-domain.ts that accepts configuration parameters and returns validation results. This method will serve as the central business logic entry point for GitHub configuration, replacing the direct GitHubAuthService calls currently in the CLI layer.",
             "status": "pending",
-            "testStrategy": "Verify directory and template presence via filesystem listing.",
-            "parentId": "undefined"
+            "testStrategy": "Unit tests for the new method signature, parameter validation, and return value structure"
           },
           {
             "id": 2,
-            "title": "Compile integration reference materials",
-            "description": "Collect code locations and documentation references that will inform the GitHub integration ADRs.",
+            "title": "Implement lazy GitHubAuthService initialization in IntegrationDomain",
+            "description": "Add lazy initialization pattern for GitHubAuthService within IntegrationDomain using the same caching pattern as fieldMapper and resilienceService to maintain performance while centralizing business logic.",
             "dependencies": [
               1
             ],
-            "details": "Survey `packages/tm-core/src/modules/integration` services, related CLI commands, and `GITHUB_SYNC_LESSONS_LEARNED.md` to assemble citations for token validation and configuration workflows.",
+            "details": "Add a private githubAuthService property and getGitHubAuthService() method to IntegrationDomain class following the established lazy initialization pattern seen with fieldMapper and resilienceService. Cache the service instance to avoid repeated instantiation while keeping the service creation logic within tm-core.",
             "status": "pending",
-            "testStrategy": "Document the gathered references in notes and confirm paths resolve locally.",
-            "parentId": "undefined"
+            "testStrategy": "Unit tests for service caching behavior, initialization timing, and proper service instance reuse"
           },
           {
             "id": 3,
-            "title": "Plan ADR numbering and scope coverage",
-            "description": "Determine ADR numbering sequence and assign each to specific integration decisions that must be documented.",
+            "title": "Move token validation logic from CLI to IntegrationDomain",
+            "description": "Transfer the token validation, repository access verification, and permission checking logic from GitHubConfigureCommand.executeConfigure() lines 133-248 into the new IntegrationDomain.configureGitHub() method.",
             "dependencies": [
               1,
               2
             ],
-            "details": "Map seven ADR topics to clear decision statements, allocate numbering, and note supporting evidence needed for each Context/Decision/Consequences section.",
+            "details": "Extract the validateToken, verifyRepositoryAccess, and checkPermissions method calls along with their error handling logic from apps/cli/src/commands/github/configure.command.ts lines 133-248 and implement them within the configureGitHub method in IntegrationDomain. Preserve the same validation steps and error handling patterns to maintain consistency.",
             "status": "pending",
-            "testStrategy": "Review the plan to ensure all required decisions are covered without overlap.",
-            "parentId": "undefined"
+            "testStrategy": "Unit tests covering all validation scenarios including valid/invalid tokens, accessible/inaccessible repositories, and sufficient/insufficient permissions with proper error handling"
           },
           {
             "id": 4,
-            "title": "Draft ADRs 1-3 for GitHub integration",
-            "description": "Write the first three ADRs capturing foundational GitHub configuration and service instantiation decisions.",
+            "title": "Update GitHubConfigureCommand to use IntegrationDomain facade",
+            "description": "Refactor GitHubConfigureCommand to call IntegrationDomain.configureGitHub() instead of directly instantiating and calling GitHubAuthService methods, making the CLI command a thin presentation layer.",
             "dependencies": [
               3
             ],
-            "details": "Author Context/Decision/Consequences narratives referencing IntegrationDomain responsibilities, GitHubAuthService usage, and prior configuration patterns.",
+            "details": "Replace the direct GitHubAuthService instantiation at line 37 and method calls at lines 135-237 in apps/cli/src/commands/github/configure.command.ts with a single call to IntegrationDomain.configureGitHub(). Handle the returned results for user display while removing all business logic from the CLI layer.",
             "status": "pending",
-            "testStrategy": "Self-review each ADR against template to confirm sections are complete and references align.",
-            "parentId": "undefined"
+            "testStrategy": "Integration tests to verify the CLI command properly delegates to IntegrationDomain and displays results correctly, maintaining the same user experience"
           },
           {
             "id": 5,
-            "title": "Draft ADRs 4-7 for GitHub integration",
-            "description": "Complete the remaining four ADRs detailing validation workflows, permission handling, and CLI-domain separation.",
+            "title": "Ensure consistent error handling and user experience",
+            "description": "Verify that the refactored solution maintains identical error messages, validation feedback, and permission warnings while centralizing business logic in tm-core.",
             "dependencies": [
-              3
+              4
             ],
-            "details": "Compose ADR markdown files covering repository access checks, permission warnings, CLI thin-layer design, and lazy service initialization behavior.",
+            "details": "Compare error messages and user feedback between the original CLI implementation and the refactored version to ensure no regression in user experience. Update error message formatting and validation feedback as needed to maintain consistency with the original implementation while keeping business logic in tm-core.",
             "status": "pending",
-            "testStrategy": "Cross-check narratives with source files to ensure decisions mirror current implementation.",
-            "parentId": "undefined"
+            "testStrategy": "End-to-end tests comparing user experience before and after refactoring, focusing on error message consistency and validation feedback accuracy"
           },
           {
             "id": 6,
-            "title": "Perform ADR consistency and quality review",
-            "description": "Validate all seven ADRs for accuracy, consistency with implementation status, and alignment with lessons-learned insights.",
+            "title": "Align with established IntegrationDomain patterns",
+            "description": "Review and ensure the refactored configureGitHub method follows the same patterns used by other IntegrationDomain methods like syncWithGitHub() and resolveConflict() for service initialization and error handling consistency.",
             "dependencies": [
-              4,
               5
             ],
-            "details": "Review ADR set for coherent numbering, consistent terminology, accurate code references, and reconcile with `GITHUB_SYNC_LESSONS_LEARNED.md` and implementation state.",
+            "details": "Conduct a consistency review of the new configureGitHub method against existing IntegrationDomain methods (syncWithGitHub, resolveConflict) to ensure consistent service initialization patterns, error handling approaches, and method signature conventions. Update implementation as needed to maintain architectural consistency.",
             "status": "pending",
-            "testStrategy": "Conduct a holistic read-through noting any discrepancies and adjust ADRs until issues are resolved.",
-            "parentId": "undefined"
+            "testStrategy": "Code review and architectural consistency tests to verify the new method follows established patterns and conventions within IntegrationDomain"
           }
         ],
         "complexity": 6,
         "recommendedSubtasks": 6,
         "expansionPrompt": "Define subtasks to establish the ADR directory/template, gather supporting references from code and existing docs, draft each numbered ADR with Context/Decision/Consequences sections, and perform a consistency review against implementation status and lessons-learned documents."
+      },
+      {
+        "id": 23,
+        "title": "Harden GitHub Sync Null Safety and Error Classification",
+        "description": "Ensure the GitHub sync CLI defends against uninitialized core state and refactor tm-core GitHub sync pipelines to surface precise error categories while making username validation resilient to partial failures.",
+        "details": "- In `apps/cli/src/commands/github/sync.command.ts:219`, guard all access to `this.tmCore`/`this.tmCore.integration` by factoring out a `requireIntegration()` helper that throws a `TaskMasterError` (use `ERROR_CODES.INTERNAL_ERROR` with a `userMessage` pointing users to rerun `tm init`/`tm github configure`) when initialization fails; make `initializeCore()` reset progress and surface the failure so the wrapper can retry gracefully.\n- Rework the catch block in `packages/tm-core/src/modules/integration/services/github-sync.service.ts` so we no longer collapse every failure into `\"Sync failed\"`: introduce a `SyncErrorDetail` shape (`{ type: 'network' | 'auth' | 'validation' | 'rateLimit' | 'unknown', message, cause? }`) that lives on `GitHubSyncResult.errors`; classify thrown values via `instanceof GitHubAuthenticationError/GitHubRateLimitError/GitHubAPIError/TaskMasterError` and by HTTP status, ensure `stateService.markSyncComplete()` still runs in a `finally`, and rethrow a typed `TaskMasterError` after preserving the structured result so CLI retry logic and enhanced display receive the right category.\n- Update consumers of `GitHubSyncResult` (notably `apps/cli/src/utils/github-sync-progress.ts` and any other formatters) to render the new structured errors while retaining backwards-compatible string fallbacks, e.g. prefixing messages with `\"[AUTH]\"`, so existing logs stay readable.\n- Replace the `Promise.all` in `packages/tm-core/src/modules/integration/integration-domain.ts:886` with `Promise.allSettled`, separating invalid usernames from transport/auth failures; aggregate invalid names into a single `TaskMasterError` with `ERROR_CODES.VALIDATION_ERROR` while rethrowing the first non-validation failure with preserved cause metadata so upstream callers recognize transient vs. fatal issues.\n- Thread the new error detail type through any DTOs or mapper utilities (`packages/tm-core/src/modules/integration/types/github-sync-state-types.ts`, CLI result typing, etc.) and document the behavior in inline comments so future commands can rely on the typed shape.",
+        "testStrategy": "- Add a `vitest` unit in `apps/cli/src/commands/github/__tests__/sync.command.spec.ts` that instantiates `GitHubSyncCommand` without calling `initializeCore()`, asserts `validateOptions()` throws a `TaskMasterError` with `ERROR_CODES.INTERNAL_ERROR`, and verifies the command wrapper surfaces the enhanced guidance.\n- Extend `packages/tm-core/src/modules/integration/services/github-sync.service.spec.ts` with scenarios that stub the mapper/client to throw `GitHubAuthenticationError`, `GitHubRateLimitError`, and a generic `TaskMasterError`; assert `SyncErrorDetail.type` matches the error, `markSyncComplete()` runs, and the rethrown error preserves `code`/`userMessage`.\n- Add a `Promise.allSettled` regression test in `packages/tm-core/src/modules/integration/integration-domain.spec.ts` that feeds one valid username, one invalid (returns `false`), and one rejecting promise; verify the method reports invalid usernames while rethrowing the rejection as a categorized `TaskMasterError`.\n- Create a CLI-level integration test (mocking `IntegrationDomain.syncToGitHub`) that injects a structured `TaskMasterError` per category and confirms `EnhancedErrorDisplay` picks the expected exit code and that formatted sync output lists `[AUTH]`, `[NETWORK]`, etc.",
+        "status": "pending",
+        "dependencies": [
+          9,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add null safety guards and structured error handling in CLI sync command",
+            "description": "Implement requireIntegration() helper and enhance error handling in GitHubSyncCommand to defend against uninitialized core state",
+            "dependencies": [],
+            "details": "In `apps/cli/src/commands/github/sync.command.ts:219`, create a `requireIntegration()` helper method that checks if `this.tmCore` and `this.tmCore.integration` are properly initialized. The helper should throw a `TaskMasterError` with `ERROR_CODES.INTERNAL_ERROR` and a clear `userMessage` directing users to rerun `tm init` or `tm github configure` when initialization fails. Modify `initializeCore()` to reset progress state and surface initialization failures gracefully so the command wrapper can implement retry logic. Guard all access points to `this.tmCore.integration` throughout the sync command using this new helper.",
+            "status": "pending",
+            "testStrategy": "Add unit tests in `apps/cli/src/commands/github/__tests__/sync.command.spec.ts` that instantiate `GitHubSyncCommand` without calling `initializeCore()`, verify `validateOptions()` throws appropriate `TaskMasterError` with correct error code, and test that the command wrapper properly surfaces initialization failures for retry logic."
+          },
+          {
+            "id": 2,
+            "title": "Implement comprehensive error classification system with typed error details",
+            "description": "Create SyncErrorDetail type and refactor GitHubSyncService error handling to classify and preserve detailed error information",
+            "dependencies": [
+              1
+            ],
+            "details": "Introduce a `SyncErrorDetail` interface with shape `{ type: 'network' | 'auth' | 'validation' | 'rateLimit' | 'unknown', message: string, cause?: unknown }` that will be used in `GitHubSyncResult.errors`. Rework the catch block in `packages/tm-core/src/modules/integration/services/github-sync.service.ts` to classify thrown errors using `instanceof` checks for `GitHubAuthenticationError`, `GitHubRateLimitError`, `GitHubAPIError`, and `TaskMasterError`, as well as HTTP status code analysis. Ensure `stateService.markSyncComplete()` still executes in a `finally` block. After preserving the structured error result, rethrow a properly typed `TaskMasterError` so CLI retry logic receives the correct error category.",
+            "status": "pending",
+            "testStrategy": "Create comprehensive unit tests covering all error classification scenarios: network failures, authentication errors, rate limiting, validation errors, and unknown errors. Verify that structured error details are properly captured while maintaining the finally block execution for state management."
+          },
+          {
+            "id": 3,
+            "title": "Update error formatting and consumers to handle structured error types",
+            "description": "Modify GitHubSyncResult consumers to render new structured errors with backwards-compatible fallbacks",
+            "dependencies": [
+              2
+            ],
+            "details": "Update consumers of `GitHubSyncResult`, particularly `apps/cli/src/utils/github-sync-progress.ts` and other error formatters, to handle the new `SyncErrorDetail` structure. Implement error message rendering that prefixes messages with category indicators like `[AUTH]`, `[NETWORK]`, `[VALIDATION]` etc. for better user experience. Maintain backwards-compatible string fallbacks to ensure existing log output remains readable. Thread the new error detail types through DTOs and mapper utilities in `packages/tm-core/src/modules/integration/types/github-sync-state-types.ts` and CLI result typing. Add inline documentation explaining the structured error behavior for future command implementations.",
+            "status": "pending",
+            "testStrategy": "Test error formatting output for each error type category, verify backwards compatibility with existing error display formats, and ensure proper type propagation through the DTO layer with comprehensive unit tests."
+          },
+          {
+            "id": 4,
+            "title": "Refactor Promise.all to Promise.allSettled for graceful username validation failure handling",
+            "description": "Replace Promise.all with Promise.allSettled in integration-domain.ts to separate validation failures from transport errors",
+            "dependencies": [
+              2
+            ],
+            "details": "Replace the `Promise.all` implementation in `packages/tm-core/src/modules/integration/integration-domain.ts:886` with `Promise.allSettled` to handle username validation failures more gracefully. Implement logic to separate invalid usernames from transport/authentication failures by analyzing the settled results. Aggregate all invalid username errors into a single `TaskMasterError` with `ERROR_CODES.VALIDATION_ERROR` while rethrowing the first non-validation failure with preserved cause metadata. This allows upstream callers to distinguish between transient issues (network/auth) and fatal validation problems, enabling appropriate retry strategies and user guidance.",
+            "status": "pending",
+            "testStrategy": "Create unit tests covering mixed failure scenarios: some usernames invalid (validation errors) while others fail due to network/auth issues. Verify that validation errors are properly aggregated while transport errors are rethrown with preserved metadata. Test that the error classification correctly distinguishes between transient and fatal failure types."
+          }
+        ]
+      },
+      {
+        "id": 24,
+        "title": "Add Edge Case Tests for Repository Format Validation",
+        "description": "Implement comprehensive edge case test coverage for repository format validation including special characters, Unicode, path traversal attempts, whitespace handling, and security-focused malicious input patterns.",
+        "details": "Extend the existing test suite in `packages/tm-core/src/modules/integration/services/github-validation.service.spec.ts` to add comprehensive edge case coverage for the `validateRepoFormat` method in GitHubValidationService. The current test coverage only includes basic happy path scenarios and simple invalid formats, missing critical edge cases and security considerations.\n\n**Required Test Categories:**\n\n1. **Special Characters Testing**: Add parameterized tests for repo names containing slashes (`owner/repo/extra`), dots (`owner.name/repo.name`), hyphens (`dash-owner/dash-repo`), underscores (`under_score/repo_name`), and combinations thereof.\n\n2. **Unicode and Internationalization**: Test Unicode characters in owner/repo names (`测试用户/项目名称`), emoji characters (`🚀owner/🎯repo`), and Unicode normalization edge cases (combining characters, different encodings).\n\n3. **Path Traversal Security Tests**: Implement security-focused tests for path traversal attempts (`../../../etc/passwd`, `..\\\\windows\\\\system32`, `./../../malicious`), relative path injection (`./owner/repo`, `~/user/repo`), and URL-encoded traversal attempts (`%2e%2e%2f`, `%5c%5c`).\n\n4. **Whitespace and Empty Value Handling**: Test leading whitespace (`  owner/repo`), trailing whitespace (`owner/repo  `), internal excessive whitespace (`owner  /  repo`), tab characters, newlines, and completely empty strings or null values.\n\n5. **Boundary and Length Testing**: Test very long owner names (>100 characters), very long repo names (>100 characters), single character names, and GitHub's actual limits (39 character limit for usernames).\n\n6. **Format Validation Edge Cases**: Test missing slash (`ownerrepo`), multiple slashes (`owner/repo/extra`, `owner//repo`), leading/trailing slashes (`/owner/repo`, `owner/repo/`), and malformed patterns (`owner/`, `/repo`).\n\n7. **Case Sensitivity**: Test mixed case scenarios and ensure validation handles case appropriately according to GitHub's rules.\n\n**Implementation Approach:**\n- Use `describe.each` or similar parameterized testing for systematic coverage\n- Group tests by security concern vs functional validation\n- Include both positive tests (should pass) and negative tests (should fail with specific error codes)\n- Verify that malicious inputs are properly rejected with appropriate error messages\n- Ensure the validation aligns with actual GitHub API requirements\n\n**Integration with Existing Validation**: Extend the current `ValidationResult` structure to include security-specific error codes like `SECURITY_PATH_TRAVERSAL`, `INVALID_UNICODE_CHARS`, `SUSPICIOUS_INPUT_PATTERN` alongside existing `INVALID_REPO_FORMAT` codes.",
+        "testStrategy": "Create comprehensive test coverage using vitest's parameterized testing capabilities. Implement test matrices for each edge case category with both positive and negative test cases. Verify that each malicious input pattern is properly rejected with appropriate error codes and helpful error messages. Test the integration between `validateRepoFormat` and `validateSyncOptions` to ensure edge cases are handled consistently. Include performance tests to ensure validation doesn't become a bottleneck with complex Unicode inputs. Add regression tests for any security vulnerabilities discovered during edge case testing. Validate that error messages provide actionable guidance without exposing sensitive system information.",
+        "status": "pending",
+        "dependencies": [
+          8,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement special character and Unicode validation tests",
+            "description": "Create parameterized tests covering repo formats with special characters and Unicode names.",
+            "dependencies": [],
+            "details": "Expand github-validation.service.spec.ts with describe.each matrices for special characters, mixed punctuation, and diverse Unicode repo identifiers, asserting expected success or failure results.",
+            "status": "pending",
+            "testStrategy": "Use vitest describe.each to check validateRepoFormat responses and error codes for each special character and Unicode sample."
+          },
+          {
+            "id": 2,
+            "title": "Add security-focused path traversal validation tests",
+            "description": "Introduce negative tests for path traversal and malicious input patterns in validation.",
+            "dependencies": [],
+            "details": "Author targeted test cases for traversal sequences, relative path injections, and encoded attacks, ensuring validateRepoFormat rejects them with security error codes.",
+            "status": "pending",
+            "testStrategy": "Leverage describe.each to feed malicious patterns and expect ValidationResult failures tagged with SECURITY_PATH_TRAVERSAL or SUSPICIOUS_INPUT_PATTERN."
+          },
+          {
+            "id": 3,
+            "title": "Cover whitespace, boundary, and format edge cases",
+            "description": "Add exhaustive tests for whitespace handling, length boundaries, and structural format issues.",
+            "dependencies": [],
+            "details": "Include cases for leading/trailing whitespace, tabs, empty values, long names, missing or extra slashes, and GitHub limit boundaries, verifying precise validation outcomes.",
+            "status": "pending",
+            "testStrategy": "Combine positive and negative assertions ensuring whitespace trimming, boundary enforcement, and format errors map to expected codes using targeted expect statements."
+          },
+          {
+            "id": 4,
+            "title": "Ensure validation integration and error code coverage",
+            "description": "Align extended tests with updated ValidationResult integration and security error codes.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Verify ValidationResult supports new security error identifiers, adjust helper utilities, and confirm all pathways surface precise error messages for new edge cases.",
+            "status": "pending",
+            "testStrategy": "Run full spec suite confirming new error codes resolve correctly and add regression checks for ValidationResult helpers if needed."
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "Fix Manual Conflict Resolution Edge Cases and Validation",
+        "description": "Address validation gaps in manual conflict resolution where manual data doesn't properly validate against actual conflict fields, resolved values, and structural requirements.",
+        "details": "This task fixes critical validation gaps in the manual conflict resolution logic in integration-domain.ts:326-361. The current implementation has several issues: 1) Allows providing resolution data for fields that aren't actually in conflict, 2) Doesn't ensure all conflicting fields have resolutions provided, 3) No validation that resolved values are valid for their field types, 4) No verification that manual resolution structure matches the actual conflict structure. The fixes needed include: 1) Enhance the existing validation in resolveConflict() method to cross-reference manualData keys against the actual conflict.fields array from the SyncConflict object, 2) Add validation to ensure all fields present in conflict.fields have corresponding entries in manualData, 3) Implement type checking for resolved values based on ConflictField types (string for title/description, specific enums for status/priority, arrays for labels/dependencies), 4) Add structural validation to the ConflictResolution type definition in github-conflict-types.ts to enforce these constraints at the type level, 5) Update the ManualConflictResolution interface to include field-specific type constraints.",
+        "testStrategy": "Create comprehensive test coverage including: 1) Test cases where manual resolution provides extra fields not present in the actual conflict (should throw validation error), 2) Test cases where manual resolution omits required fields that are in conflict (should throw validation error with specific missing field names), 3) Test cases where resolved values have invalid types (e.g., number for title, invalid status enum value) (should throw type validation error), 4) Test cases with valid manual resolution matching all conflict fields with correct types (should succeed), 5) Property-based tests that generate random conflict structures and validate that manual resolutions must exactly match the conflict field structure, 6) Integration tests with the ConflictResolutionService to ensure validation propagates correctly through the resolution pipeline.",
+        "status": "pending",
+        "dependencies": [
+          5,
+          10,
+          15,
+          20
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Enhance cross-reference validation between manual resolution data and conflict fields",
+            "description": "Implement validation logic to ensure manual resolution data keys match actual conflict fields from the SyncConflict object.",
+            "dependencies": [],
+            "details": "Modify the resolveConflict() method in integration-domain.ts:326-361 to cross-reference manualData keys against the actual conflict.fields array. Add validation that throws descriptive errors when manual resolution provides data for fields that aren't actually in conflict. This prevents invalid resolution attempts and ensures data integrity.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mock conflicts containing specific fields, test cases providing extra fields not in conflict (should error), test cases with valid field matches (should pass)"
+          },
+          {
+            "id": 2,
+            "title": "Implement comprehensive field presence validation for all conflicting fields",
+            "description": "Add validation to ensure all fields present in conflict.fields have corresponding entries in manualData resolution.",
+            "dependencies": [
+              1
+            ],
+            "details": "Extend the validation logic to check that every field listed in the conflict.fields array has a corresponding resolution entry in the manualData. Throw specific validation errors listing missing fields when resolution data is incomplete. This ensures complete conflict resolution.",
+            "status": "pending",
+            "testStrategy": "Test cases with missing required fields (should error with field names), test cases with complete resolutions (should pass), test edge cases with empty conflicts"
+          },
+          {
+            "id": 3,
+            "title": "Add type checking for resolved values based on ConflictField types",
+            "description": "Implement runtime type validation for resolved values ensuring they match expected types for each field category.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add type checking logic that validates resolved values based on ConflictField types: strings for title/description fields, specific enum values for status/priority fields, arrays for labels/dependencies fields. Implement validation functions for each field type and integrate into the resolution validation pipeline.",
+            "status": "pending",
+            "testStrategy": "Type validation tests for each field category (string, enum, array), invalid type tests (should error), boundary tests with edge cases like empty strings or invalid enum values"
+          },
+          {
+            "id": 4,
+            "title": "Update ConflictResolution type definitions and integrate with resolution pipeline",
+            "description": "Enhance type definitions in github-conflict-types.ts and update ManualConflictResolution interface with field-specific constraints.",
+            "dependencies": [
+              3
+            ],
+            "details": "Update the ConflictResolution type definition in github-conflict-types.ts to enforce structural validation constraints at the type level. Modify the ManualConflictResolution interface to include field-specific type constraints that align with the runtime validation. Ensure type system and runtime validation work together seamlessly.",
+            "status": "pending",
+            "testStrategy": "Integration tests with the complete resolution pipeline, type compilation tests ensuring TypeScript catches invalid structures, end-to-end conflict resolution tests with various conflict scenarios"
+          }
+        ]
+      },
+      {
+        "id": 26,
+        "title": "Clean Up Code Documentation and Remove Deprecated Code",
+        "description": "Address documentation inconsistencies and deprecation issues across GitHub integration services including redundant JSDoc tags and incomplete deprecation warnings.",
+        "details": "This task involves cleaning up documentation and deprecation issues found in GitHub integration services:\n\n**1. Remove Redundant @private JSDoc Tags:**\n- File: packages/tm-core/src/modules/integration/services/github-validation.service.ts\n- Lines 351, 393, 426 have redundant @private JSDoc tags on methods already marked with TypeScript private keyword\n- Action: Remove @private JSDoc comments since TypeScript private provides the same functionality\n- Pattern: Search for `@private` JSDoc tags on private methods and remove them\n\n**2. Fix Incorrect Service Reference:**\n- File: apps/cli/src/commands/github/configure.command.ts:32\n- Comment incorrectly references 'GitHubAuthService' but should reference 'IntegrationDomain'\n- Current: \"This is a thin presentation layer over @tm/core's ConfigManager and GitHubAuthService\"\n- Fix: Update to \"This is a thin presentation layer over @tm/core's ConfigManager and IntegrationDomain\"\n\n**3. Complete Deprecation Warning:**\n- File: packages/tm-core/src/modules/integration/services/github-config.service.ts:296\n- validate() method marked @deprecated but missing version info and migration guidance\n- Current: \"@deprecated Use validateDetailed() for enhanced validation with error codes and suggestions\"\n- Fix: Add version deprecated and clearer migration path\n- Update to: \"@deprecated since v2.1.0 - Use validateDetailed() instead for enhanced validation with structured error codes, suggestions, and metadata\"\n\n**4. Audit validate() Method Usage:**\n- Search entire codebase for calls to the deprecated validate() method\n- Evaluate whether to remove @deprecated annotation or migrate callers to validateDetailed()\n- If validate() is still actively used, either remove deprecation or create migration plan\n- If rarely used, consider migrating callers to validateDetailed() and keeping deprecation\n\n**Files to Update:**\n- packages/tm-core/src/modules/integration/services/github-validation.service.ts (remove @private tags)\n- apps/cli/src/commands/github/configure.command.ts (fix service name comment)\n- packages/tm-core/src/modules/integration/services/github-config.service.ts (complete deprecation warning)\n- Any files calling validate() method (migration or usage audit)\n\n**Code Quality Benefits:**\n- Removes redundant documentation that could confuse developers\n- Ensures comments accurately reflect current architecture\n- Provides clear migration guidance for deprecated methods\n- Maintains consistency between TypeScript features and JSDoc annotations",
+        "testStrategy": "Verify documentation cleanup by: 1) Running TypeScript compiler to ensure no compile warnings about deprecated usage, 2) Using grep/search tools to confirm all @private JSDoc tags are removed from private TypeScript methods, 3) Validating that service name references are accurate in comments, 4) Testing that validateDetailed() provides equivalent functionality to validate() method in all use cases, 5) Performing code review to ensure documentation accuracy and completeness, 6) Running existing test suites to ensure no functional regressions from documentation changes",
+        "status": "pending",
+        "dependencies": [
+          8,
+          10,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Add Validation and Logging Improvements",
+        "description": "Enhance validation error logging in configure command and add configuration validation before persistence in GitHub config service.",
+        "details": "This task addresses two critical validation and logging gaps:\n\n1. **inquirer validation error logging** (configure.command.ts:344-375):\n   - Current validation failures in inquirer prompts (token, owner, repo) are silently returned to user without any logging\n   - Add logger.debug() calls for all validation failures to aid debugging and monitoring\n   - Include field name and validation rule that failed in the log messages\n   - Use existing logger pattern from GitHubConfigService\n\n2. **updateConfig() validation gap** (github-config.service.ts:184-203):\n   - The updateConfig() method merges configuration without validating the merged result before saving\n   - Could save invalid merged configuration to disk, causing runtime errors\n   - Add call to validateDetailed() before saving merged configuration\n   - Throw error with descriptive message if merged config is invalid\n   - Add logger.info() for configuration changes to create audit trail\n\n**Implementation approach:**\n- Import logger in configure.command.ts using existing pattern: `import { getLogger } from '@tm/core'`\n- Add logger.debug calls in validation functions of inquirer prompts\n- Modify updateConfig() to call this.validateDetailed() before this.configManager.updateConfig()\n- Log both successful updates and validation failures with appropriate context",
+        "testStrategy": "Create comprehensive test coverage including:\n1. **Logging validation**: Mock logger and verify validation failures are logged with correct debug level and context (field name, error message)\n2. **updateConfig validation**: Test that updateConfig() throws error when merged configuration fails validation, with descriptive error message\n3. **Audit trail verification**: Verify that successful configuration changes are logged with appropriate context\n4. **Integration tests**: Test end-to-end scenarios where invalid inputs trigger both validation failures and appropriate logging",
+        "status": "pending",
+        "dependencies": [
+          8,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add debug logging for inquirer validation failures",
+            "description": "Instrument configure command validators to log the field and rule when validation fails.",
+            "dependencies": [],
+            "details": "Import the shared logger, instantiate it alongside existing usage, and emit logger.debug messages for each validation branch across token, owner, and repo prompts with rule context.",
+            "status": "pending",
+            "testStrategy": "Use existing unit test harness to assert logger.debug receives expected messages when validators return error strings."
+          },
+          {
+            "id": 2,
+            "title": "Validate merged config before persistence in GitHubConfigService",
+            "description": "Guard updateConfig with detailed validation before writing merged configuration to disk.",
+            "dependencies": [],
+            "details": "After merging the incoming configuration, call validateDetailed, throw a descriptive error if invalid, and add logger.info statements capturing successful updates and validation failures.",
+            "status": "pending",
+            "testStrategy": "Exercise updateConfig with valid and invalid payloads using mocks for validateDetailed and configManager to verify control flow and logging."
+          },
+          {
+            "id": 3,
+            "title": "Expand automated tests for validation logging and audit trail",
+            "description": "Ensure new logging and validation behaviors are covered by targeted unit tests.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create or extend test suites to cover inquirer validator logging, updateConfig validation errors, and positive audit logging paths, using logger spies and filesystem mocks as needed.",
+            "status": "pending",
+            "testStrategy": "Leverage Jest to simulate prompt failures and config merges, asserting against logger spy calls, thrown errors, and configManager interactions."
+          }
+        ]
+      },
+      {
+        "id": 28,
+        "title": "Remove Redundant Comments and Improve Code Clarity",
+        "description": "Clean up redundant inline comments in github-validation.service.ts that restate obvious code without adding value, while preserving meaningful comments that explain business logic or non-obvious decisions.",
+        "details": "This task involves removing redundant inline comments from packages/tm-core/src/modules/integration/services/github-validation.service.ts that add no informational value beyond what the code clearly expresses. The specific comments to remove are:\n\n1. Line 98: '// Validate mode' - comment just restates what the conditional logic clearly shows\n2. Line 114: '// Validate subtaskMode' - comment duplicates what the code structure already indicates\n3. Line 133: '// Validate repo format (if provided)' - comment adds no value beyond the variable name and conditional\n4. Line 141: '// Validate force flag with context' - comment restates the condition being checked\n5. Line 153: '// Validate dry-run with force' - comment duplicates the method logic\n\nGuidelines for comment removal:\n- Remove comments that merely restate what the code does\n- Preserve comments explaining WHY something is done, not WHAT is done\n- Keep comments that explain non-obvious business logic or decisions\n- Maintain all JSDoc comments for public APIs\n- Keep comments that reference external requirements or architectural decisions\n\nThe goal is to make the code more readable by removing noise while preserving valuable documentation. Each validation block should be self-documenting through clear variable names and logical structure.",
+        "testStrategy": "Verify code cleanup through: 1) Run TypeScript compilation to ensure no syntax errors introduced, 2) Execute existing test suite for github-validation.service.spec.ts to confirm no functionality changes, 3) Code review to verify comments removal improves readability without losing important context, 4) Check that all JSDoc comments for public methods remain intact, 5) Validate that meaningful comments explaining business logic are preserved, 6) Ensure code remains self-documenting through clear naming and structure",
+        "status": "pending",
+        "dependencies": [
+          8,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Remove redundant inline comments in github-validation.service.ts",
+            "description": "Delete the specified redundant inline comments that restate obvious validation logic while keeping meaningful documentation.",
+            "dependencies": [],
+            "details": "Open packages/tm-core/src/modules/integration/services/github-validation.service.ts and remove the five listed inline comments without altering surrounding logic or valuable explanatory comments.",
+            "status": "pending",
+            "testStrategy": "After editing, run existing TypeScript build or lint commands to confirm no syntax issues were introduced."
+          },
+          {
+            "id": 2,
+            "title": "Review readability and documentation after comment cleanup",
+            "description": "Perform a focused code review ensuring the file remains self-documenting, readability improves, and meaningful business logic comments are untouched.",
+            "dependencies": [
+              1
+            ],
+            "details": "Inspect the updated github-validation.service.ts to verify each validation block reads clearly without the removed comments and confirm all remaining comments provide necessary context.",
+            "status": "pending",
+            "testStrategy": "Conduct manual code review and, if available, run targeted unit tests for github-validation.service.spec.ts to ensure behavior remains unchanged."
+          }
+        ]
+      },
+      {
+        "id": 29,
+        "title": "Fix Critical Null Safety Issues in GitHub Sync",
+        "description": "Fix critical null safety violations that can cause runtime crashes in sync.command.ts and integration-domain.ts.",
+        "details": "Address two critical null safety issues:\n\n1. **Missing null check in sync.command.ts:219**: The validateOptions() method accesses `this.tmCore.integration` without verifying tmCore is initialized. This causes 'Cannot read property of undefined' runtime errors. Fix by adding null/undefined check: `if (!this.tmCore?.integration) throw new Error('TmCore not initialized')`. The validateOptions() method is called after initializeCore() but before proper verification.\n\n2. **Promise.all() without individual error handling in integration-domain.ts:890-895**: The validateUsernamesOrThrow() method uses Promise.all() for username validation, causing all validations to fail if one validation throws an unexpected error. This all-or-nothing approach loses information about which validations passed. Fix by replacing Promise.all() with Promise.allSettled() and handle individual failures gracefully, providing detailed error messages about which usernames failed and why.\n\nImplementation approach:\n- Add defensive null checks with descriptive error messages\n- Replace Promise.all() with Promise.allSettled() for graceful failure handling\n- Maintain existing error throwing behavior while providing better error context\n- Follow existing error handling patterns in the codebase\n- Ensure backward compatibility with existing callers",
+        "testStrategy": "Create comprehensive test coverage:\n1. **Null safety tests for sync.command.ts**: Test validateOptions() with null/undefined tmCore, test with initialized tmCore but undefined integration domain, verify descriptive error messages are thrown\n2. **Username validation resilience tests**: Test validateUsernamesOrThrow() with mixed success/failure scenarios (some valid, some invalid usernames), test with network errors during validation, test with GitHub API rate limiting, verify individual failure details are preserved\n3. **Error message quality tests**: Verify error messages include failure context and actionable guidance\n4. **Backward compatibility tests**: Ensure existing behavior is preserved for valid scenarios\n5. **Integration tests**: Test full sync workflow with various error conditions to ensure graceful degradation",
+        "status": "pending",
+        "dependencies": [
+          9,
+          17
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add defensive tmCore null checks in validateOptions",
+            "description": "Ensure validateOptions handles missing tmCore integration safely.",
+            "dependencies": [],
+            "details": "Update sync.command.ts validateOptions() to guard tmCore access with descriptive error messaging and follow existing patterns.",
+            "status": "pending",
+            "testStrategy": "Exercise validateOptions with uninitialized tmCore using existing unit harness or new targeted tests."
+          },
+          {
+            "id": 2,
+            "title": "Implement per-username error handling with Promise.allSettled",
+            "description": "Refine username validation to tolerate individual failures while reporting specifics.",
+            "dependencies": [],
+            "details": "Refactor integration-domain.ts to replace Promise.all with Promise.allSettled and aggregate detailed failure reasons without losing successful results.",
+            "status": "pending",
+            "testStrategy": "Add focused unit coverage for validateUsernamesOrThrow to confirm partial failures surface correct error messages."
+          },
+          {
+            "id": 3,
+            "title": "Expand test coverage for null safety and username validation",
+            "description": "Create comprehensive automated tests for new guard clauses and resilient validation.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Author tests that simulate missing tmCore integration and mixed username outcomes to verify new guards and error reporting behave as intended.",
+            "status": "pending",
+            "testStrategy": "Implement unit specs for sync.command null guard and integration-domain username validation, asserting thrown errors and result structures."
+          }
+        ]
+      },
+      {
+        "id": 30,
+        "title": "Fix Type Design Issues - Computed Properties for Consistency",
+        "description": "Convert inconsistent boolean flags to computed properties in ValidationResult and ConfigureGitHubResult to prevent type safety violations where manual flag assignments can contradict actual state.",
+        "details": "This task addresses critical type safety violations where boolean flags can become inconsistent with their underlying state:\n\n**Issue 1: ValidationResult.valid inconsistency (github-validation.service.ts:52)**\n- The `valid` field can be manually set independently of the `errors` array\n- Risk: `valid=true` with errors present, or `valid=false` with empty errors\n- Fix: Convert `valid` to computed property: `get valid() { return this.errors.length === 0; }`\n- Remove `valid` from constructor parameters and all manual assignments\n- Update all 15+ locations where ValidationResult is created to remove valid parameter\n\n**Issue 2: ConfigureGitHubResult.success flag inconsistency (integration-domain.ts:83)**\n- The `success` field can be set to `true` even if validations failed\n- No enforcement that success reflects actual validation state\n- Fix: Convert `success` to computed property: `get success() { return this.tokenValidation.valid && this.repoAccess.accessible; }`\n- Remove `success` from interface and all manual assignments\n- Update configureGitHubWithValidation method to rely on computed property\n\n**Implementation Steps:**\n1. Update ValidationResult interface to replace `valid: boolean` with `get valid(): boolean`\n2. Remove `valid` parameter from all ValidationResult creation sites (validateSyncOptions, validateConfig, validateFeatures, validateToken, validateRepoFormat methods)\n3. Update ConfigureGitHubResult interface to replace `success: boolean` with `get success(): boolean`\n4. Update configureGitHubWithValidation method in integration-domain.ts to remove manual success assignment\n5. Verify all TypeScript compilation passes without errors\n6. Run existing test suites to ensure no breaking changes",
+        "testStrategy": "Create comprehensive tests to verify computed property behavior and prevent regression:\n\n**ValidationResult Tests:**\n1. **Computed property validation**: Test that `valid` automatically returns `false` when errors exist and `true` when errors array is empty\n2. **Constructor validation**: Verify ValidationResult can be created without `valid` parameter and still functions correctly\n3. **Immutability tests**: Test that `valid` property cannot be manually assigned (should be read-only)\n4. **Edge cases**: Test with empty errors array, single error, multiple errors\n\n**ConfigureGitHubResult Tests:**\n1. **Success computation**: Test that `success` returns `true` only when both `tokenValidation.valid=true` AND `repoAccess.accessible=true`\n2. **Failure scenarios**: Test `success=false` when token invalid, repo inaccessible, or both fail\n3. **Property-based tests**: Use property-based testing to verify invariant that success always reflects validation state\n4. **Integration tests**: Test configureGitHubWithValidation method returns correct computed success values\n\n**Regression Prevention:**\n1. **TypeScript compilation**: Ensure all files compile without type errors after changes\n2. **Existing test suite**: Run full github-validation.service.spec.ts and integration-domain tests\n3. **State consistency**: Add tests that verify computed properties maintain consistency under all state changes",
+        "status": "pending",
+        "dependencies": [
+          8,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Convert ValidationResult.valid to computed property",
+            "description": "Replace the manual `valid` boolean field in ValidationResult interface with a computed property that automatically determines validity based on the errors array state.",
+            "dependencies": [],
+            "details": "Update ValidationResult interface to replace `valid: boolean` with `get valid(): boolean { return this.errors.length === 0; }`. Remove the `valid` parameter from the ValidationResult constructor. Update all ValidationResult creation sites in validateSyncOptions, validateConfig, validateFeatures, validateToken, and validateRepoFormat methods to remove the valid parameter. Ensure the computed property correctly returns false when errors exist and true when the errors array is empty.",
+            "status": "pending",
+            "testStrategy": "Unit tests to verify computed property returns correct boolean based on errors array state, edge cases with empty arrays and arrays with multiple errors"
+          },
+          {
+            "id": 2,
+            "title": "Convert ConfigureGitHubResult.success to computed property",
+            "description": "Replace the manual `success` boolean field in ConfigureGitHubResult interface with a computed property that reflects the actual validation state of token and repository access.",
+            "dependencies": [
+              1
+            ],
+            "details": "Update ConfigureGitHubResult interface to replace `success: boolean` with `get success(): boolean { return this.tokenValidation.valid && this.repoAccess.accessible; }`. Remove the `success` field from the interface definition and any manual assignments. Update the configureGitHubWithValidation method in integration-domain.ts to rely on the computed property instead of manually setting the success flag.",
+            "status": "pending",
+            "testStrategy": "Unit tests to verify success computed property correctly reflects combination of tokenValidation.valid and repoAccess.accessible states"
+          },
+          {
+            "id": 3,
+            "title": "Update all instantiation sites to remove manual flag assignments",
+            "description": "Remove all manual assignments of the `valid` and `success` flags from ValidationResult and ConfigureGitHubResult creation sites throughout the codebase.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Systematically identify and update all 15+ locations where ValidationResult is instantiated to remove the `valid` parameter. Update any ConfigureGitHubResult creation sites to remove manual `success` assignments. Ensure all TypeScript compilation passes without errors after removing these manual flag assignments. Verify that the computed properties are being used correctly in all consuming code.",
+            "status": "pending",
+            "testStrategy": "Compilation tests to ensure TypeScript builds successfully, regression tests to verify existing functionality remains intact after removing manual assignments"
+          },
+          {
+            "id": 4,
+            "title": "Create comprehensive tests for computed property behavior",
+            "description": "Develop thorough test suites to validate the computed property implementations and ensure state consistency between flags and their underlying data.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Create unit tests for ValidationResult computed property covering scenarios with empty errors arrays, single errors, and multiple errors. Create unit tests for ConfigureGitHubResult computed property covering all combinations of tokenValidation.valid and repoAccess.accessible states. Add integration tests to verify that the computed properties maintain consistency in real-world usage scenarios. Include edge case tests for null/undefined values and boundary conditions.",
+            "status": "pending",
+            "testStrategy": "Comprehensive test coverage including unit tests for computed property logic, integration tests for real-world scenarios, and edge case validation for boundary conditions"
+          },
+          {
+            "id": 5,
+            "title": "Refactor ValidationResult.valid into computed getter",
+            "description": "Replace the manual valid flag with a computed getter on ValidationResult.",
+            "dependencies": [],
+            "details": "Update ValidationResult definition to expose a getter, drop constructor parameter, and adjust internal state handling.",
+            "status": "pending",
+            "testStrategy": "Run TypeScript compile to confirm getter typing and adjust existing unit coverage if available."
+          },
+          {
+            "id": 6,
+            "title": "Derive ConfigureGitHubResult.success from validation state",
+            "description": "Make success on ConfigureGitHubResult a computed getter reflecting validation outcomes.",
+            "dependencies": [
+              5
+            ],
+            "details": "Modify the result interface/class to expose success via getter combining tokenValidation.valid and repoAccess.accessible.",
+            "status": "pending",
+            "testStrategy": "Ensure TypeScript compile succeeds and add sanity checks within existing integration tests."
+          },
+          {
+            "id": 7,
+            "title": "Clean up instantiation sites removing flag assignments",
+            "description": "Update all creation sites to align with new computed getters and remove manual flag arguments.",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "Review constructors and factory functions to delete explicit valid/success parameters and fix call signatures.",
+            "status": "pending",
+            "testStrategy": "Run targeted TypeScript builds and linting to catch missed call-site updates."
+          },
+          {
+            "id": 8,
+            "title": "Add tests covering computed property consistency",
+            "description": "Write tests verifying computed getters reflect underlying state correctly.",
+            "dependencies": [
+              5,
+              6,
+              7
+            ],
+            "details": "Author test cases that mutate errors and validation results to confirm valid/success getters stay in sync with state.",
+            "status": "pending",
+            "testStrategy": "Create unit tests for ValidationResult and ConfigureGitHubResult ensuring getter outputs track scenarios with/without errors."
+          }
+        ]
+      },
+      {
+        "id": 31,
+        "title": "Add Factory Validation for GitHubSyncOptions",
+        "description": "Prevent invalid object construction by adding factory function with comprehensive validation for mode values, repository format, and option combinations.",
+        "details": "The GitHubSyncOptions interface in packages/tm-core/src/modules/integration/types/github-sync-state-types.ts (lines 336-357) and integration-domain.ts (lines 44-50) currently allows invalid object construction that violates fail-fast principles. Implement factory validation by:\n\n1. **Add static factory method**: Create GitHubSyncOptions.create(options) that validates all parameters before construction\n2. **Mode validation**: Ensure mode is strictly 'one-way' or 'two-way' (not undefined or invalid values)\n3. **Repository format validation**: Validate repo string matches 'owner/repo' pattern using regex /^[a-zA-Z0-9._-]+\\/[a-zA-Z0-9._-]+$/\n4. **Option combination validation**: Prevent conflicting combinations like manual conflict resolution in one-way mode\n5. **Return Result pattern**: Return Result<GitHubSyncOptions, ValidationError> using existing ValidationError from common/errors/index.ts\n6. **Make constructor private**: Force use of factory by making constructor private\n7. **Update instantiation sites**: Replace direct object literals in integration-domain.ts:207, github-sync.service.ts:99, and all test files (github-validation.service.spec.ts) to use factory method\n8. **Descriptive error messages**: Include specific validation failures with field names and expected formats",
+        "testStrategy": "Create comprehensive test suite covering: 1) **Factory success cases**: Test all valid option combinations (one-way/two-way modes, valid repo formats like 'owner/repo', all boolean combinations) 2) **Mode validation failures**: Test invalid modes ('invalid-mode', null, undefined, empty string) with specific error messages 3) **Repository validation failures**: Test malformed repo strings ('invalid', 'owner/', '/repo', 'owner/repo/extra', special characters) 4) **Option conflict validation**: Test invalid combinations like conflicting boolean flags 5) **Error message quality**: Verify ValidationError messages are descriptive and include field names 6) **Integration tests**: Update existing github-validation.service.spec.ts tests to use factory pattern 7) **Constructor privacy**: Verify direct construction throws or is prevented",
+        "status": "pending",
+        "dependencies": [
+          8,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Static Factory Method with Comprehensive Parameter Validation",
+            "description": "Create GitHubSyncOptions.create() static factory method that validates all parameters before construction and returns Result<GitHubSyncOptions, ValidationError> pattern.",
+            "dependencies": [],
+            "details": "Add static factory method GitHubSyncOptions.create(options) in github-sync-state-types.ts that performs comprehensive validation of all input parameters. Implement mode validation to ensure values are strictly 'one-way' or 'two-way', repository format validation using regex /^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$/, and option combination validation to prevent conflicting configurations like manual conflict resolution in one-way mode. Return Result<GitHubSyncOptions, ValidationError> using existing ValidationError from common/errors/index.ts with descriptive error messages including field names and expected formats.",
+            "status": "pending",
+            "testStrategy": "Unit tests covering all validation scenarios: valid mode values ('one-way', 'two-way'), invalid modes (null, undefined, empty string, 'invalid-mode'), valid repository formats ('owner/repo'), invalid repository formats (missing slash, empty parts, special characters), and conflicting option combinations with specific error message verification."
+          },
+          {
+            "id": 2,
+            "title": "Add Mode and Repository Format Validation with Regex Patterns",
+            "description": "Implement detailed validation logic for mode values and repository format using regex patterns within the factory method.",
+            "dependencies": [
+              1
+            ],
+            "details": "Within the GitHubSyncOptions.create() factory method, implement specific validation functions for mode validation (ensuring strict 'one-way' or 'two-way' values) and repository format validation using regex pattern /^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$/ to match 'owner/repo' format. Add validation for option combinations to prevent invalid configurations such as enabling manual conflict resolution in one-way sync mode. Include comprehensive error messages that specify which validation rule failed and provide examples of valid formats.",
+            "status": "pending",
+            "testStrategy": "Test regex pattern validation with valid repository names ('user/repo', 'org-name/project_name', 'user123/repo.name') and invalid formats ('repo', 'user/', '/repo', 'user//repo', 'user/repo/extra'). Verify mode validation rejects invalid values and option combination validation prevents conflicting settings."
+          },
+          {
+            "id": 3,
+            "title": "Make Constructor Private and Update All Instantiation Sites",
+            "description": "Convert GitHubSyncOptions constructor to private and update all direct object literals and instantiation sites to use the new factory pattern.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Make the GitHubSyncOptions constructor private to enforce use of the factory method. Update all instantiation sites including integration-domain.ts:207, github-sync.service.ts:99, and test files (github-validation.service.spec.ts) to replace direct object literals with GitHubSyncOptions.create() factory calls. Handle Result pattern return values appropriately at each call site, either unwrapping successful results or propagating validation errors. Ensure all existing functionality remains intact while enforcing validation through the factory pattern.",
+            "status": "pending",
+            "testStrategy": "Integration tests verifying all instantiation sites successfully use factory method. Test that direct constructor calls are prevented (compilation errors). Verify existing functionality works correctly with factory pattern and that validation errors are properly handled at each call site."
+          },
+          {
+            "id": 4,
+            "title": "Create Extensive Test Coverage for Factory Validation",
+            "description": "Develop comprehensive test suite covering factory validation success cases, failure scenarios, and integration tests for all validation logic.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Create comprehensive test coverage including: 1) Factory success cases testing all valid option combinations (one-way/two-way modes, valid repo formats like 'owner/repo', all boolean combinations), 2) Mode validation failures testing invalid modes ('invalid-mode', null, undefined, empty string) with specific error message verification, 3) Repository format validation failures testing malformed repository strings with regex pattern enforcement, 4) Option combination validation failures testing conflicting settings like manual conflict resolution in one-way mode, 5) Integration tests verifying factory usage across all instantiation sites works correctly and maintains existing functionality.",
+            "status": "pending",
+            "testStrategy": "Unit tests for GitHubSyncOptions.create() covering all validation paths, integration tests for updated instantiation sites, and end-to-end tests ensuring the factory pattern maintains existing functionality while preventing invalid object construction. Include edge cases, boundary conditions, and error message format verification."
+          }
+        ]
+      },
+      {
+        "id": 32,
+        "title": "Create Comprehensive CLI Command Unit Tests",
+        "description": "Add comprehensive unit test coverage for GitHub CLI commands (configure.command.ts and sync.command.ts) with mocked dependencies and thorough error handling validation.",
+        "details": "Create comprehensive unit test suites for the two GitHub CLI commands that currently have zero test coverage:\n\n**Test Files to Create:**\n- `apps/cli/src/commands/github/configure.command.spec.ts`\n- `apps/cli/src/commands/github/sync.command.spec.ts`\n\n**For configure.command.ts tests:**\n- Mock inquirer prompts and test interactive vs non-interactive flows\n- Test token validation scenarios (valid tokens, invalid tokens, environment variable handling)\n- Test configuration persistence and error recovery\n- Test CLI option parsing and validation (--token, --owner, --repo, etc.)\n- Test error handling for API failures and invalid repository access\n- Test output formatting and user messaging\n- Mock IntegrationDomain.configureGitHubWithValidation() and test different validation results\n- Test feature serialization/deserialization methods\n- Test ConfigureResult interface and getLastResult() method\n\n**For sync.command.ts tests:**\n- Test command option validation (mode, dry-run, force, subtask-mode, repo)\n- Mock TmCore initialization and test project path handling\n- Test GitHubSyncCommandOptions interface validation\n- Test sync execution flow with mocked IntegrationDomain.syncWithGitHub()\n- Test progress reporting and status updates during sync\n- Test error handling for sync failures and partial failures\n- Test GitHubSyncResult interface and result formatting\n- Test dry-run vs live execution modes\n- Test cleanup() method and resource management\n- Mock GitHubSyncProgress and SyncResultFormatter utilities\n\n**Testing Patterns:**\n- Use Vitest as the testing framework (matching existing codebase patterns)\n- Mock all external dependencies: inquirer, ora, chalk, @tm/core modules\n- Test both success and failure code paths extensively\n- Use defensive programming patterns in tests to handle edge cases\n- Test CLI output formatting and user-facing error messages\n- Follow existing test structure from other CLI utils (ui.spec.ts pattern)\n- Mock CommandActionWrapper.executeWithErrorHandling() for isolation\n- Ensure >80% code coverage for both command files",
+        "testStrategy": "Verify test implementation by:\n1. Run `npm test` to ensure both new test files execute successfully\n2. Verify test coverage reporting shows >80% coverage for configure.command.ts and sync.command.ts\n3. Run tests in isolation to ensure no interdependencies\n4. Test failure scenarios to ensure error paths are covered\n5. Validate mocking strategy covers all external dependencies (inquirer, @tm/core, ora, chalk)\n6. Ensure tests follow existing CLI testing patterns and use Vitest framework\n7. Verify tests handle both interactive and non-interactive command execution\n8. Check that tests validate user-facing error messages and output formatting\n9. Ensure tests cover edge cases like missing configuration, invalid options, and API failures\n10. Run tests with --coverage flag to confirm target coverage metrics",
+        "status": "pending",
+        "dependencies": [
+          8,
+          9
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Establish CLI test harness and mocks",
+            "description": "Prepare Vitest configuration and reusable mocks for external CLI dependencies.",
+            "dependencies": [],
+            "details": "Document or create shared mock factories for inquirer, ora, chalk, @tm/core, and CommandActionWrapper to support both command specs.",
+            "status": "pending",
+            "testStrategy": "Run `npm test -- --runInBand --findRelatedTests` on existing suites to confirm mocks integrate without failures."
+          },
+          {
+            "id": 2,
+            "title": "Author configure.command.spec.ts coverage",
+            "description": "Create unit tests covering interactive and non-interactive flows in configure command.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement tests that mock prompts, validate tokens, simulate environment variables, test option parsing, persistence, serialization, and ConfigureResult scenarios.",
+            "status": "pending",
+            "testStrategy": "Execute `npm test configure.command.spec.ts` and inspect snapshots/log assertions for accuracy."
+          },
+          {
+            "id": 3,
+            "title": "Implement sync.command.spec.ts suite",
+            "description": "Build comprehensive tests for sync command options and execution pipeline.",
+            "dependencies": [
+              1
+            ],
+            "details": "Cover option validation, TmCore initialization, progress reporting, GitHubSyncResult handling, dry-run logic, cleanup, and IntegrationDomain.syncWithGitHub flows using mocks.",
+            "status": "pending",
+            "testStrategy": "Run `npm test sync.command.spec.ts` to ensure all paths and mocked dependencies behave as expected."
+          },
+          {
+            "id": 4,
+            "title": "Expand error and edge case assertions",
+            "description": "Add failure and edge case tests shared across configure and sync command specs.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Introduce targeted tests for API failures, invalid repositories, partial sync outcomes, retry behavior, and user messaging to strengthen resilience coverage.",
+            "status": "pending",
+            "testStrategy": "Trigger crafted failure scenarios in both specs and verify thrown errors and logged output via focused Vitest runs."
+          },
+          {
+            "id": 5,
+            "title": "Verify coverage and test style compliance",
+            "description": "Confirm suites reach coverage goals and align with existing CLI testing conventions.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Review coverage reports for both commands, adjust tests if thresholds unmet, and ensure structure mirrors ui.spec.ts conventions with consistent naming and formatting.",
+            "status": "pending",
+            "testStrategy": "Run `npm test -- --coverage --runTestsByPath configure.command.spec.ts sync.command.spec.ts` and verify >80% coverage along with linting if applicable."
+          }
+        ]
+      },
+      {
+        "id": 33,
+        "title": "Add Concurrent Modification Tests for Sync Operations",
+        "description": "Create comprehensive test coverage for concurrent sync operation safety, race conditions, atomic updates, and state file concurrent access patterns.",
+        "details": "Implement critical concurrent modification tests to verify the GitHub sync system's safety under concurrent operations. Based on analysis of the existing codebase, the ResourceMutex-based locking system in GitHubSyncStateService and configuration services requires thorough testing to prevent data corruption and race conditions.\n\n**Required Test Coverage:**\n\n1. **Concurrent Sync Operation Tests** (packages/tm-core/tests/integration/github/concurrency.test.ts):\n   - Test two sync operations running simultaneously using Promise.all\n   - Verify state consistency after concurrent syncs by checking task-issue mappings\n   - Test one sync reading while another writes using delayed operations\n   - Verify no data corruption from race conditions by validating JSON integrity\n   - Test concurrent bidirectional sync operations with conflict resolution\n\n2. **Atomic State File Update Tests** (extend github-sync-state.service.spec.ts):\n   - Test state file updates are atomic using the existing ResourceMutex mechanism\n   - Verify partial writes don't leave corrupted state by interrupting operations\n   - Test recovery from interrupted updates using the existing backup/recovery system\n   - Verify state file backup/recovery mechanisms handle concurrent access\n   - Test modifyState() method's read-modify-write atomicity guarantees\n\n3. **Configuration Concurrent Access Tests** (extend github-config.service.spec.ts):\n   - Test reading config while another process writes using ConfigManager\n   - Verify config updates are atomic through the existing configuration system\n   - Test concurrent updateConfig() calls don't cause data loss\n   - Verify no race conditions in config persistence using file-based locking\n\n4. **Lock Contention Tests** (ResourceMutex integration):\n   - Test lock acquisition and release using the existing 30-second timeout\n   - Test lock timeout behavior with MutexTimeoutError verification\n   - Test deadlock prevention mechanisms in nested operations\n   - Test stale lock cleanup and automatic recovery\n   - Verify FIFO queue fairness in lock acquisition\n\n**Implementation Strategy:**\n   - Follow existing test patterns from file-operations-concurrency.test.ts\n   - Use Promise.all() to simulate true concurrent operations\n   - Introduce controlled delays to force race conditions\n   - Verify final state matches expected result after all operations complete\n   - Test with actual file system operations for integration-level validation\n   - Use ResourceMutex timeout configuration for faster test execution\n   - Include performance baselines for acceptable concurrency overhead",
+        "testStrategy": "Create comprehensive test suites using vitest framework:\n1. **Unit Tests**: Test ResourceMutex behavior in isolation with mock scenarios and timeout validation\n2. **Integration Tests**: Test real file system operations with concurrent GitHubSyncStateService and GitHubConfigService instances\n3. **Race Condition Tests**: Use Promise.race() and controlled delays to expose timing-dependent bugs\n4. **Stress Tests**: Run 50+ concurrent operations to verify system stability under load\n5. **Error Recovery Tests**: Inject failures during operations to verify lock release and state consistency\n6. **Performance Tests**: Measure acceptable overhead introduced by locking mechanisms (< 2x sequential time)\n7. **Backup Integration Tests**: Verify concurrent operations don't interfere with backup creation and recovery\n8. **State Validation Tests**: Use JSON schema validation to ensure state file integrity after concurrent modifications\n9. **Cross-Service Tests**: Test concurrent operations across GitHubSyncStateService and GitHubConfigService\n10. **Cleanup Tests**: Verify proper resource cleanup when operations are interrupted or timeout",
+        "status": "pending",
+        "dependencies": [
+          4,
+          6,
+          8
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add concurrent sync integration tests",
+            "description": "Implement integration tests covering simultaneous GitHub sync executions.",
+            "dependencies": [],
+            "details": "Update packages/tm-core/tests/integration/github/concurrency.test.ts with Promise.all scenarios, delayed operations, and state assertions for task-issue mappings.",
+            "status": "pending",
+            "testStrategy": "Run targeted suite via `pnpm test --filter concurrency.test.ts` and confirm state snapshots stay consistent."
+          },
+          {
+            "id": 2,
+            "title": "Extend atomic state file update specs",
+            "description": "Cover atomicity paths in github-sync-state.service under concurrent writes.",
+            "dependencies": [],
+            "details": "Add cases to github-sync-state.service.spec.ts for ResourceMutex-guarded writes, partial write interruption, and backup-driven recovery checks.",
+            "status": "pending",
+            "testStrategy": "Execute `pnpm test --filter github-sync-state.service` ensuring new specs pass and simulate failure modes."
+          },
+          {
+            "id": 3,
+            "title": "Add configuration concurrent access tests",
+            "description": "Validate ConfigManager handles concurrent read/write patterns safely.",
+            "dependencies": [],
+            "details": "Expand github-config.service.spec.ts to simulate simultaneous updateConfig invocations, atomic writes, and file lock contention scenarios.",
+            "status": "pending",
+            "testStrategy": "Run `pnpm test --filter github-config.service` verifying read/write races keep persisted config intact."
+          },
+          {
+            "id": 4,
+            "title": "Implement ResourceMutex contention coverage",
+            "description": "Test lock acquisition, timeouts, and fairness semantics.",
+            "dependencies": [],
+            "details": "Introduce focused specs asserting 30s timeout behavior, nested deadlock prevention, stale lock cleanup, and FIFO fairness in ResourceMutex integration.",
+            "status": "pending",
+            "testStrategy": "Leverage fast timeout configuration during tests and run `pnpm test --filter ResourceMutex` observing timeout/cleanup assertions."
+          },
+          {
+            "id": 5,
+            "title": "Create concurrency stress and performance tests",
+            "description": "Benchmark concurrency overhead and stress race paths after core coverage.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Build high-load scenarios reusing new tests to measure latency, throughput, and degradation thresholds under repeated concurrent operations.",
+            "status": "pending",
+            "testStrategy": "Execute stress harness with extended iterations, track timing metrics locally, and ensure stability without regressions."
+          }
+        ]
+      },
+      {
+        "id": 34,
+        "title": "Fix validateOptions Error Propagation in Sync Command",
+        "description": "Replace boolean return pattern in validateOptions() with proper error throwing to prevent silent failures and maintain error context throughout the call stack.",
+        "details": "The validateOptions() method in apps/cli/src/commands/github/sync.command.ts (lines 217-251) currently logs errors but returns false instead of throwing, causing error context loss and requiring manual boolean checks by callers. This violates fail-fast principles and is inconsistent with other validation patterns in the codebase.\n\n**Implementation Steps:**\n\n1. **Create specific error types** in packages/tm-core/src/modules/integration/errors/:\n   - GitHubSyncValidationError (base class)\n   - InvalidSyncModeError (for invalid mode values)\n   - InvalidRepositoryFormatError (for malformed repo strings)\n   - MissingCoreInstanceError (for null tmCore)\n\n2. **Update validateOptions method**:\n   - Remove boolean return type, make void\n   - Replace all `return false` statements with specific error throws\n   - Include validation context in error messages (which option failed, expected format)\n   - Remove console.error() calls (let callers handle error output)\n\n3. **Update callers** in sync.command.ts:\n   - Wrap validateOptions() calls in try/catch blocks\n   - Handle specific error types with appropriate user messages\n   - Maintain existing error output format for user experience\n\n4. **Follow existing patterns** from GitHubConfigService and GitHubValidationService error handling",
+        "testStrategy": "Create comprehensive test suite in apps/cli/src/commands/github/sync.command.spec.ts covering: 1) **Error throwing tests**: Verify validateOptions throws InvalidSyncModeError for invalid modes ('invalid', null, undefined), InvalidRepositoryFormatError for malformed repo strings ('repo', 'owner/', '/repo'), and MissingCoreInstanceError for null tmCore. 2) **Error message validation**: Verify error messages include specific validation context and expected formats. 3) **Caller error handling**: Test that command execution properly catches and handles each error type with appropriate user messages. 4) **Success path**: Verify validateOptions completes without throwing for valid inputs. 5) **Integration tests**: Verify full command execution with invalid options produces expected error output and exit codes.",
+        "status": "pending",
+        "dependencies": [
+          9
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create specific error types for sync validation failures",
+            "description": "Create new error classes in packages/tm-core/src/modules/integration/errors/ to handle different validation failure scenarios in the GitHub sync command.",
+            "dependencies": [],
+            "details": "Create GitHubSyncValidationError as base class, InvalidSyncModeError for invalid mode values, InvalidRepositoryFormatError for malformed repo strings, and MissingCoreInstanceError for null tmCore. Follow existing error patterns from GitHubConfigService and GitHubValidationService. Each error should include descriptive messages with validation context (which option failed, expected format).",
+            "status": "pending",
+            "testStrategy": "Unit tests for each error type creation, message format validation, inheritance chain verification"
+          },
+          {
+            "id": 2,
+            "title": "Update validateOptions method to throw specific errors",
+            "description": "Refactor validateOptions() method in sync.command.ts to throw specific errors instead of returning boolean values.",
+            "dependencies": [
+              1
+            ],
+            "details": "Remove boolean return type and make method void. Replace all 'return false' statements with specific error throws using the newly created error types. Include validation context in error messages. Remove console.error() calls as callers will handle error output. Update method signature and all internal validation logic to use fail-fast error throwing pattern.",
+            "status": "pending",
+            "testStrategy": "Unit tests verifying correct error types are thrown for each validation scenario, method signature change validation"
+          },
+          {
+            "id": 3,
+            "title": "Update callers with proper try/catch error handling",
+            "description": "Update all callers of validateOptions() in sync.command.ts to handle the new error throwing pattern with proper try/catch blocks.",
+            "dependencies": [
+              2
+            ],
+            "details": "Wrap validateOptions() calls in try/catch blocks. Handle specific error types with appropriate user messages. Maintain existing error output format for consistent user experience. Update any dependent code that previously relied on boolean return values. Ensure comprehensive test coverage for all error scenarios and caller interactions.",
+            "status": "pending",
+            "testStrategy": "Integration tests for error handling in callers, user experience validation for error messages, comprehensive test coverage for error scenarios"
+          }
+        ]
+      },
+      {
+        "id": 35,
+        "title": "Add Error IDs to All CLI Error Messages",
+        "description": "Implement standardized error ID scheme for all CLI error messages to improve monitoring, debugging, and error tracking capabilities.",
+        "details": "Create a comprehensive error code system for GitHub CLI commands following the format [MODULE_CATEGORY_NUMBER]. Implement GitHubErrorCodes registry in apps/cli/src/utils/github-error-codes.ts with categorized error constants (GH_CONFIG_xxx, GH_SYNC_xxx, GH_VAL_xxx, GH_AUTH_xxx, GH_NET_xxx, GH_STATE_xxx). Create formatError() helper function to standardize error message formatting with error codes. Update all error handling in apps/cli/src/commands/github/configure.command.ts and apps/cli/src/commands/github/sync.command.ts to include error codes. Replace existing error messages like 'Token validation failed' with '[GH_CONFIG_001] GitHub token validation failed'. Integrate with existing CommandActionWrapper and EnhancedErrorDisplay utilities to maintain consistent error handling patterns. Ensure error codes are unique, well-documented, and follow the established architectural pattern where CLI is a thin presentation layer over tm-core business logic. Add comprehensive error code documentation for user reference.",
+        "testStrategy": "Create unit tests for GitHubErrorCodes registry ensuring all error codes are unique and follow correct format pattern [MODULE_CATEGORY_NUMBER]. Test formatError() helper function with various error scenarios and edge cases. Integration tests for configure and sync commands to verify all error paths include proper error codes and format consistently. Test error code uniqueness validation to prevent duplicates. Verify error codes appear in all CLI output and are properly integrated with existing error handling utilities (CommandActionWrapper, EnhancedErrorDisplay). Manual testing of all error scenarios in configure and sync commands to ensure user-facing error messages include codes. Test error code documentation completeness and accuracy.",
+        "status": "pending",
+        "dependencies": [
+          9,
+          22
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement GitHub error code registry and formatter",
+            "description": "Create shared registry and helper for standardized CLI error codes.",
+            "dependencies": [],
+            "details": "Add github-error-codes.ts defining categorized constants (GH_CONFIG_xxx, GH_SYNC_xxx, etc.), enforce uniqueness, and implement formatError() helper integrating with error display utilities.",
+            "status": "pending",
+            "testStrategy": "Unit tests covering registry format validation and formatError() outputs."
+          },
+          {
+            "id": 2,
+            "title": "Apply standardized error codes in configure command",
+            "description": "Update configure.command.ts errors to use new codes.",
+            "dependencies": [
+              1
+            ],
+            "details": "Refactor configure.command.ts to replace legacy strings with formatError() wrapping appropriate GitHubErrorCodes values while preserving CommandActionWrapper patterns.",
+            "status": "pending",
+            "testStrategy": "Command-level tests asserting configure errors emit expected codes and messages."
+          },
+          {
+            "id": 3,
+            "title": "Integrate error codes into sync command handling",
+            "description": "Refactor sync.command.ts error handling to include standardized codes.",
+            "dependencies": [
+              1
+            ],
+            "details": "Audit all error branches in sync.command.ts and convert them to use formatError() with GH_SYNC/GH_STATE/etc. codes, ensuring compatibility with EnhancedErrorDisplay.",
+            "status": "pending",
+            "testStrategy": "Integration-style tests for sync command verifying each error path yields formatted code-prefixed messages."
+          },
+          {
+            "id": 4,
+            "title": "Validate error code uniqueness and command integration",
+            "description": "Create comprehensive tests verifying new error scheme.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement unit and integration tests that ensure registry codes are unique, formatter output matches scheme, and both configure and sync commands interact correctly with CommandActionWrapper/EnhancedErrorDisplay.",
+            "status": "pending",
+            "testStrategy": "Aggregate test suite covering registry uniqueness checks, formatter snapshots, and command execution error scenarios."
+          }
+        ]
+      },
+      {
+        "id": 36,
+        "title": "Fix Wrong Service Name in Configure Command Comment",
+        "description": "Update incorrect service name reference in comment from 'GitHubAuthService' to 'IntegrationDomain' in configure.command.ts:32 to ensure accurate documentation.",
+        "details": "The comment at line 32 in apps/cli/src/commands/github/configure.command.ts incorrectly references 'GitHubAuthService' when describing the thin presentation layer pattern. Based on code analysis, the CLI command actually delegates to IntegrationDomain (as seen in line 148: this.tmCore.integration.configureGitHubWithValidation), not directly to GitHubAuthService. This follows the established architecture where CLI commands are thin presentation layers over domain objects. The comment should be updated to: 'This is a thin presentation layer over @tm/core's ConfigManager and IntegrationDomain' to accurately reflect the actual implementation and maintain consistency with the architectural pattern where IntegrationDomain serves as the facade over various services including GitHubAuthService.",
+        "testStrategy": "Manual code review to verify the comment accurately describes the implementation. Check that no other files contain similar incorrect service references by searching the codebase for 'GitHubAuthService' in comments that should reference 'IntegrationDomain'. Verify that the updated comment aligns with the actual code implementation where this.tmCore.integration (IntegrationDomain) is used rather than direct GitHubAuthService instantiation.",
+        "status": "pending",
+        "dependencies": [
+          22
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Correct GitHub configure command comment",
+            "description": "Update the comment in configure.command.ts to reference IntegrationDomain and confirm no similar mistakes elsewhere.",
+            "dependencies": [],
+            "details": "Edit apps/cli/src/commands/github/configure.command.ts line 32 comment to mention ConfigManager and IntegrationDomain, then search the repo to ensure no other comments incorrectly cite GitHubAuthService.",
+            "status": "pending",
+            "testStrategy": "Manual search: confirm the updated comment is correct and grep for other GitHubAuthService comment references to verify none remain incorrect."
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-10-31T22:58:29.989Z",
+      "lastModified": "2025-11-01T06:49:34.080Z",
       "taskCount": 22,
-      "completedCount": 17,
+      "completedCount": 19,
       "tags": [
         "feat-github-sync"
-      ]
+      ],
+      "created": "2025-11-01T08:47:47.572Z",
+      "description": "Tasks for feat-github-sync context",
+      "updated": "2025-11-01T11:09:49.656Z"
     }
   }
 }

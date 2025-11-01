@@ -4,10 +4,10 @@ import type {
 	WorkflowContext,
 	WorkflowPhase,
 	WorkflowEventData,
-	WorkflowError
+	WorkflowError,
+	TestResult
 } from '../types.js';
 import { TestResultValidator } from '../services/test-result-validator.js';
-import type { TestResult } from '../services/test-result-validator.types.js';
 
 describe('WorkflowOrchestrator - State Machine Structure', () => {
 	let orchestrator: WorkflowOrchestrator;

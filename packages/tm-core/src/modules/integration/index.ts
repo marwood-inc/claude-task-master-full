@@ -52,9 +52,27 @@ export type {
 } from './services/github-auth.service.js';
 export { GitHubConfigService } from './services/github-config.service.js';
 export type { GitHubConfigValidation } from './services/github-config.service.js';
+export { GitHubValidationService } from './services/github-validation.service.js';
+export type {
+	ValidationResult,
+	ValidationError,
+	ValidationWarning,
+	GitHubSyncOptions
+} from './services/github-validation.service.js';
 export { GitHubSyncStateService } from './services/github-sync-state.service.js';
 export { GitHubFieldMapper } from './services/github-field-mapper.js';
 export { GitHubChangeDetectionService } from './services/github-change-detection.service.js';
 
 // Clients
 export { GitHubClient } from './clients/github-client.js';
+
+// Integration Domain
+export { IntegrationDomain } from './integration-domain.js';
+export type {
+	ConfigureGitHubResult,
+	RepositoryAccessResult,
+	GitHubSyncOptions as IntegrationGitHubSyncOptions,
+	GitHubSyncStatusResult,
+	ConflictResolutionStrategy,
+	ManualConflictResolution
+} from './integration-domain.js';

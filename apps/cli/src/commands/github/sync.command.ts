@@ -107,21 +107,21 @@ ${chalk.bold('Notes:')}
 	 * Execute the sync command
 	 */
 	private async executeSync(options: GitHubSyncCommandOptions): Promise<void> {
-		// Validate options before any async operations
-		if (!this.validateOptions(options)) {
-			// Validation errors should exit with code 2
-			EnhancedErrorDisplay.displayAndExit(
-				new Error(`Invalid options provided`)
-			);
-		}
-
 		// Wrap sync logic with error handling and retry support
 		await CommandActionWrapper.executeWithErrorHandling(
 			async () => {
-				// Initialize tm-core
+				// Initialize tm-core first (needed for validation)
 				const progress = new GitHubSyncProgress('Initializing Task Master...');
 				await this.initializeCore(options.project || process.cwd());
 				progress.succeed('Task Master initialized');
+
+				// Validate options using tm-core validation service
+				if (!this.validateOptions(options)) {
+					// Validation errors should exit with code 2
+					EnhancedErrorDisplay.displayAndExit(
+						new Error(`Invalid options provided`)
+					);
+				}
 
 				// Display sync header
 				this.displaySyncHeader(options);
@@ -200,34 +200,54 @@ ${chalk.bold('Notes:')}
 	}
 
 	/**
-	 * Validate command options
+	 * Validate command options using tm-core validation service
+	 * Delegates to GitHubValidationService for comprehensive validation
+	 *
+	 * **Architecture Note**: This method demonstrates proper CLI-to-Core delegation:
+	 * - ALL validation business logic lives in `@tm/core` (GitHubValidationService)
+	 * - CLI layer only handles presentation (display formatting, colors, console output)
+	 * - This pattern ensures validation logic is reused across CLI, MCP, and future UI clients
+	 * - Single source of truth prevents logic duplication and ensures consistency
+	 *
+	 * @param options - CLI options to validate
+	 * @returns true if valid (no errors), false if validation failed
+	 * @requires tmCore must be initialized before calling this method
+	 * @see GitHubValidationService.validateSyncOptions in @tm/core for business logic
 	 */
 	private validateOptions(options: GitHubSyncCommandOptions): boolean {
-		// Validate mode
-		if (options.mode && !['one-way', 'two-way'].includes(options.mode)) {
-			console.error(chalk.red(`Invalid mode: ${options.mode}`));
-			console.error(chalk.gray('Valid modes: one-way, two-way'));
-			return false;
+		// Delegate validation to tm-core (business logic)
+		const result = this.tmCore.integration.validateGitHubSyncOptions({
+			mode: options.mode,
+			subtaskMode: options.subtaskMode,
+			repo: options.repo,
+			dryRun: options.dryRun,
+			force: options.force
+		});
+
+		// Display errors (presentation logic)
+		if (!result.valid) {
+			result.errors.forEach((error) => {
+				console.error(chalk.red(error.message));
+				if (error.suggestion) {
+					console.error(chalk.gray(`  → ${error.suggestion}`));
+				}
+			});
 		}
 
-		// Validate subtask mode
-		if (
-			options.subtaskMode &&
-			!['checklist', 'separate-issues'].includes(options.subtaskMode)
-		) {
-			console.error(chalk.red(`Invalid subtask mode: ${options.subtaskMode}`));
-			console.error(chalk.gray('Valid modes: checklist, separate-issues'));
-			return false;
+		// Display warnings (non-blocking)
+		if (result.warnings.length > 0) {
+			result.warnings.forEach((warning) => {
+				const severityColor =
+					warning.severity === 'high'
+						? chalk.yellow
+						: warning.severity === 'medium'
+							? chalk.yellowBright
+							: chalk.gray;
+				console.warn(severityColor(`⚠ ${warning.message}`));
+			});
 		}
 
-		// Validate repo format if provided
-		if (options.repo && !options.repo.includes('/')) {
-			console.error(chalk.red(`Invalid repo format: ${options.repo}`));
-			console.error(chalk.gray('Expected format: owner/repo'));
-			return false;
-		}
-
-		return true;
+		return result.valid;
 	}
 
 	/**

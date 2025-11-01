@@ -6,6 +6,10 @@
 import { ConfigManager } from '../../config/managers/config-manager.js';
 import type { GitHubSettings } from '../../../common/interfaces/configuration.interface.js';
 import { getLogger } from '../../../common/logger/index.js';
+import {
+	GitHubValidationService,
+	type ValidationResult
+} from './github-validation.service.js';
 
 /**
  * Result of configuration validation
@@ -30,6 +34,7 @@ export interface GitHubConfigValidation {
 export class GitHubConfigService {
 	private logger = getLogger('GitHubConfigService');
 	private configManager: ConfigManager;
+	private validationService: GitHubValidationService;
 
 	/**
 	 * Create a new GitHubConfigService
@@ -37,6 +42,7 @@ export class GitHubConfigService {
 	 */
 	constructor(configManager: ConfigManager) {
 		this.configManager = configManager;
+		this.validationService = new GitHubValidationService();
 	}
 
 	/**
@@ -285,14 +291,13 @@ export class GitHubConfigService {
 
 	/**
 	 * Validate the current GitHub configuration
-	 * @returns Validation result
+	 * Delegates to GitHubValidationService for comprehensive validation
+	 * @returns Validation result (legacy format for backward compatibility)
+	 * @deprecated Use validateDetailed() for enhanced validation with error codes and suggestions
 	 */
 	validate(): GitHubConfigValidation {
 		const config = this.getConfig();
-		const errors: string[] = [];
-		const warnings: string[] = [];
 
-		// Check if configuration exists
 		if (!config) {
 			return {
 				valid: false,
@@ -305,85 +310,23 @@ export class GitHubConfigService {
 
 		// Check if enabled
 		const enabled = config.enabled ?? false;
+
+		// Delegate to validation service
+		const result = this.validationService.validateConfig(config);
+
+		// Add disabled warning if not enabled (not part of validation service logic)
+		const warnings = [...result.warnings.map((w) => w.message)];
 		if (!enabled) {
 			warnings.push('GitHub integration is disabled');
 		}
 
-		// Check required fields
-		let hasRequiredFields = true;
-
-		if (!config.token && !process.env.GITHUB_TOKEN) {
-			errors.push(
-				'GitHub token is required (provide in configuration or GITHUB_TOKEN environment variable)'
-			);
-			hasRequiredFields = false;
-		}
-
-		if (!config.owner) {
-			errors.push('Repository owner is required');
-			hasRequiredFields = false;
-		}
-
-		if (!config.repo) {
-			errors.push('Repository name is required');
-			hasRequiredFields = false;
-		}
-
-		// Validate subtask mode
-		if (
-			config.subtaskMode &&
-			config.subtaskMode !== 'checklist' &&
-			config.subtaskMode !== 'separate-issues'
-		) {
-			errors.push(
-				'Invalid subtask mode (must be "checklist" or "separate-issues")'
-			);
-		}
-
-		// Validate conflict resolution
-		if (
-			config.conflictResolution &&
-			config.conflictResolution !== 'prefer-local' &&
-			config.conflictResolution !== 'prefer-remote' &&
-			config.conflictResolution !== 'manual'
-		) {
-			errors.push(
-				'Invalid conflict resolution strategy (must be "prefer-local", "prefer-remote", or "manual")'
-			);
-		}
-
-		// Validate sync direction
-		if (
-			config.syncDirection &&
-			config.syncDirection !== 'to-github' &&
-			config.syncDirection !== 'from-github' &&
-			config.syncDirection !== 'bidirectional'
-		) {
-			errors.push(
-				'Invalid sync direction (must be "to-github", "from-github", or "bidirectional")'
-			);
-		}
-
-		// Check feature configuration
-		if (config.features) {
-			const allFeaturesDisabled = Object.values(config.features).every(
-				(value) => value === false
-			);
-			if (allFeaturesDisabled) {
-				warnings.push(
-					'All features are disabled - GitHub sync may have limited functionality'
-				);
-			}
-		}
-
-		const valid = errors.length === 0;
-
+		// Convert to legacy format for backward compatibility
 		return {
-			valid,
-			errors,
+			valid: result.valid,
+			errors: result.errors.map((e) => e.message),
 			warnings,
 			enabled,
-			hasRequiredFields
+			hasRequiredFields: result.errors.length === 0
 		};
 	}
 
@@ -434,5 +377,90 @@ export class GitHubConfigService {
 			autoSync: config.autoSync,
 			features: config.features
 		};
+	}
+
+	/**
+	 * Serialize features object to array of enabled feature names
+	 * Converts feature flags object to array format for CLI/UI display
+	 *
+	 * @param features - Feature flags object
+	 * @returns Array of enabled feature names
+	 * @example
+	 * serializeFeatures({ syncLabels: true, syncMilestones: false })
+	 * // Returns: ['syncLabels']
+	 */
+	serializeFeatures(features: GitHubSettings['features']): string[] {
+		const enabled: string[] = [];
+		if (features.syncMilestones) enabled.push('syncMilestones');
+		if (features.syncProjects) enabled.push('syncProjects');
+		if (features.syncAssignees) enabled.push('syncAssignees');
+		if (features.syncLabels) enabled.push('syncLabels');
+		return enabled;
+	}
+
+	/**
+	 * Deserialize array of feature names to features object
+	 * Converts string array from CLI/UI to feature flags object
+	 *
+	 * @param selectedFeatures - Array of selected feature names
+	 * @returns Feature flags object with boolean values
+	 * @throws Error if invalid feature names provided
+	 * @example
+	 * deserializeFeatures(['syncLabels', 'syncMilestones'])
+	 * // Returns: { syncLabels: true, syncMilestones: true, syncProjects: false, syncAssignees: false }
+	 */
+	deserializeFeatures(selectedFeatures: string[]): GitHubSettings['features'] {
+		const validKeys = [
+			'syncMilestones',
+			'syncProjects',
+			'syncAssignees',
+			'syncLabels'
+		];
+
+		// Validate feature names
+		for (const feature of selectedFeatures) {
+			if (!validKeys.includes(feature)) {
+				throw new Error(
+					`Invalid feature: "${feature}". Valid features: ${validKeys.join(', ')}`
+				);
+			}
+		}
+
+		return {
+			syncMilestones: selectedFeatures.includes('syncMilestones'),
+			syncProjects: selectedFeatures.includes('syncProjects'),
+			syncAssignees: selectedFeatures.includes('syncAssignees'),
+			syncLabels: selectedFeatures.includes('syncLabels')
+		};
+	}
+
+	/**
+	 * Validate configuration and return detailed result
+	 * Uses GitHubValidationService for enhanced validation details
+	 *
+	 * @returns Detailed validation result with errors, warnings, and metadata
+	 */
+	validateDetailed(): ValidationResult {
+		const config = this.getConfig();
+
+		if (!config) {
+			return {
+				valid: false,
+				errors: [
+					{
+						code: 'NO_CONFIG',
+						message: 'GitHub configuration not found',
+						suggestion: 'Run "tm github configure" to set up GitHub integration'
+					}
+				],
+				warnings: [],
+				metadata: {
+					validatedAspects: ['existence'],
+					timestamp: new Date().toISOString()
+				}
+			};
+		}
+
+		return this.validationService.validateConfig(config);
 	}
 }

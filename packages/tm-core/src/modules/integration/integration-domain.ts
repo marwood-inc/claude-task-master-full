@@ -16,6 +16,15 @@ import { GitHubFieldMapper } from './services/github-field-mapper.js';
 import { GitHubResilienceService } from './services/github-resilience.js';
 import { ConflictResolutionService } from './services/conflict-resolution.service.js';
 import { GitHubConfigService } from './services/github-config.service.js';
+import {
+	GitHubValidationService,
+	type ValidationResult
+} from './services/github-validation.service.js';
+import {
+	GitHubAuthService,
+	type TokenValidationResult,
+	type PermissionCheckResult
+} from './services/github-auth.service.js';
 import { GitHubClient } from './clients/github-client.js';
 import type { Task } from '../../common/types/index.js';
 import type { GitHubSettings } from '../../common/interfaces/configuration.interface.js';
@@ -79,6 +88,34 @@ export interface ManualConflictResolution {
 }
 
 /**
+ * Repository access verification result
+ */
+export interface RepositoryAccessResult {
+	accessible: boolean;
+	permissions?: {
+		admin: boolean;
+		push: boolean;
+		pull: boolean;
+	};
+	error?: string;
+}
+
+/**
+ * Comprehensive GitHub configuration validation result
+ * Returned by configureGitHubWithValidation for CLI display
+ */
+export interface ConfigureGitHubResult {
+	/** Overall success status */
+	success: boolean;
+	/** Token validation result */
+	tokenValidation: TokenValidationResult;
+	/** Repository access verification result */
+	repoAccess: RepositoryAccessResult;
+	/** Token permissions check result */
+	permissions: PermissionCheckResult;
+}
+
+/**
  * Integration Domain - Unified API for external system integration
  */
 export class IntegrationDomain {
@@ -91,6 +128,8 @@ export class IntegrationDomain {
 	// in Node.js's single-threaded execution model.
 	private fieldMapper?: GitHubFieldMapper;
 	private resilienceService?: GitHubResilienceService;
+	private validationService?: GitHubValidationService;
+	private authService?: GitHubAuthService;
 
 	constructor(configManager: ConfigManager) {
 		this.configManager = configManager;
@@ -110,6 +149,53 @@ export class IntegrationDomain {
 	}
 
 	// ========== GitHub Integration Operations ==========
+
+	/**
+	 * Validate GitHub sync options
+	 * Primary validation method for CLI/MCP sync commands
+	 *
+	 * @param options - Sync options to validate
+	 * @returns Validation result with errors, warnings, and metadata
+	 * @example
+	 * const result = tmCore.integration.validateGitHubSyncOptions({ mode: 'one-way' });
+	 * if (!result.valid) {
+	 *   console.error(result.errors);
+	 * }
+	 */
+	validateGitHubSyncOptions(
+		options: import('./services/github-validation.service.js').GitHubSyncOptions
+	): ValidationResult {
+		const config = this.configManager.getConfig().github;
+		return this.getValidationService().validateSyncOptions(options, config);
+	}
+
+
+
+	/**
+	 * Get GitHub validation service for advanced use cases
+	 * Allows direct access to validation service for specialized validation needs
+	 *
+	 * @returns GitHubValidationService instance
+	 * @example
+	 * const validator = tmCore.integration.getGitHubValidationService();
+	 * const result = validator.validateSyncOptions(options);
+	 */
+	getGitHubValidationService(): GitHubValidationService {
+		return this.getValidationService();
+	}
+
+	/**
+	 * Get GitHub config service for configuration management
+	 * Provides access to configuration operations including feature serialization
+	 *
+	 * @returns GitHubConfigService instance
+	 * @example
+	 * const configService = tmCore.integration.getGitHubConfigService();
+	 * const enabled = configService.serializeFeatures(features);
+	 */
+	getGitHubConfigService(): GitHubConfigService {
+		return this.createGitHubConfigService();
+	}
 
 	/**
 	 * Synchronize tasks with GitHub issues
@@ -437,6 +523,68 @@ export class IntegrationDomain {
 		await this.configManager.updateConfig({
 			github: updatedGitHubSettings
 		});
+	}
+
+	/**
+	 * Configure GitHub with comprehensive validation
+	 * Validates token, repository access, and permissions before saving configuration
+	 *
+	 * This method orchestrates all GitHub configuration validation:
+	 * 1. Validates the GitHub token and retrieves user information
+	 * 2. Verifies repository access and permission levels
+	 * 3. Checks token permissions and scopes
+	 *
+	 * Intended for interactive configuration workflows in CLI where detailed
+	 * validation feedback is needed for display to users.
+	 *
+	 * @param token - GitHub personal access token
+	 * @param owner - Repository owner (username or organization)
+	 * @param repo - Repository name
+	 * @returns Comprehensive validation result with token, repository, and permission information
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await tmCore.integration.configureGitHubWithValidation(
+	 *   'ghp_xxxxx',
+	 *   'myorg',
+	 *   'myrepo'
+	 * );
+	 *
+	 * if (result.success) {
+	 *   console.log('Authenticated as:', result.tokenValidation.user.login);
+	 *   console.log('Repository accessible:', result.repoAccess.accessible);
+	 * } else {
+	 *   console.error('Validation failed');
+	 * }
+	 * ```
+	 */
+	async configureGitHubWithValidation(
+		token: string,
+		owner: string,
+		repo: string
+	): Promise<ConfigureGitHubResult> {
+		const authService = this.getAuthService();
+
+		// 1. Validate token
+		const tokenValidation = await authService.validateToken(token);
+
+		// 2. Verify repository access
+		const repoAccess = await authService.verifyRepositoryAccess(
+			token,
+			owner,
+			repo
+		);
+
+		// 3. Check permissions
+		const permissions = await authService.checkPermissions(token);
+
+		// 4. Combine all results
+		return {
+			success: tokenValidation.valid && repoAccess.accessible,
+			tokenValidation,
+			repoAccess,
+			permissions
+		};
 	}
 
 	/**
@@ -792,6 +940,45 @@ export class IntegrationDomain {
 			this.resilienceService = new GitHubResilienceService();
 		}
 		return this.resilienceService;
+	}
+
+	/**
+	 * Get cached validation service instance (stateless service)
+	 *
+	 * Lazy initialization for GitHub validation service that validates sync options
+	 * and configuration. Since the service is stateless (pure validation functions only),
+	 * it's safe to reuse across all operations.
+	 *
+	 * @returns Cached GitHubValidationService instance
+	 * @private
+	 */
+	private getValidationService(): GitHubValidationService {
+		if (!this.validationService) {
+			this.validationService = new GitHubValidationService();
+		}
+		return this.validationService;
+	}
+
+	/**
+	 * Get cached auth service instance (stateless service)
+	 *
+	 * Lazy initialization for GitHub authentication service that validates tokens,
+	 * checks permissions, and verifies repository access.
+	 *
+	 * **Caching Justification:**
+	 * - GitHubAuthService is stateless (contains only pure validation functions)
+	 * - No mutable state tracking (rate limits, session info, etc.)
+	 * - Safe to reuse across all operations in single Node.js process
+	 * - If stateful behavior is added in future, change to factory pattern (no caching)
+	 *
+	 * @returns Cached GitHubAuthService instance
+	 * @private
+	 */
+	private getAuthService(): GitHubAuthService {
+		if (!this.authService) {
+			this.authService = new GitHubAuthService();
+		}
+		return this.authService;
 	}
 
 	/**

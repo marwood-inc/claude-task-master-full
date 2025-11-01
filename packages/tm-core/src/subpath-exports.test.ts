@@ -9,7 +9,7 @@ describe('Subpath Exports', () => {
 	it('should allow importing from auth subpath', async () => {
 		// Instead of: import { AuthManager } from '@tm/core';
 		// Use: import { AuthManager } from '@tm/core/auth';
-		const authModule = await import('./auth');
+		const authModule = await import('./modules/auth');
 		expect(authModule.AuthManager).toBeDefined();
 		expect(authModule.AuthenticationError).toBeDefined();
 	});
@@ -17,7 +17,7 @@ describe('Subpath Exports', () => {
 	it('should allow importing from storage subpath', async () => {
 		// Instead of: import { FileStorage } from '@tm/core';
 		// Use: import { FileStorage } from '@tm/core/storage';
-		const storageModule = await import('./storage');
+		const storageModule = await import('./modules/storage');
 		expect(storageModule.FileStorage).toBeDefined();
 		expect(storageModule.ApiStorage).toBeDefined();
 		expect(storageModule.StorageFactory).toBeDefined();
@@ -26,14 +26,14 @@ describe('Subpath Exports', () => {
 	it('should allow importing from config subpath', async () => {
 		// Instead of: import { ConfigManager } from '@tm/core';
 		// Use: import { ConfigManager } from '@tm/core/config';
-		const configModule = await import('./config');
+		const configModule = await import('./modules/config');
 		expect(configModule.ConfigManager).toBeDefined();
 	});
 
 	it('should allow importing from errors subpath', async () => {
 		// Instead of: import { TaskMasterError } from '@tm/core';
 		// Use: import { TaskMasterError } from '@tm/core/errors';
-		const errorsModule = await import('./errors');
+		const errorsModule = await import('./common/errors');
 		expect(errorsModule.TaskMasterError).toBeDefined();
 		expect(errorsModule.ERROR_CODES).toBeDefined();
 	});

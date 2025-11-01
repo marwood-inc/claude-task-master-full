@@ -7,8 +7,14 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora, { type Ora } from 'ora';
-import { ConfigManager, type GitHubSettings } from '@tm/core';
-import { GitHubAuthService } from '@tm/core';
+import {
+	ConfigManager,
+	type GitHubSettings,
+	GitHubConfigService,
+	createTmCore,
+	type TmCore,
+	type ConfigureGitHubResult
+} from '@tm/core';
 import { CommandActionWrapper } from '../../utils/command-action-wrapper.js';
 
 /**
@@ -27,14 +33,11 @@ export interface ConfigureResult {
  */
 export class GitHubConfigureCommand extends Command {
 	private configManager!: ConfigManager;
-	private authService: GitHubAuthService;
+	private tmCore!: TmCore;
 	private lastResult?: ConfigureResult;
 
 	constructor(name?: string) {
 		super(name || 'configure');
-
-		// Initialize auth service
-		this.authService = new GitHubAuthService();
 
 		// Configure the command
 		this.description('Configure GitHub integration for Task Master')
@@ -129,12 +132,26 @@ ${chalk.bold('Notes:')}
 					);
 				}
 
-				// Validate the token and get user info
-				spinner.start('Validating GitHub token...');
+				// Initialize TmCore for validation
+				if (!this.tmCore) {
+					this.tmCore = await createTmCore({ projectPath: process.cwd() });
+				}
 
-				const validation = await this.authService.validateToken(
-					githubSettings.token
-				);
+				// Validate configuration using IntegrationDomain
+				spinner.start('Validating GitHub configuration...');
+
+			// Defensive check: Ensure required fields exist
+			if (!githubSettings.token || !githubSettings.owner || !githubSettings.repo) {
+				throw new Error('GitHub configuration is incomplete. Token, owner, and repo are required.');
+			}
+
+			const result = await this.tmCore.integration.configureGitHubWithValidation(
+				githubSettings.token,
+				githubSettings.owner,
+				githubSettings.repo
+			);
+
+				const validation = result.tokenValidation;
 
 				if (!validation.valid) {
 					spinner.fail('Token validation failed');
@@ -164,19 +181,14 @@ ${chalk.bold('Notes:')}
 					`Authenticated as ${chalk.cyan(validation.user!.login)}`
 				);
 
-				// Verify repository access if owner and repo are provided
-				if (githubSettings.owner && githubSettings.repo) {
-					spinner.start(
-						`Verifying access to ${githubSettings.owner}/${githubSettings.repo}...`
-					);
+				// Verify repository access
+				spinner.start(
+					`Verifying access to ${githubSettings.owner}/${githubSettings.repo}...`
+				);
 
-					const repoAccess = await this.authService.verifyRepositoryAccess(
-						githubSettings.token!,
-						githubSettings.owner,
-						githubSettings.repo
-					);
+				const repoAccess = result.repoAccess;
 
-					if (!repoAccess.accessible) {
+				if (!repoAccess.accessible) {
 						spinner.fail('Repository access verification failed');
 						console.log(chalk.red(`\n✗ ${repoAccess.error}`));
 						console.log(
@@ -195,10 +207,13 @@ ${chalk.bold('Notes:')}
 						throw new Error(`Authorization failed: ${repoAccess.error}`);
 					}
 
-					const permissions = repoAccess.permissions!;
 					spinner.succeed('Repository access verified');
 
-					// Display permissions
+					const permissions = repoAccess.permissions;
+					if (!permissions) {
+						console.log(chalk.yellow('\n  Warning: Could not retrieve permission details'));
+					} else {
+						// Display permissions
 					console.log(chalk.dim('  Permissions:'));
 					console.log(
 						chalk.dim(
@@ -218,25 +233,23 @@ ${chalk.bold('Notes:')}
 
 					// Warn if no push access
 					if (!permissions.push) {
-						console.log(
-							chalk.yellow(
-								'\n⚠ Warning: You do not have push access to this repository.'
-							)
-						);
-						console.log(
-							chalk.yellow(
-								'   GitHub sync will be read-only (can pull but not push).'
-							)
-						);
+							console.log(
+								chalk.yellow(
+									'\n⚠ Warning: You do not have push access to this repository.'
+								)
+							);
+							console.log(
+								chalk.yellow(
+									'   GitHub sync will be read-only (can pull but not push).'
+								)
+							);
+						}
 					}
 				}
 
-				// Check token permissions
-				spinner.start('Checking token permissions...');
-				const permissionCheck = await this.authService.checkPermissions(
-					githubSettings.token
-				);
+				// Display permission check results
 				spinner.stop();
+				const permissionCheck = result.permissions;
 
 				if (!permissionCheck.hasRequiredPermissions) {
 					console.log(
@@ -314,7 +327,7 @@ ${chalk.bold('Notes:')}
 		);
 
 		// Check for environment variable token
-		const envToken = this.authService.getTokenFromEnvironment();
+		const envToken = process.env.GITHUB_TOKEN;
 		if (envToken) {
 			console.log(
 				chalk.cyan('ℹ Found GitHub token in GITHUB_TOKEN environment variable\n')
@@ -487,7 +500,7 @@ ${chalk.bold('Notes:')}
 		// Get token from options, environment, or existing config
 		const token =
 			options.token ||
-			this.authService.getTokenFromEnvironment() ||
+			process.env.GITHUB_TOKEN ||
 			existingConfig?.token;
 
 		if (!token) {
@@ -542,31 +555,54 @@ ${chalk.bold('Notes:')}
 	}
 
 	/**
-	 * Get list of enabled features from settings
+	 * Get list of enabled features from settings for inquirer checkbox UI
+	 * Thin wrapper over GitHubConfigService.serializeFeatures() for CLI presentation
+	 *
+	 * **Architecture Note - Thin Wrapper Pattern:**
+	 * This method is a thin wrapper that delegates to GitHubConfigService.serializeFeatures():
+	 * - Maintains single source of truth for feature serialization logic in tm-core
+	 * - CLI method provides convenient access for inquirer checkbox UI
+	 * - All business logic lives in GitHubConfigService (tm-core)
+	 * - Changes to serialization logic only need to be made in one place
+	 *
+	 * @param features - Feature flags object from configuration
+	 * @returns Array of enabled feature names (e.g., ['syncMilestones', 'syncLabels'])
+	 * @see GitHubConfigService.serializeFeatures for implementation
 	 */
 	private getEnabledFeatures(
 		features: GitHubSettings['features']
 	): string[] {
-		const enabled: string[] = [];
-		if (features.syncMilestones) enabled.push('syncMilestones');
-		if (features.syncProjects) enabled.push('syncProjects');
-		if (features.syncAssignees) enabled.push('syncAssignees');
-		if (features.syncLabels) enabled.push('syncLabels');
-		return enabled;
+		// Delegate to GitHubConfigService for business logic
+		const githubConfigService = new GitHubConfigService(this.configManager);
+		return githubConfigService.serializeFeatures(features);
 	}
 
 	/**
-	 * Parse features array into feature object
+	 * Parse features array from inquirer checkbox selections into feature object
+	 * Thin wrapper over GitHubConfigService.deserializeFeatures() for CLI presentation
+	 *
+	 * **Architecture Note - Thin Wrapper Pattern:**
+	 * This method is a thin wrapper that delegates to GitHubConfigService.deserializeFeatures():
+	 * - Maintains single source of truth for feature deserialization logic in tm-core
+	 * - CLI method provides convenient access for inquirer checkbox UI
+	 * - All business logic (including validation) lives in GitHubConfigService (tm-core)
+	 * - Changes to deserialization logic only need to be made in one place
+	 *
+	 * Note: Since inquirer controls the checkbox options, invalid feature names should never
+	 * be selected. However, the core method will validate and throw descriptive errors if
+	 * somehow invalid features are provided, ensuring robustness.
+	 *
+	 * @param selectedFeatures - Array of selected feature names from inquirer checkbox
+	 * @returns Feature flags object with boolean values
+	 * @throws Error if invalid feature names are provided (should not happen with inquirer)
+	 * @see GitHubConfigService.deserializeFeatures for implementation
 	 */
 	private parseFeatures(
 		selectedFeatures: string[]
 	): GitHubSettings['features'] {
-		return {
-			syncMilestones: selectedFeatures.includes('syncMilestones'),
-			syncProjects: selectedFeatures.includes('syncProjects'),
-			syncAssignees: selectedFeatures.includes('syncAssignees'),
-			syncLabels: selectedFeatures.includes('syncLabels')
-		};
+		// Delegate to GitHubConfigService for business logic
+		const githubConfigService = new GitHubConfigService(this.configManager);
+		return githubConfigService.deserializeFeatures(selectedFeatures);
 	}
 
 	/**
