@@ -1,6 +1,7 @@
 # Claude Code Instructions
 
 ## Task Master AI Instructions
+
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
 @./.taskmaster/CLAUDE.md
 
@@ -14,10 +15,12 @@
 - **Test extension**: Always use `.ts` for TypeScript tests, never `.js`
 
 ### Synchronous Tests
+
 - **NEVER use async/await in test functions** unless testing actual asynchronous operations
 - Use synchronous top-level imports instead of dynamic `await import()`
 - Test bodies should be synchronous whenever possible
 - Example:
+
   ```typescript
   // ✅ CORRECT - Synchronous imports with .ts extension
   import { MyClass } from '../src/my-class.js';
@@ -208,6 +211,7 @@ console.log(`Task cache hits: ${taskMetrics.hits}`);
 - ❌ Duplicating logic across CLI and MCP → Implement once in tm-core
 
 **Correct approach:**
+
 - ✅ Add method to TasksDomain: `tasks.get(taskId)` (automatically handles task and subtask IDs)
 - ✅ CLI calls: `await tmCore.tasks.get(taskId)` (supports "1", "1.2", "HAM-123", "HAM-123.2")
 - ✅ MCP calls: `await tmCore.tasks.get(taskId)` (same intelligent ID parsing)
@@ -216,7 +220,7 @@ console.log(`Task cache hits: ${taskMetrics.hits}`);
 ## Documentation Guidelines
 
 - **Documentation location**: Write docs in `apps/docs/` (Mintlify site source), not `docs/`
-- **Documentation URL**: Reference docs at https://docs.task-master.dev, not local file paths
+- **Documentation URL**: Reference docs at <https://docs.task-master.dev>, not local file paths
 
 ## Changeset Guidelines
 
