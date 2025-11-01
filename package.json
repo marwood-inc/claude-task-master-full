@@ -1,6 +1,6 @@
 {
 	"name": "task-master-ai",
-	"version": "0.30.2",
+	"version": "0.31.0",
 	"description": "A task management system for ambitious AI-driven development that doesn't overwhelm and confuse Cursor.",
 	"main": "index.js",
 	"type": "module",
@@ -9,11 +9,7 @@
 		"task-master-mcp": "dist/mcp-server.js",
 		"task-master-ai": "dist/mcp-server.js"
 	},
-	"workspaces": [
-		"apps/*",
-		"packages/*",
-		"."
-	],
+	"workspaces": ["apps/*", "packages/*", "."],
 	"scripts": {
 		"build": "npm run build:build-config && cross-env NODE_ENV=production tsdown",
 		"dev": "tsdown --watch",
@@ -21,13 +17,13 @@
 		"turbo:build": "turbo build",
 		"turbo:typecheck": "turbo typecheck",
 		"build:build-config": "npm run build -w @tm/build-config",
-		"test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js",
-		"test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=unit",
-		"test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=integration",
-		"test:fails": "node --experimental-vm-modules node_modules/jest/bin/jest.js --onlyFailures",
-		"test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-		"test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-		"test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --ci",
+		"test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+		"test:unit": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --testPathPattern=unit",
+		"test:integration": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --testPathPattern=integration",
+		"test:fails": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --onlyFailures",
+		"test:watch": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+		"test:coverage": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
+		"test:ci": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --ci",
 		"test:e2e": "./tests/e2e/run_e2e.sh",
 		"test:e2e-report": "./tests/e2e/run_e2e.sh --analyze-log",
 		"postpack": "chmod +x dist/task-master.js dist/mcp-server.js",
@@ -64,6 +60,7 @@
 		"@ai-sdk/groq": "^2.0.21",
 		"@ai-sdk/mistral": "^2.0.16",
 		"@ai-sdk/openai": "^2.0.34",
+		"@ai-sdk/openai-compatible": "^1.0.25",
 		"@ai-sdk/perplexity": "^2.0.10",
 		"@ai-sdk/provider": "^2.0.0",
 		"@ai-sdk/provider-utils": "^3.0.10",
@@ -107,6 +104,7 @@
 		"open": "^10.2.0",
 		"ora": "^8.2.0",
 		"simple-git": "^3.28.0",
+		"steno": "^4.0.2",
 		"uuid": "^11.1.0",
 		"vitest": "^4.0.5",
 		"zod": "^4.1.11"

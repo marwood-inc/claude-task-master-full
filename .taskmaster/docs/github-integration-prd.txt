@@ -1,0 +1,1316 @@
+<rpg-method>
+# GitHub Integration for Task Master - PRD
+
+This PRD defines the GitHub Issues synchronization feature for task-master, enabling bidirectional sync between local tasks and GitHub Issues with support for labels, milestones, projects, and assignees.
+
+Following the Repository Planning Graph (RPG) methodology to ensure:
+- Clear separation of functional (what) from structural (where)
+- Explicit dependency chains for proper build order
+- Topological task execution
+- Progressive refinement capability
+</rpg-method>
+
+---
+
+<overview>
+
+## Problem Statement
+
+Task Master users work in GitHub-centric development workflows but currently have no way to synchronize their local task management with GitHub Issues. This creates several pain points:
+
+1. **Duplicate Work**: Users must manually recreate tasks in GitHub Issues for team visibility, leading to inconsistent updates between systems
+2. **Loss of Context**: Rich task details (test strategies, complexity analysis, dependencies) don't transfer to GitHub
+3. **Broken Workflows**: Teams using GitHub Projects for kanban boards can't leverage task-master's AI-powered task management
+4. **One-Way Streets**: Exporting to GitHub creates a fork - updates in either system don't propagate back
+
+Currently, task-master has export capability for the Hamster/Supabase system but lacks GitHub integration, despite GitHub being the dominant platform for software development teams.
+
+## Target Users
+
+**Primary Persona**: Individual Developer (Solo or Small Team)
+- Uses task-master locally for AI-assisted task breakdown and management
+- Needs to share progress with team via GitHub Issues
+- Wants to maintain single source of truth for task status
+- Values automation to avoid manual synchronization
+
+**Secondary Persona**: Engineering Team Lead
+- Manages team workload via GitHub Projects
+- Wants to leverage task-master's complexity analysis for estimation
+- Needs visibility into task dependencies for sprint planning
+- Requires conflict resolution when multiple people edit tasks
+
+## Success Metrics
+
+1. **Sync Accuracy**: 95%+ of tasks successfully sync without manual intervention
+2. **Conflict Resolution**: Interactive resolution for 100% of detected conflicts
+3. **Field Completeness**: All core task fields (title, description, status, priority, dependencies, subtasks) map correctly
+4. **Performance**: Sync completes in <5 seconds for 50 tasks, <30 seconds for 500 tasks
+5. **Adoption**: 30%+ of task-master users enable GitHub sync within 3 months of release
+
+</overview>
+
+---
+
+<functional-decomposition>
+
+## Capability Tree
+
+### Capability: GitHub API Integration
+Handles all communication with GitHub REST API, providing a clean abstraction over Octokit for task-master's needs.
+
+#### Feature: Issue CRUD Operations
+- **Description**: Create, read, update, and delete GitHub Issues via REST API
+- **Inputs**: Issue data (title, body, labels, assignees), repository coordinates (owner/repo)
+- **Outputs**: Issue object with GitHub metadata (number, url, created_at, updated_at)
+- **Behavior**: Authenticate with token, construct API requests, handle rate limiting, retry failed requests
+
+#### Feature: Label Management
+- **Description**: Create and assign labels for task metadata (status, priority)
+- **Inputs**: Label definitions (name, color, description), issue number
+- **Outputs**: Label objects, updated issue with labels
+- **Behavior**: Check if label exists, create if missing, assign to issue, handle label color mapping
+
+#### Feature: Milestone Management
+- **Description**: Create milestones for task groups and assign issues to them
+- **Inputs**: Milestone data (title, description, due date), issue numbers
+- **Outputs**: Milestone object, issues assigned to milestone
+- **Behavior**: Create/update milestones, assign issues, track completion percentage
+
+#### Feature: Project Board Integration
+- **Description**: Add issues to GitHub Projects and manage column placement
+- **Inputs**: Project ID, issue number, column name/status
+- **Outputs**: Project card object, column placement
+- **Behavior**: Find project by name/ID, create cards for issues, move cards between columns based on status
+
+#### Feature: Assignee Management
+- **Description**: Assign GitHub users to issues based on task assignee field
+- **Inputs**: GitHub usernames, issue number
+- **Outputs**: Updated issue with assignees
+- **Behavior**: Validate usernames exist, assign to issue, handle assignment failures
+
+### Capability: Sync State Management
+Maintains bidirectional mapping between task-master tasks and GitHub Issues, tracking sync history and detecting changes.
+
+#### Feature: Task-Issue Mapping Storage
+- **Description**: Persist mappings between task IDs and GitHub issue numbers in local state file
+- **Inputs**: Task ID, GitHub issue number, issue URL, sync timestamp
+- **Outputs**: Mapping record saved to `.taskmaster/github-sync-state.json`
+- **Behavior**: Read/write JSON file, validate mappings, handle concurrent access
+
+#### Feature: Change Detection
+- **Description**: Detect which tasks/issues have changed since last sync
+- **Inputs**: Task list with updatedAt timestamps, GitHub issues with updated_at timestamps, previous sync state
+- **Outputs**: List of changed tasks, list of changed issues, conflict indicators
+- **Behavior**: Compare timestamps, identify modifications on both sides, flag conflicts
+
+#### Feature: Sync History Tracking
+- **Description**: Maintain log of sync operations for debugging and rollback
+- **Inputs**: Sync operation details (timestamp, mode, affected tasks, success/failure)
+- **Outputs**: Append-only sync history in state file
+- **Behavior**: Record each sync event, preserve last N syncs, enable history queries
+
+#### Feature: Conflict Markers
+- **Description**: Flag tasks/issues with synchronization conflicts for manual resolution
+- **Inputs**: Task ID, conflict type (title, description, status), local value, remote value
+- **Outputs**: Conflict record in sync state, conflict status on task
+- **Behavior**: Store conflict details, prevent auto-sync of conflicted items, clear on resolution
+
+### Capability: Synchronization Logic
+Orchestrates the actual sync process, coordinating between task-master storage and GitHub API.
+
+#### Feature: One-Way Sync (Task → GitHub)
+- **Description**: Push local task changes to GitHub Issues without pulling remote changes
+- **Inputs**: Task list, sync options (dry-run, filter), GitHub credentials
+- **Outputs**: Sync result (success count, failures, created issues, updated issues)
+- **Behavior**: For each task, find mapped issue or create new, update issue fields, create subtask issues/checklists
+
+#### Feature: Two-Way Sync (Bidirectional)
+- **Description**: Synchronize changes in both directions, maintaining consistency
+- **Inputs**: Task list, GitHub issues, sync state, conflict resolution strategy
+- **Outputs**: Sync result with bidirectional changes applied
+- **Behavior**: Detect changes on both sides, apply non-conflicting changes automatically, flag conflicts for resolution
+
+#### Feature: Subtask Handling (Dual Mode)
+- **Description**: Support both checklist items and separate issues for subtasks
+- **Inputs**: Task with subtasks, subtask mode setting (checklist/separate-issues)
+- **Outputs**: Updated GitHub issue with checklist OR child issues with parent reference
+- **Behavior**:
+  - Checklist mode: Format subtasks as markdown checklist in issue body
+  - Separate issues mode: Create child issues, link via body reference, map dependencies
+
+#### Feature: Dependency Mapping
+- **Description**: Represent task dependencies in GitHub issue format
+- **Inputs**: Task dependencies (task IDs), task-issue mapping
+- **Outputs**: Issue body with dependency references, issue links
+- **Behavior**: Convert task IDs to issue numbers, add "Depends on #123" to body, update issue links
+
+### Capability: Field Mapping
+Transforms task-master data structures to/from GitHub Issue format with semantic preservation.
+
+#### Feature: Status Mapping
+- **Description**: Map task-master status to GitHub issue state and labels
+- **Inputs**: Task status (pending, in-progress, done, blocked, etc.)
+- **Outputs**: Issue state (open/closed) + status label (status:in-progress, etc.)
+- **Behavior**:
+  - pending → open + status:pending
+  - in-progress → open + status:in-progress
+  - done → closed + status:done
+  - blocked → open + status:blocked
+
+#### Feature: Priority Mapping
+- **Description**: Map task priority to GitHub labels with appropriate colors
+- **Inputs**: Task priority (low, medium, high, critical)
+- **Outputs**: Priority label (priority:low, priority:high, etc.) with color code
+- **Behavior**: Create/assign priority labels, use color scheme (low=green, high=orange, critical=red)
+
+#### Feature: Description Enrichment
+- **Description**: Combine task description, details, and testStrategy into rich markdown issue body
+- **Inputs**: Task description, details, testStrategy fields
+- **Outputs**: Formatted markdown issue body
+- **Behavior**: Create sections (## Implementation Details, ## Test Strategy), preserve markdown formatting, add metadata footer
+
+#### Feature: Complexity Metadata
+- **Description**: Include complexity analysis in issue metadata
+- **Inputs**: Task complexity (simple/moderate/complex/very-complex or numeric), recommendedSubtasks
+- **Outputs**: Complexity label, complexity in issue body metadata
+- **Behavior**: Add complexity:moderate label, include in body as metadata section
+
+### Capability: Conflict Resolution
+Detects and resolves synchronization conflicts when both systems have changed the same entity.
+
+#### Feature: Conflict Detection
+- **Description**: Identify when task and corresponding issue have both been modified since last sync
+- **Inputs**: Task updatedAt, issue updated_at, last sync timestamp
+- **Outputs**: Conflict record with conflict type and differing fields
+- **Behavior**: Compare timestamps, identify modified fields, determine if auto-merge possible
+
+#### Feature: Interactive Resolution
+- **Description**: Prompt user to choose resolution for conflicts
+- **Inputs**: Conflict details (field name, local value, remote value)
+- **Outputs**: User choice (keep local, keep remote, manual merge)
+- **Behavior**: Display diff, prompt with inquirer, apply chosen resolution, update sync state
+
+#### Feature: Auto-Resolution Strategies
+- **Description**: Automatically resolve conflicts based on configured strategy
+- **Inputs**: Conflict, resolution strategy (last-write-wins-local, last-write-wins-remote, timestamp-based)
+- **Outputs**: Resolved value
+- **Behavior**: Apply strategy logic, log resolution, skip interactive prompt
+
+### Capability: Configuration Management
+Manages GitHub integration settings, credentials, and user preferences.
+
+#### Feature: GitHub Configuration
+- **Description**: Store and validate GitHub credentials and repository settings
+- **Inputs**: GitHub token, owner, repo, preferences (subtask mode, sync features)
+- **Outputs**: Valid configuration saved to `.taskmaster/config.json`
+- **Behavior**: Validate token with API call, verify repo access, save encrypted token
+
+#### Feature: Interactive Setup
+- **Description**: Guide user through GitHub integration setup with prompts
+- **Inputs**: None (interactive)
+- **Outputs**: Complete GitHub configuration
+- **Behavior**: Prompt for token, list accessible repos, configure preferences, validate setup
+
+#### Feature: Credential Security
+- **Description**: Securely store GitHub token, supporting environment variables
+- **Inputs**: GitHub token (from prompt or env var)
+- **Outputs**: Token stored securely (env var preferred, config file fallback)
+- **Behavior**: Check GITHUB_TOKEN env var first, prompt if missing, validate token scopes
+
+</functional-decomposition>
+
+---
+
+<structural-decomposition>
+
+## Repository Structure
+
+```
+packages/tm-core/src/modules/integration/
+├── clients/
+│   ├── github-client.ts          # GitHub API Integration capability
+│   ├── supabase-client.ts        # Existing
+│   └── index.ts
+├── services/
+│   ├── export.service.ts         # Existing
+│   ├── github-sync.service.ts    # Synchronization Logic capability
+│   ├── github-sync-state.service.ts  # Sync State Management capability
+│   ├── github-field-mapper.ts    # Field Mapping capability
+│   ├── github-conflict-resolver.ts  # Conflict Resolution capability
+│   └── index.ts
+├── types/
+│   ├── github.types.ts           # Type definitions
+│   └── index.ts
+└── integration-domain.ts         # MODIFIED: Add GitHub methods
+
+apps/cli/src/commands/
+├── github-sync.command.ts        # Sync command
+├── github-configure.command.ts   # Setup command
+├── github-status.command.ts      # Status command
+└── index.ts                      # MODIFIED: Register commands
+
+.taskmaster/
+├── config.json                   # MODIFIED: Add github section
+└── github-sync-state.json        # NEW: Runtime sync state
+```
+
+## Module Definitions
+
+### Module: github-client
+- **Maps to capability**: GitHub API Integration
+- **Responsibility**: Provide clean abstraction over Octokit for all GitHub API operations
+- **File structure**:
+  ```
+  clients/
+  └── github-client.ts
+  ```
+- **Exports**:
+  - `GitHubClient` class with methods:
+    - `createIssue(data)` - Create new issue
+    - `updateIssue(number, data)` - Update existing issue
+    - `getIssue(number)` - Fetch issue details
+    - `listIssues(params)` - List issues with filters
+    - `deleteIssue(number)` - Delete/close issue
+    - `createLabel(label)` - Create label if not exists
+    - `addLabelsToIssue(number, labels)` - Assign labels
+    - `createMilestone(milestone)` - Create milestone
+    - `assignToMilestone(issueNumber, milestoneNumber)` - Assign issue
+    - `addToProject(issueNumber, projectId)` - Add to project board
+    - `updateProjectCard(cardId, columnId)` - Move card
+    - `addAssignees(issueNumber, assignees)` - Assign users
+
+### Module: github-sync-state.service
+- **Maps to capability**: Sync State Management
+- **Responsibility**: Maintain persistent mapping between tasks and issues
+- **File structure**:
+  ```
+  services/
+  └── github-sync-state.service.ts
+  ```
+- **Exports**:
+  - `GitHubSyncStateService` class with methods:
+    - `loadState()` - Read sync state from disk
+    - `saveState()` - Write sync state to disk
+    - `getMapping(taskId)` - Get issue number for task
+    - `setMapping(taskId, issueNumber, issueUrl)` - Record mapping
+    - `removeMapping(taskId)` - Delete mapping
+    - `detectChanges(tasks, issues)` - Find changed entities
+    - `recordSync(operation)` - Log sync event
+    - `getHistory()` - Retrieve sync history
+    - `markConflict(taskId, conflict)` - Flag conflict
+    - `clearConflict(taskId)` - Remove conflict marker
+    - `getConflicts()` - List all conflicts
+
+### Module: github-field-mapper
+- **Maps to capability**: Field Mapping
+- **Responsibility**: Transform task-master types to/from GitHub Issue format
+- **File structure**:
+  ```
+  services/
+  └── github-field-mapper.ts
+  ```
+- **Exports**:
+  - `GitHubFieldMapper` class with methods:
+    - `taskToIssue(task)` - Convert task to GitHub issue data
+    - `issueToTask(issue, existingTask)` - Convert issue to task updates
+    - `mapStatus(status)` - Task status → issue state + label
+    - `unmapStatus(state, labels)` - Issue state + labels → task status
+    - `mapPriority(priority)` - Task priority → label
+    - `unmapPriority(labels)` - Labels → task priority
+    - `enrichDescription(task)` - Combine description/details/testStrategy
+    - `parseDescription(body)` - Extract task fields from issue body
+    - `formatSubtasks(subtasks, mode)` - Create checklist or issue references
+    - `parseSubtasks(body, mode)` - Extract subtasks from body
+
+### Module: github-sync.service
+- **Maps to capability**: Synchronization Logic
+- **Responsibility**: Orchestrate sync operations between task-master and GitHub
+- **File structure**:
+  ```
+  services/
+  └── github-sync.service.ts
+  ```
+- **Exports**:
+  - `GitHubSyncService` class with methods:
+    - `syncToGitHub(options)` - One-way sync (push to GitHub)
+    - `syncWithGitHub(options)` - Two-way sync (bidirectional)
+    - `syncTask(task, mode)` - Sync individual task
+    - `syncIssue(issue)` - Pull changes from issue to task
+    - `handleSubtasks(task, issue, mode)` - Sync subtasks
+    - `syncDependencies(task, issue)` - Update dependency references
+    - `dryRun(options)` - Preview sync without applying
+
+### Module: github-conflict-resolver
+- **Maps to capability**: Conflict Resolution
+- **Responsibility**: Detect and resolve sync conflicts
+- **File structure**:
+  ```
+  services/
+  └── github-conflict-resolver.ts
+  ```
+- **Exports**:
+  - `GitHubConflictResolver` class with methods:
+    - `detectConflicts(task, issue, syncState)` - Find conflicts
+    - `resolveInteractive(conflicts)` - Prompt user for resolution
+    - `autoResolve(conflict, strategy)` - Apply resolution strategy
+    - `mergeFields(localValue, remoteValue, strategy)` - Merge logic
+
+### Module: integration-domain (MODIFIED)
+- **Maps to capability**: Configuration Management (partial) + facade
+- **Responsibility**: Provide unified API for GitHub integration
+- **Modifications**:
+  - Add GitHub sync methods to public interface
+- **New Exports**:
+  - `syncToGitHub(options)` - Delegate to sync service
+  - `syncWithGitHub(options)` - Delegate to sync service
+  - `resolveConflict(taskId, resolution)` - Delegate to resolver
+  - `getGitHubSyncStatus()` - Get state from state service
+  - `configureGitHub(config)` - Save GitHub settings
+
+### Module: github-sync.command
+- **Maps to capability**: CLI presentation layer
+- **Responsibility**: Expose sync functionality via CLI
+- **File structure**:
+  ```
+  commands/
+  └── github-sync.command.ts
+  ```
+- **Exports**:
+  - `GitHubSyncCommand` class extending `Command`
+  - Options: --mode, --repo, --dry-run, --force, --subtask-mode
+
+### Module: github-configure.command
+- **Maps to capability**: CLI presentation layer for setup
+- **Responsibility**: Interactive GitHub configuration
+- **File structure**:
+  ```
+  commands/
+  └── github-configure.command.ts
+  ```
+- **Exports**:
+  - `GitHubConfigureCommand` class extending `Command`
+
+### Module: github-status.command
+- **Maps to capability**: CLI presentation layer for status
+- **Responsibility**: Display sync state and conflicts
+- **File structure**:
+  ```
+  commands/
+  └── github-status.command.ts
+  ```
+- **Exports**:
+  - `GitHubStatusCommand` class extending `Command`
+
+</structural-decomposition>
+
+---
+
+<dependency-graph>
+
+## Dependency Chain
+
+### Foundation Layer (Phase 0)
+No dependencies - these are built first.
+
+- **github-client**: Provides GitHub API abstraction (uses Octokit library)
+- **github-field-mapper**: Provides type transformations (pure functions, no external dependencies)
+- **github.types**: Type definitions for GitHub entities
+
+### Core Layer (Phase 1)
+- **github-sync-state.service**: Depends on [github.types]
+  - Needs type definitions for state structure
+  - No dependency on API client (pure storage)
+
+### Integration Layer (Phase 2)
+- **github-sync.service**: Depends on [github-client, github-field-mapper, github-sync-state.service, TasksDomain from existing]
+  - Uses client for API calls
+  - Uses mapper for transformations
+  - Uses state service for tracking
+  - Uses TasksDomain to read/update local tasks
+
+- **github-conflict-resolver**: Depends on [github.types, github-field-mapper]
+  - Uses types for conflict structure
+  - Uses mapper for field comparison logic
+
+### Domain Layer (Phase 3)
+- **integration-domain (modifications)**: Depends on [github-sync.service, github-conflict-resolver, github-sync-state.service]
+  - Facades sync service
+  - Facades conflict resolver
+  - Provides unified API
+
+### CLI Layer (Phase 4)
+- **github-sync.command**: Depends on [integration-domain, github-sync.service for options types]
+  - Calls integration domain methods
+  - Presents results to user
+
+- **github-configure.command**: Depends on [integration-domain, github-client for validation]
+  - Configures GitHub settings
+  - Validates credentials
+
+- **github-status.command**: Depends on [integration-domain, github-sync-state.service]
+  - Displays sync state
+  - Shows conflicts
+
+</dependency-graph>
+
+---
+
+<implementation-roadmap>
+
+## Development Phases
+
+### Phase 0: Foundation - GitHub API Client & Type System
+**Goal**: Establish GitHub API communication layer with proper TypeScript types
+
+**Entry Criteria**:
+- Clean main branch
+- @octokit/rest added to dependencies
+- TypeScript compilation working
+
+**Tasks**:
+- [ ] Define GitHub type definitions (depends on: none)
+  - Acceptance criteria:
+    - GitHubIssue, GitHubLabel, GitHubMilestone interfaces defined
+    - SyncMapping, SyncConflict, SyncState interfaces defined
+    - SyncOptions, SyncResult types defined
+  - Test strategy: TypeScript compilation succeeds, types export correctly
+
+- [ ] Implement GitHubClient class (depends on: none)
+  - Acceptance criteria:
+    - Authenticates with token
+    - CRUD operations for issues work
+    - Label creation and assignment work
+    - Rate limiting handled
+    - Errors properly typed and thrown
+  - Test strategy:
+    - Unit tests with mocked Octokit
+    - Integration tests against test repository
+    - Error handling tests
+
+- [ ] Implement GitHubFieldMapper service (depends on: github.types)
+  - Acceptance criteria:
+    - taskToIssue() converts all fields correctly
+    - issueToTask() parses issue data back to task format
+    - Status mapping preserves semantic meaning
+    - Priority labels created with correct colors
+    - Description enrichment preserves markdown
+  - Test strategy:
+    - Unit tests for each mapping function
+    - Round-trip tests (task → issue → task)
+    - Edge cases (missing fields, null values)
+
+**Exit Criteria**:
+- Can create/update/read GitHub issues programmatically
+- All type definitions compile
+- Unit tests pass for client and mapper
+
+**Delivers**:
+- Developers can import GitHubClient and perform API operations
+- Type-safe GitHub entity handling throughout codebase
+
+---
+
+### Phase 1: Sync State Management
+**Goal**: Track mappings between tasks and issues, enabling incremental sync
+
+**Entry Criteria**: Phase 0 complete
+
+**Tasks**:
+- [ ] Implement GitHubSyncStateService (depends on: [github.types from Phase 0])
+  - Acceptance criteria:
+    - Loads/saves state from .taskmaster/github-sync-state.json
+    - Handles concurrent access safely
+    - Provides fast lookup by task ID
+    - Stores sync history
+    - Manages conflict markers
+  - Test strategy:
+    - Unit tests for state operations
+    - Concurrent access tests
+    - State file corruption recovery tests
+    - Performance tests (1000+ mappings)
+
+- [ ] Define sync state JSON schema (depends on: [github.types from Phase 0])
+  - Acceptance criteria:
+    - JSON schema validates state structure
+    - Migration path from empty → populated state
+    - Backward compatibility considered
+  - Test strategy:
+    - Schema validation tests
+    - Example state files validate
+
+**Exit Criteria**:
+- State persists across restarts
+- Can track 1000+ task-issue mappings efficiently
+- Conflict markers work correctly
+
+**Delivers**:
+- Persistent sync state tracking
+- Foundation for change detection
+
+---
+
+### Phase 2: One-Way Sync (Task → GitHub)
+**Goal**: Push local tasks to GitHub Issues without pulling changes back
+
+**Entry Criteria**:
+- Phase 0 complete (client, mapper ready)
+- Phase 1 complete (state management ready)
+
+**Tasks**:
+- [ ] Implement GitHubSyncService.syncToGitHub() (depends on: [github-client, github-field-mapper, github-sync-state.service from Phase 0-1])
+  - Acceptance criteria:
+    - Creates new issues for unmapped tasks
+    - Updates existing issues for mapped tasks
+    - Handles subtasks in checklist mode
+    - Handles subtasks in separate-issues mode
+    - Applies labels (status, priority, complexity)
+    - Records mappings in state
+  - Test strategy:
+    - Unit tests with mocked GitHub client
+    - Integration tests creating real issues
+    - Subtask mode tests (both modes)
+    - Large batch tests (100+ tasks)
+
+- [ ] Implement dependency mapping in sync (depends on: [github-sync.service])
+  - Acceptance criteria:
+    - Task dependencies converted to issue references
+    - "Depends on #123" added to issue body
+    - Broken references handled gracefully
+  - Test strategy:
+    - Dependency chain tests
+    - Circular dependency detection
+    - Missing dependency handling
+
+- [ ] Implement dry-run mode (depends on: [github-sync.service])
+  - Acceptance criteria:
+    - Shows what would change without applying
+    - Accurate preview of creates/updates
+    - No API calls made in dry-run
+  - Test strategy:
+    - Dry-run vs actual sync comparison
+    - Verify no side effects
+
+**Exit Criteria**:
+- Can sync 50 tasks to GitHub in <5 seconds
+- Subtasks work in both modes
+- Dependencies preserved
+- Dry-run accurately previews changes
+
+**Delivers**:
+- Users can push task-master tasks to GitHub
+- Team visibility into local work
+
+---
+
+### Phase 3: Two-Way Sync & Conflict Resolution
+**Goal**: Bidirectional sync with conflict detection and resolution
+
+**Entry Criteria**:
+- Phase 2 complete (one-way sync working)
+
+**Tasks**:
+- [ ] Implement change detection in state service (depends on: [github-sync-state.service from Phase 1])
+  - Acceptance criteria:
+    - Detects tasks modified locally since last sync
+    - Detects issues modified remotely since last sync
+    - Compares timestamps accurately
+  - Test strategy:
+    - Timestamp comparison tests
+    - Edge cases (same-second updates)
+
+- [ ] Implement GitHubConflictResolver service (depends on: [github.types, github-field-mapper from Phase 0])
+  - Acceptance criteria:
+    - Detects conflicts when both sides modified
+    - Identifies conflicting fields
+    - Provides interactive resolution
+    - Supports auto-resolution strategies
+  - Test strategy:
+    - Conflict detection tests
+    - Resolution strategy tests
+    - Interactive prompt tests (mocked inquirer)
+
+- [ ] Implement GitHubSyncService.syncWithGitHub() (depends on: [github-sync.service, github-conflict-resolver])
+  - Acceptance criteria:
+    - Pulls changes from GitHub to local tasks
+    - Pushes changes from local to GitHub
+    - Detects conflicts
+    - Routes conflicts to resolver
+    - Applies non-conflicting changes automatically
+  - Test strategy:
+    - Bidirectional sync scenarios
+    - Conflict scenarios (same field modified)
+    - Mixed scenarios (some conflicts, some clean)
+
+**Exit Criteria**:
+- Two-way sync maintains consistency
+- Conflicts detected with 100% accuracy
+- Interactive resolution works for all conflict types
+- Auto-resolution strategies work
+
+**Delivers**:
+- True bidirectional sync
+- Confidence in data consistency
+- Conflict resolution workflows
+
+---
+
+### Phase 4: Advanced GitHub Features
+**Goal**: Support milestones, projects, and assignees
+
+**Entry Criteria**:
+- Phase 3 complete (core sync working)
+
+**Tasks**:
+- [ ] Implement milestone support (depends on: [github-client, github-sync.service from Phase 0,2])
+  - Acceptance criteria:
+    - Creates milestones for task groups
+    - Assigns issues to milestones
+    - Syncs milestone metadata
+  - Test strategy:
+    - Milestone CRUD tests
+    - Assignment tests
+
+- [ ] Implement project board integration (depends on: [github-client, github-sync.service from Phase 0,2])
+  - Acceptance criteria:
+    - Adds issues to projects
+    - Updates column based on status
+    - Handles project permissions
+  - Test strategy:
+    - Project integration tests
+    - Column movement tests
+
+- [ ] Implement assignee sync (depends on: [github-client, github-sync.service from Phase 0,2])
+  - Acceptance criteria:
+    - Syncs task assignee to issue assignees
+    - Validates GitHub usernames
+    - Handles multiple assignees
+  - Test strategy:
+    - Assignee sync tests
+    - Invalid username handling
+
+**Exit Criteria**:
+- Milestones, projects, assignees all sync correctly
+- Feature flags allow disabling features
+
+**Delivers**:
+- Full-featured GitHub integration
+- Enterprise-ready collaboration support
+
+---
+
+### Phase 5: CLI Commands & User Experience
+**Goal**: Expose functionality via user-friendly CLI commands
+
+**Entry Criteria**:
+- Phase 3 complete (sync logic working)
+- Phase 4 desirable but not required
+
+**Tasks**:
+- [ ] Implement github-configure command (depends on: [integration-domain, github-client for validation from Phase 0,3])
+  - Acceptance criteria:
+    - Interactive prompts for token, repo, preferences
+    - Validates token and repo access
+    - Saves configuration to config.json
+    - Supports environment variable token
+  - Test strategy:
+    - Command execution tests
+    - Validation tests
+    - Config persistence tests
+
+- [ ] Implement github-sync command (depends on: [integration-domain, github-sync.service from Phase 2-3])
+  - Acceptance criteria:
+    - --mode one-way/two-way options work
+    - --dry-run shows preview
+    - --force skips prompts
+    - --subtask-mode configures subtask handling
+    - Progress indicators for long syncs
+    - Clear success/error messages
+  - Test strategy:
+    - Command option tests
+    - Error message tests
+    - Progress indicator tests
+
+- [ ] Implement github-status command (depends on: [integration-domain, github-sync-state.service from Phase 1])
+  - Acceptance criteria:
+    - Shows sync state summary
+    - Lists conflicts with details
+    - Shows last sync timestamp
+    - Indicates mapped vs unmapped tasks
+  - Test strategy:
+    - Status display tests
+    - Edge cases (no state file, no conflicts)
+
+- [ ] Update integration-domain facade (depends on: [github-sync.service, github-conflict-resolver from Phase 2-3])
+  - Acceptance criteria:
+    - syncToGitHub() method exposed
+    - syncWithGitHub() method exposed
+    - resolveConflict() method exposed
+    - getGitHubSyncStatus() method exposed
+    - Clean error handling
+  - Test strategy:
+    - Domain facade tests
+    - Error propagation tests
+
+**Exit Criteria**:
+- All commands work end-to-end
+- Help text clear and accurate
+- Error messages actionable
+- UX feels polished
+
+**Delivers**:
+- Users can configure and use GitHub sync via CLI
+- Complete feature ready for release
+
+---
+
+### Phase 6: Documentation & Testing
+**Goal**: Comprehensive tests and user documentation
+
+**Entry Criteria**:
+- Phase 5 complete (full feature implemented)
+
+**Tasks**:
+- [ ] Write integration test suite (depends on: [all modules from Phase 0-5])
+  - Acceptance criteria:
+    - Tests against real GitHub test repository
+    - Covers all sync scenarios
+    - Tests error handling
+    - Performance tests
+  - Test strategy:
+    - GitHub Actions workflow for CI
+    - Test repository setup documentation
+
+- [ ] Write user documentation (depends on: [CLI commands from Phase 5])
+  - Acceptance criteria:
+    - Quick start guide
+    - Configuration reference
+    - Sync workflow examples
+    - Troubleshooting guide
+    - FAQ section
+  - Test strategy:
+    - Documentation review
+    - Example validation
+
+- [ ] Create example configurations (depends on: [configuration schema])
+  - Acceptance criteria:
+    - Example config.json with GitHub section
+    - Example .env with GITHUB_TOKEN
+    - Example workflows (solo dev, team lead)
+  - Test strategy:
+    - Examples tested against implementation
+
+**Exit Criteria**:
+- Test coverage >80%
+- Documentation complete and accurate
+- Examples work as written
+
+**Delivers**:
+- Production-ready feature
+- Users can self-service setup and usage
+- Maintainable codebase
+
+</implementation-roadmap>
+
+---
+
+<test-strategy>
+
+## Test Pyramid
+
+```
+        /\
+       /E2E\       ← 10% (End-to-end CLI commands against real GitHub)
+      /------\
+     /Integration\ ← 30% (Module interactions, mocked GitHub API)
+    /------------\
+   /  Unit Tests  \ ← 60% (Fast, isolated, deterministic)
+  /----------------\
+```
+
+## Coverage Requirements
+- Line coverage: 80% minimum
+- Branch coverage: 75% minimum
+- Function coverage: 90% minimum
+- Statement coverage: 80% minimum
+
+## Critical Test Scenarios
+
+### GitHubClient
+**Happy path**:
+- Create issue with all fields → issue created with correct data
+- Update existing issue → changes applied
+- Get issue by number → returns issue data
+- Expected: All API calls succeed, data matches
+
+**Edge cases**:
+- Rate limiting triggered → retry with backoff
+- Large issue body (>65k chars) → truncate or fail gracefully
+- Special characters in title → properly escaped
+- Expected: Graceful handling, no crashes
+
+**Error cases**:
+- Invalid token → AuthenticationError thrown
+- Repository not found → NotFoundError thrown
+- Permission denied → PermissionError thrown
+- Network timeout → Retry then fail with clear error
+- Expected: Typed errors, actionable messages
+
+**Integration points**:
+- Client used by sync service → issues created correctly
+- Expected: End-to-end issue creation
+
+### GitHubFieldMapper
+**Happy path**:
+- Task with all fields → complete issue data
+- Issue with all fields → complete task updates
+- Round-trip (task → issue → task) → data preserved
+- Expected: No data loss, semantic equivalence
+
+**Edge cases**:
+- Task with empty description → issue body has placeholder
+- Task with 10 subtasks → checklist mode creates 10 items
+- Task with complex dependencies → all references preserved
+- Expected: Correct handling of edge conditions
+
+**Error cases**:
+- Invalid status value → default to pending
+- Missing required field → throw validation error
+- Malformed issue body → parse what's possible, log warning
+- Expected: Robust parsing, clear errors
+
+### GitHubSyncService
+**Happy path**:
+- Sync 10 new tasks → 10 issues created, state updated
+- Sync 10 updated tasks → 10 issues updated, no duplicates
+- Two-way sync with no conflicts → changes flow both ways
+- Expected: All tasks synced successfully
+
+**Edge cases**:
+- Sync with --dry-run → preview shown, no API calls
+- Sync task with 20 subtasks → all subtasks handled
+- Sync with complex dependency chain → order preserved
+- Expected: Correct behavior in complex scenarios
+
+**Error cases**:
+- GitHub API down → fail gracefully, state unchanged
+- Partial failure (5/10 succeed) → log failures, state reflects success
+- Conflict detected → route to resolver, don't auto-apply
+- Expected: Partial success handling, rollback on critical failures
+
+**Integration points**:
+- Sync service + state service → mappings persisted
+- Sync service + conflict resolver → conflicts resolved
+- Expected: Coordinated behavior across services
+
+### GitHubConflictResolver
+**Happy path**:
+- Conflict on title field → user chooses local → local applied
+- Multiple conflicts → user resolves one-by-one → all resolved
+- Auto-resolution with timestamp strategy → newer wins
+- Expected: Conflicts resolved as specified
+
+**Edge cases**:
+- Conflict on every field → all fields resolved
+- Same timestamp (to the second) → prompt user
+- Auto-resolution impossible → fall back to interactive
+- Expected: All conflicts resolvable
+
+**Error cases**:
+- User cancels resolution → conflict persists, task not synced
+- Invalid strategy specified → use default (interactive)
+- Expected: Graceful degradation
+
+### GitHubSyncStateService
+**Happy path**:
+- Save 100 mappings → file written, all mappings retrievable
+- Load existing state → state restored correctly
+- Update single mapping → only that mapping changes
+- Expected: Reliable state persistence
+
+**Edge cases**:
+- State file doesn't exist → create new empty state
+- State file corrupted → backup old, create new
+- 1000+ mappings → performance acceptable (<100ms)
+- Expected: Robust file handling
+
+**Error cases**:
+- Disk full → throw clear error
+- Permissions denied → throw clear error
+- Concurrent writes → last write wins (or lock file)
+- Expected: File system errors handled
+
+## Test Generation Guidelines
+
+1. **Use mocked GitHub API for unit tests**: Don't hit real GitHub in unit tests. Use fixtures and mocks.
+
+2. **Create dedicated test repository for integration tests**: Set up a GitHub repository specifically for testing. Clean it between test runs.
+
+3. **Test both subtask modes**: Every subtask test should run twice - once in checklist mode, once in separate-issues mode.
+
+4. **Test conflict scenarios exhaustively**: Conflicts are the hardest part. Test every field type (title, description, status, etc.) in conflict.
+
+5. **Performance tests matter**: Test with realistic task counts (50, 100, 500 tasks). Set timeouts.
+
+6. **Test error messages**: Verify error messages are clear and actionable. Include suggestions for resolution.
+
+7. **Test state file corruption recovery**: Corrupt the state file and verify graceful recovery.
+
+8. **Test idempotency**: Running sync twice should have same result as running once (no duplicates).
+
+</test-strategy>
+
+---
+
+<architecture>
+
+## System Components
+
+### GitHub Integration Layer
+- **GitHubClient**: Thin wrapper over @octokit/rest, provides task-master-specific API operations
+- **GitHubFieldMapper**: Bidirectional transformation between task-master and GitHub data models
+- **GitHubSyncService**: Orchestrates sync operations, coordinates between local storage and remote API
+- **GitHubSyncStateService**: Manages sync metadata and change tracking
+- **GitHubConflictResolver**: Detects and resolves conflicts with user interaction
+
+### Integration with Existing Architecture
+- **IntegrationDomain**: Extended to include GitHub methods alongside existing export functionality
+- **ConfigManager**: Reads GitHub configuration from config.json and environment variables
+- **TasksDomain**: Consumed by sync service to read/write local tasks
+- **CLI Commands**: Thin presentation layer over integration domain (follows existing pattern)
+
+## Data Models
+
+### Sync State Schema
+```typescript
+interface GitHubSyncState {
+  version: string;
+  lastSync: string; // ISO timestamp
+  repository: {
+    owner: string;
+    repo: string;
+  };
+  mappings: {
+    [taskId: string]: {
+      issueNumber: number;
+      issueUrl: string;
+      lastSyncedAt: string;
+      localUpdatedAt: string;
+      remoteUpdatedAt: string;
+    };
+  };
+  conflicts: {
+    [taskId: string]: {
+      detectedAt: string;
+      fields: Array<{
+        field: string;
+        localValue: any;
+        remoteValue: any;
+      }>;
+    };
+  };
+  history: Array<{
+    timestamp: string;
+    operation: 'one-way' | 'two-way' | 'resolve-conflict';
+    tasksAffected: number;
+    success: boolean;
+    error?: string;
+  }>;
+}
+```
+
+### Configuration Schema Extension
+```typescript
+interface GitHubConfig {
+  token: string; // Or ${GITHUB_TOKEN}
+  owner: string;
+  repo: string;
+  subtaskMode: 'checklist' | 'separate-issues';
+  syncLabels: boolean;
+  syncMilestones: boolean;
+  syncProjects: boolean;
+  syncAssignees: boolean;
+  conflictResolution: 'interactive' | 'last-write-wins-local' | 'last-write-wins-remote' | 'timestamp-based';
+}
+```
+
+## Technology Stack
+
+**New Dependencies**:
+- `@octokit/rest@^20.0.0` - Official GitHub REST API client
+- `@octokit/types@^12.0.0` - TypeScript types for GitHub API
+
+**Existing Dependencies** (reused):
+- `inquirer@^12.5.0` - Interactive prompts for conflict resolution
+- `chalk@5.6.2` - Colorized CLI output
+- `commander@^12.1.0` - CLI framework
+- `simple-git@^3.28.0` - May be useful for git-aware operations
+
+**Decision: Octokit over direct fetch()**
+- **Rationale**: Octokit handles authentication, rate limiting, pagination, retries automatically. Well-maintained by GitHub.
+- **Trade-offs**: Adds dependency, but saves significant implementation time and reduces bugs
+- **Alternatives considered**: Direct fetch() calls, github-api library (less maintained)
+
+**Decision: Separate-issues mode for subtasks**
+- **Rationale**: Enables full GitHub issue workflow per subtask (comments, assignees, references)
+- **Trade-offs**: More API calls, more complex state tracking
+- **Alternatives considered**: Checklist-only (simpler but less powerful)
+
+**Decision: JSON file for sync state**
+- **Rationale**: Simple, human-readable, git-ignorable, no database needed
+- **Trade-offs**: Concurrent access requires care, file corruption possible
+- **Alternatives considered**: SQLite (overkill), Supabase integration (introduces auth dependency)
+
+</architecture>
+
+---
+
+<risks>
+
+## Technical Risks
+
+**Risk**: GitHub API rate limiting
+- **Impact**: High - could block syncs for users with many tasks
+- **Likelihood**: Medium - depends on task count and sync frequency
+- **Mitigation**:
+  - Implement batch operations where possible
+  - Cache issue data to minimize reads
+  - Show rate limit status in `github-status` command
+  - Use conditional requests (If-Modified-Since)
+- **Fallback**: Queue operations and retry after rate limit reset
+
+**Risk**: Sync state file corruption
+- **Impact**: High - lost mappings mean duplicate issues created
+- **Likelihood**: Low - but possible with crashes or disk issues
+- **Mitigation**:
+  - Write to temp file then atomic rename
+  - Keep backup of previous state
+  - Validate JSON schema on load
+  - Provide `github-sync --rebuild-state` to reconstruct from GitHub
+- **Fallback**: Manual state file repair with documentation
+
+**Risk**: Conflict resolution logic complexity
+- **Impact**: Medium - bugs here could lead to data loss
+- **Likelihood**: Medium - conflicts are inherently complex
+- **Mitigation**:
+  - Extensive testing of conflict scenarios
+  - Never auto-resolve ambiguous conflicts
+  - Always show diff before applying resolution
+  - Implement undo functionality
+- **Fallback**: Manual GitHub edits if auto-resolution fails
+
+**Risk**: Large task sets (1000+ tasks) performance
+- **Impact**: Medium - slow syncs frustrate users
+- **Likelihood**: Low - most users have <100 tasks
+- **Mitigation**:
+  - Batch API requests (100 at a time)
+  - Parallelize independent operations
+  - Incremental sync (only changed tasks)
+  - Progress indicators
+- **Fallback**: Documentation on breaking large task sets into multiple repos
+
+## Dependency Risks
+
+**Risk**: Octokit API changes
+- **Impact**: Medium - breaking changes could break integration
+- **Likelihood**: Low - Octokit follows semver, we pin version
+- **Mitigation**:
+  - Pin to specific minor version
+  - Test against Octokit updates before upgrading
+  - Abstract Octokit behind GitHubClient interface
+- **Fallback**: Stay on working version, gradual migration
+
+**Risk**: GitHub API deprecations
+- **Impact**: High - deprecated endpoints eventually stop working
+- **Likelihood**: Low - GitHub gives long deprecation windows
+- **Mitigation**:
+  - Monitor GitHub changelog
+  - Use stable API versions
+  - Test against GitHub beta API periodically
+- **Fallback**: Migrate to new endpoints when announced
+
+## Scope Risks
+
+**Risk**: Scope creep (GitHub Actions integration, webhooks, etc.)
+- **Impact**: Medium - delays release
+- **Likelihood**: High - many related features could be added
+- **Mitigation**:
+  - Strict adherence to PRD scope
+  - Document future features separately
+  - Focus on core sync workflow first
+- **Fallback**: Phase 2 release with extended features
+
+**Risk**: Underestimation of conflict resolution complexity
+- **Impact**: High - insufficient conflict handling breaks trust
+- **Likelihood**: Medium - conflicts are complex
+- **Mitigation**:
+  - Prototype conflict resolver early
+  - User testing with conflicts
+  - Conservative auto-resolution (prefer interactive)
+- **Fallback**: Ship with interactive-only resolution, add auto-strategies later
+
+**Risk**: Subtask separate-issues mode edge cases
+- **Impact**: Medium - broken subtask syncs
+- **Likelihood**: Medium - complex dependency chains
+- **Mitigation**:
+  - Thorough testing of subtask scenarios
+  - Validation of parent-child relationships
+  - Clear error messages when subtask sync fails
+- **Fallback**: Recommend checklist mode for complex cases
+
+</risks>
+
+---
+
+<appendix>
+
+## References
+
+**GitHub API Documentation**:
+- https://docs.github.com/en/rest
+- https://docs.github.com/en/rest/issues
+- https://docs.github.com/en/rest/projects
+
+**Octokit Documentation**:
+- https://octokit.github.io/rest.js/
+- https://github.com/octokit/rest.js
+
+**Similar Systems**:
+- Linear-GitHub sync
+- Jira-GitHub integration
+- Task Master's existing Hamster export (packages/tm-core/src/modules/integration/services/export.service.ts)
+
+**Task Master Architecture**:
+- Domain-driven design with @tm/core business logic
+- Thin CLI presentation layer
+- Storage abstraction (file-based and API-based)
+
+## Glossary
+
+**One-way sync**: Pushing local changes to GitHub without pulling remote changes back
+**Two-way sync**: Bidirectional synchronization with conflict detection
+**Sync state**: Persistent mapping between task IDs and GitHub issue numbers
+**Conflict**: When both local task and remote issue have been modified since last sync
+**Field mapping**: Transformation rules between task-master fields and GitHub issue fields
+**Subtask modes**:
+  - Checklist mode: Subtasks become markdown checklist items in parent issue body
+  - Separate-issues mode: Each subtask becomes its own GitHub issue with parent reference
+
+## Open Questions
+
+1. **Should we support multiple GitHub repositories per project?**
+   - Current design assumes single repo
+   - Future enhancement: config.github could be array of repos
+
+2. **How to handle GitHub Projects v2 (GraphQL API)?**
+   - Current design uses REST API
+   - Projects v2 requires GraphQL
+   - Decision: Start with Projects Classic (REST), add v2 later
+
+3. **Should we sync task tags to GitHub labels?**
+   - Not in scope for Phase 1
+   - Could add in Phase 4 alongside other advanced features
+
+4. **How to handle task deletion?**
+   - Delete issue or close it?
+   - Decision: Close issue (preserves history)
+
+5. **Should we support GitHub Enterprise?**
+   - Need custom API endpoint configuration
+   - May require different auth flows
+   - Decision: Support via baseUrl config option
+
+</appendix>
+
+---
+
+<task-master-integration>
+
+# How Task Master Will Parse This PRD
+
+When running `task-master parse-prd github-integration-prd.txt`:
+
+## Extraction Logic
+
+1. **Capabilities → Main Tasks**
+   - `### Capability: GitHub API Integration` → Task 1
+   - `### Capability: Sync State Management` → Task 2
+   - `### Capability: Synchronization Logic` → Task 3
+   - `### Capability: Field Mapping` → Task 4
+   - `### Capability: Conflict Resolution` → Task 5
+   - `### Capability: Configuration Management` → Task 6
+
+2. **Features → Subtasks**
+   - `#### Feature: Issue CRUD Operations` → Task 1, Subtask 1
+   - `#### Feature: Label Management` → Task 1, Subtask 2
+   - And so on...
+
+3. **Dependencies from Dependency Graph**
+   - Phase 0 tasks have no dependencies
+   - Phase 1 tasks depend on Phase 0 tasks
+   - Phase 2 tasks depend on Phase 1 tasks
+   - Etc.
+
+4. **Phases → Task Priorities**
+   - Phase 0: Priority = critical
+   - Phase 1: Priority = high
+   - Phase 2: Priority = high
+   - Phase 3: Priority = medium
+   - Phase 4: Priority = medium
+   - Phase 5: Priority = medium
+   - Phase 6: Priority = low
+
+5. **Test Strategy → Task testStrategy Fields**
+   - Critical Test Scenarios section content → task.testStrategy
+   - Provides context for test generation during RED phase
+
+## Resulting Task Structure
+
+```
+Task 1: Implement GitHub API Integration (Phase 0, critical)
+  Dependencies: []
+  Subtask 1.1: Issue CRUD Operations
+  Subtask 1.2: Label Management
+  Subtask 1.3: Milestone Management
+  Subtask 1.4: Project Board Integration
+  Subtask 1.5: Assignee Management
+
+Task 2: Implement Sync State Management (Phase 1, high)
+  Dependencies: [1]
+  Subtask 2.1: Task-Issue Mapping Storage
+  Subtask 2.2: Change Detection
+  Subtask 2.3: Sync History Tracking
+  Subtask 2.4: Conflict Markers
+
+Task 3: Implement Field Mapping (Phase 0, critical)
+  Dependencies: []
+  Subtask 3.1: Status Mapping
+  Subtask 3.2: Priority Mapping
+  Subtask 3.3: Description Enrichment
+  Subtask 3.4: Complexity Metadata
+
+... and so on
+```
+
+## Why This Structure Matters for Task Master
+
+1. **Topological Execution**: Task Master can execute tasks in dependency order, building foundation before dependent features
+
+2. **Parallel Execution**: Tasks in same phase with no inter-dependencies can be executed in parallel
+
+3. **Clear Scope**: Each task/subtask maps directly to a code module or feature
+
+4. **Test Generation**: testStrategy content guides Surgical Test Generator during TDD workflow
+
+5. **Progress Tracking**: Clear phases provide milestones for user visibility
+
+6. **Incremental Value**: Each phase delivers something usable, not just infrastructure
+
+## Recommended Next Steps
+
+1. Run `task-master parse-prd .taskmaster/docs/github-integration-prd.txt --research`
+2. Review generated tasks with `task-master list`
+3. Use `task-master expand --all --research` to break down complex tasks further
+4. Start implementation with `task-master next` to get Phase 0 tasks
+5. Follow TDD workflow for each task
+
+</task-master-integration>
